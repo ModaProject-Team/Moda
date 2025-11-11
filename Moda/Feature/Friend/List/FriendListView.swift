@@ -48,7 +48,7 @@ struct FriendListView: View {
                     .listRowBackground(Color.clear)
                     .listRowInsets(.init(top: 8, leading: 16, bottom: 8, trailing: 16))
             }
-			// 친구 섹션
+            // 친구 섹션
             Section {
                 ForEach(friends) { person in
                     FriendRow(people: person)
@@ -63,6 +63,23 @@ struct FriendListView: View {
         .listStyle(.plain)
         .navigationTitle("친구")
         .navigationBarTitleDisplayMode(.large)
+        .toolbar {
+            ToolbarItemGroup(placement: .navigationBarTrailing) {
+                Button {
+                    // TODO: 친구 검색 화면
+                } label: {
+                    Image(systemName: "magnifyingglass")
+                }
+                .accessibilityLabel("친구 검색")
+
+                Button {
+                    // TODO: 친구 추가 화면
+                } label: {
+                    Image(systemName: "person.badge.plus")
+                }
+                .accessibilityLabel("친구 추가")
+            }
+        }
     }
 }
 
