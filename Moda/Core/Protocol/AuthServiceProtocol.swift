@@ -1,0 +1,16 @@
+//
+//  AuthServiceProtocol.swift
+//  Moda
+//
+//  Created by 금가경 on 11/12/24.
+//
+
+import Foundation
+
+protocol AuthServiceProtocol {
+    func signUp(email: String, password: String, nickname: String) async throws -> SignUpResponse
+    func login(email: String, password: String) async throws -> LoginResponse
+    func loginWithKakao(idToken: String) async throws -> LoginResponse
+    func loginWithApple(idToken: String) async throws -> LoginResponse
+    func logout()
+}
