@@ -70,14 +70,12 @@ struct FriendListView: View {
                 } label: {
                     Image(systemName: "magnifyingglass")
                 }
-                .accessibilityLabel("친구 검색")
 
                 Button {
                     // TODO: 친구 추가 화면
                 } label: {
                     Image(systemName: "person.badge.plus")
                 }
-                .accessibilityLabel("친구 추가")
             }
         }
     }
