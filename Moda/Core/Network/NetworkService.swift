@@ -106,11 +106,11 @@ final class NetworkService: NetworkServiceProtocol {
     /// 타임아웃 설정이 적용된 커스텀 configuration을 사용합니다.
     private let session: URLSession
 
-    /// 토큰 갱신 중인지 여부를 나타내는 플래그
-    private var isRefreshing = false
-
-    /// 토큰 갱신 대기 중인 작업들
-    private var refreshTasks: [CheckedContinuation<Void, Error>] = []
+    /// Request Interceptor 목록
+    ///
+    /// 요청/응답을 가로채서 처리하는 Interceptor들의 배열입니다.
+    /// 순서대로 실행됩니다.
+    private var interceptors: [RequestInterceptor] = []
 
     /// 네트워크 서비스를 초기화합니다
     ///
@@ -135,6 +135,16 @@ final class NetworkService: NetworkServiceProtocol {
         configuration.timeoutIntervalForRequest = 30
         configuration.timeoutIntervalForResource = 60
         self.session = URLSession(configuration: configuration)
+
+        // 기본 Interceptor 추가
+        self.interceptors = [TokenRefreshInterceptor()]
+    }
+
+    /// Interceptor를 추가합니다
+    ///
+    /// - Parameter interceptor: 추가할 RequestInterceptor
+    func addInterceptor(_ interceptor: RequestInterceptor) {
+        interceptors.append(interceptor)
     }
 
     /// API 요청을 수행하고 응답을 디코딩합니다
@@ -206,39 +216,44 @@ final class NetworkService: NetworkServiceProtocol {
             throw NetworkError.networkFailure
         }
 
-        let request = try endpoint.asURLRequest()
+        var request = try endpoint.asURLRequest()
 
-        let (data, response) = try await session.data(for: request)
-
-        guard let httpResponse = response as? HTTPURLResponse else {
-            throw NetworkError.invalidResponse
+        // Interceptor: adapt (요청 전 처리)
+        for interceptor in interceptors {
+            request = try await interceptor.adapt(request)
         }
 
-        switch httpResponse.statusCode {
-        case 200...299:
+        do {
+            let (data, response) = try await session.data(for: request)
+
+            guard let httpResponse = response as? HTTPURLResponse else {
+                throw NetworkError.invalidResponse
+            }
+
+            // 상태 코드에 따른 에러 생성
+            if let error = handleHTTPStatusCode(httpResponse.statusCode, data: data) {
+                throw error
+            }
+
+            // 성공 응답 디코딩
             do {
                 let decodedData = try JSONDecoder().decode(T.self, from: data)
                 return decodedData
             } catch {
                 throw NetworkError.decodingError
             }
-        case 419:
-            // accessToken 만료 - 자동 갱신 후 재시도
-            try await refreshTokenIfNeeded()
-            return try await self.request(endpoint: endpoint, responseType: responseType)
-        case 418:
-            // refreshToken 만료 - 재로그인 필요
-            let errorMessage = parseErrorMessage(from: data)
-            throw NetworkError.serverError(message: errorMessage)
-        case 400...499:
-            // 클라이언트 에러 - 서버에서 message 제공
-            let errorMessage = parseErrorMessage(from: data)
-            throw NetworkError.serverError(message: errorMessage)
-        case 500...599:
-            // 서버 내부 오류
-            throw NetworkError.internalServerError
-        default:
-            throw NetworkError.unknown
+
+        } catch {
+            // Interceptor: retry (에러 발생 시 재시도)
+            for interceptor in interceptors {
+                if try await interceptor.retry(request, dueTo: error) {
+                    // 재시도
+                    return try await self.request(endpoint: endpoint, responseType: responseType)
+                }
+            }
+
+            // 재시도하지 않으면 에러 throw
+            throw error
         }
     }
 
@@ -283,32 +298,36 @@ final class NetworkService: NetworkServiceProtocol {
             throw NetworkError.networkFailure
         }
 
-        let request = try endpoint.asURLRequest()
+        var request = try endpoint.asURLRequest()
 
-        let (data, response) = try await session.data(for: request)
-
-        guard let httpResponse = response as? HTTPURLResponse else {
-            throw NetworkError.invalidResponse
+        // Interceptor: adapt (요청 전 처리)
+        for interceptor in interceptors {
+            request = try await interceptor.adapt(request)
         }
 
-        switch httpResponse.statusCode {
-        case 200...299:
-            break // 성공
-        case 419:
-            // accessToken 만료 - 자동 갱신 후 재시도
-            try await refreshTokenIfNeeded()
-            return try await self.requestWithoutResponse(endpoint: endpoint)
-        case 418:
-            // refreshToken 만료 - 재로그인 필요
-            let errorMessage = parseErrorMessage(from: data)
-            throw NetworkError.serverError(message: errorMessage)
-        case 400...499:
-            let errorMessage = parseErrorMessage(from: data)
-            throw NetworkError.serverError(message: errorMessage)
-        case 500...599:
-            throw NetworkError.internalServerError
-        default:
-            throw NetworkError.unknown
+        do {
+            let (data, response) = try await session.data(for: request)
+
+            guard let httpResponse = response as? HTTPURLResponse else {
+                throw NetworkError.invalidResponse
+            }
+
+            // 상태 코드에 따른 에러 생성
+            if let error = handleHTTPStatusCode(httpResponse.statusCode, data: data) {
+                throw error
+            }
+
+        } catch {
+            // Interceptor: retry (에러 발생 시 재시도)
+            for interceptor in interceptors {
+                if try await interceptor.retry(request, dueTo: error) {
+                    // 재시도
+                    return try await self.requestWithoutResponse(endpoint: endpoint)
+                }
+            }
+
+            // 재시도하지 않으면 에러 throw
+            throw error
         }
     }
 
@@ -336,73 +355,30 @@ final class NetworkService: NetworkServiceProtocol {
         return errorResponse.message
     }
 
-    /// 토큰 갱신이 필요한 경우 refreshToken을 사용하여 새로운 토큰을 발급받습니다
+    /// HTTP 상태 코드에 따라 에러를 반환합니다
     ///
-    /// ## 동시 요청 처리 (Race Condition 방지)
-    ///
-    /// 여러 API 요청이 동시에 419 에러를 받았을 때:
-    /// 1. 첫 번째 요청만 실제로 refreshToken API를 호출하여 토큰 갱신
-    /// 2. 나머지 요청들은 Continuation을 사용하여 대기
-    /// 3. 토큰 갱신 완료 후 대기 중인 모든 요청을 resume()으로 깨움
-    /// 4. 깨어난 요청들은 갱신하지 않고 return (이미 갱신된 토큰 사용)
-    ///
-    /// ## 동작 흐름
-    ///
-    /// ```
-    /// 요청1: 419 → refreshToken API 호출 → 새 토큰 저장 → 대기 요청들 깨움
-    /// 요청2: 419 → 대기 (continuation) → 깨어남 → return → 원래 API 재시도
-    /// 요청3: 419 → 대기 (continuation) → 깨어남 → return → 원래 API 재시도
-    /// ```
-    ///
-    /// - Throws:
-    ///   - `NetworkError.serverError(message:)`: refreshToken이 없거나 유효하지 않은 경우 등
-    ///   - 기타 네트워크 에러
-    ///
-    /// - Note: 모든 요청이 같은 TokenManager 인스턴스를 공유하므로,
-    ///         첫 번째 요청이 저장한 새 토큰을 나머지 요청들도 자동으로 사용합니다.
-    /// - Note: 이 메서드는 419 에러 발생 시 자동으로 호출됩니다.
-    private func refreshTokenIfNeeded() async throws {
-        // 이미 토큰 갱신 중이면 대기
-        if isRefreshing {
-            try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
-                refreshTasks.append(continuation)
-            }
-            return
-        }
-
-        // refreshToken이 없으면 에러
-        guard TokenManager.shared.refreshToken != nil else {
-            throw NetworkError.serverError(message: "로그인이 필요합니다")
-        }
-
-        isRefreshing = true
-
-        do {
-            // refreshToken API 호출
-            let refreshResponse = try await request(
-                endpoint: AuthRouter.refreshToken,
-                responseType: RefreshTokenResponse.self
-            )
-
-            // 새 토큰 저장
-            TokenManager.shared.saveToken(
-                accessToken: refreshResponse.accessToken,
-                refreshToken: refreshResponse.refreshToken
-            )
-
-            // 대기 중인 모든 작업 재개
-            refreshTasks.forEach { $0.resume() }
-            refreshTasks.removeAll()
-
-            isRefreshing = false
-        } catch {
-            // 에러 발생 시 대기 중인 모든 작업에게 에러 전달
-            refreshTasks.forEach { $0.resume(throwing: error) }
-            refreshTasks.removeAll()
-
-            isRefreshing = false
-
-            throw error
+    /// - Parameters:
+    ///   - statusCode: HTTP 상태 코드
+    ///   - data: 응답 데이터
+    /// - Returns: 에러가 있으면 NetworkError, 성공이면 nil
+    private func handleHTTPStatusCode(_ statusCode: Int, data: Data) -> NetworkError? {
+        switch statusCode {
+        case 200...299:
+            return nil  // 성공
+        case 419:
+            return .tokenExpired  // AccessToken 만료
+        case 418:
+            // RefreshToken 만료 - 재로그인 필요
+            let errorMessage = parseErrorMessage(from: data)
+            return .serverError(message: errorMessage)
+        case 400...499:
+            // 클라이언트 에러
+            let errorMessage = parseErrorMessage(from: data)
+            return .serverError(message: errorMessage)
+        case 500...599:
+            return .internalServerError  // 서버 내부 오류
+        default:
+            return .unknown
         }
     }
 

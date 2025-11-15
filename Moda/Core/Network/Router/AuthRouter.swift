@@ -52,7 +52,7 @@ enum AuthRouter {
 extension AuthRouter: Endpoint {
 
     var baseURL: String {
-        return NetworkConfig.baseURL
+        return NetworkConfig.authURL
     }
 
     var path: String {

@@ -132,6 +132,19 @@ enum NetworkError: LocalizedError {
     /// ```
     case serverError(message: String)
 
+    /// AccessToken 만료 (HTTP 419)
+    ///
+    /// AccessToken이 만료되어 인증이 필요한 경우 발생합니다.
+    /// 이 에러는 TokenRefreshInterceptor에 의해 자동으로 처리됩니다.
+    ///
+    /// ## 발생 상황
+    /// - AccessToken 유효기간 만료 (60초)
+    ///
+    /// ## 자동 처리
+    /// - TokenRefreshInterceptor가 자동으로 토큰 갱신
+    /// - 갱신 성공 시 원래 요청 재시도
+    case tokenExpired
+
     /// 잘못된 URL 형식
     ///
     /// API 엔드포인트의 URL이 유효하지 않을 때 발생합니다.
@@ -238,6 +251,8 @@ enum NetworkError: LocalizedError {
         switch self {
         case .serverError(let message):
             return message
+        case .tokenExpired:
+            return "인증이 만료되었습니다"
         case .invalidURL:
             return "잘못된 URL입니다"
         case .invalidResponse:
