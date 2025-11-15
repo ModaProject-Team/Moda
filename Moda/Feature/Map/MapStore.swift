@@ -13,7 +13,8 @@ import CoreLocation
 final class MapStore: NSObject, ObservableObject {
     @Published private(set) var state = MapState(
         cameraPosition: MapState.initialCameraPosition,
-        isLocationServicesEnabled: false
+        isLocationServicesEnabled: false,
+        showLocationAlert: false
     )
 
     lazy var locationManager: CLLocationManager = {
@@ -22,7 +23,7 @@ final class MapStore: NSObject, ObservableObject {
         return manager
     }()
 
-    func action(_ intent: MapIntent) {
+    func send(_ intent: MapIntent) {
         switch intent {
         case .updateCameraPosition(let position):
             state.cameraPosition = position
@@ -42,6 +43,9 @@ final class MapStore: NSObject, ObservableObject {
         case .setupLocationManager:
             //TODO: lazy var의 초기화를 일단 강제로 실행
             _ = locationManager
+
+        case .dismissLocationAlert:
+            state.showLocationAlert = false
         }
     }
 }
@@ -55,7 +59,12 @@ extension MapStore: CLLocationManagerDelegate {
             let isEnabled = CLLocationManager.locationServicesEnabled()
             await MainActor.run {
                 state.isLocationServicesEnabled = isEnabled
-                print(state.isLocationServicesEnabled)
+
+                if !isEnabled {
+                    state.showLocationAlert = true
+                }
+
+                print("시스템 위치 서비스: \(state.isLocationServicesEnabled)")
             }
         }
     }

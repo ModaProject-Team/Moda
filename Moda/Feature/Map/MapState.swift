@@ -11,6 +11,7 @@ import MapKit
 struct MapState {
     var cameraPosition: MapCameraPosition
     var isLocationServicesEnabled: Bool
+    var showLocationAlert: Bool
 
     //TODO: GPS 또는 앱 위치 설정이 꺼져있을 경우에 사용하기
     static let initialCameraPosition: MapCameraPosition = .region(
