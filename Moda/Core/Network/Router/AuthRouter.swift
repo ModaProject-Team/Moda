@@ -56,10 +56,15 @@ extension AuthRouter: Endpoint {
     }
 
     var path: String {
+        let basePath = "/v1/auth"
+        let subPath: String
+
         switch self {
         case .refreshToken:
-            return "/v1/auth/refresh"
+            subPath = "/refresh"
         }
+
+        return basePath + subPath
     }
 
     var method: HTTPMethod {
