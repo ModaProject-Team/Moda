@@ -96,11 +96,11 @@ struct ErrorResponse: Decodable {
 /// ## Topics
 ///
 /// ### 에러 케이스
-/// - ``serverError(message:)``
+/// - ``serverError(message:)`` - 클라이언트 에러 (400-499)
 /// - ``invalidURL``
 /// - ``invalidResponse``
 /// - ``decodingError``
-/// - ``internalServerError``
+/// - ``internalServerError`` - 서버 에러 (500-599)
 /// - ``networkFailure``
 /// - ``timeout``
 /// - ``unknown``
