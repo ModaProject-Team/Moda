@@ -14,6 +14,7 @@ final class MapStore: NSObject, ObservableObject {
     @Published private(set) var state = MapState(
         cameraPosition: MapState.initialCameraPosition,
         isLocationServicesEnabled: false,
+        authorizationStatus: .notDetermined,  // 0: 사용자가 허용/거부 등 아무것도 설정하지 않은 상태: 보통 앱을 처음 실행했을 때
         showLocationAlert: false
     )
 
@@ -25,9 +26,11 @@ final class MapStore: NSObject, ObservableObject {
 
     func send(_ intent: MapIntent) {
         switch intent {
+            //TODO: 현재 화면 중심 좌표 -> 지도가 변경될 때 게시물 재로드
         case .updateCameraPosition(let position):
             state.cameraPosition = position
 
+            //TODO: 지도 위치를 강제로 이동
         case .moveToLocation(let coordinate):
             state.cameraPosition = .region(
                 MKCoordinateRegion(
@@ -44,9 +47,22 @@ final class MapStore: NSObject, ObservableObject {
             //TODO: lazy var의 초기화를 일단 강제로 실행
             _ = locationManager
 
+        case .requestLocationPermission:
+            requestLocationPermission()
+
         case .dismissLocationAlert:
             state.showLocationAlert = false
         }
+    }
+
+    private func requestLocationPermission() {
+        guard state.isLocationServicesEnabled else {
+            // 시스템 위치 서비스가 꺼져있으면 권한 요청하지 않음
+            return
+        }
+        
+        // 권한 여부 확인 (허용, 거부, 결정X): notDetermined 상황에서 request
+        locationManager.requestWhenInUseAuthorization()
     }
 }
 
@@ -57,14 +73,18 @@ extension MapStore: CLLocationManagerDelegate {
     nonisolated func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
         Task {
             let isEnabled = CLLocationManager.locationServicesEnabled()
+            let authStatus = manager.authorizationStatus
+
             await MainActor.run {
                 state.isLocationServicesEnabled = isEnabled
+                state.authorizationStatus = authStatus
 
                 if !isEnabled {
                     state.showLocationAlert = true
                 }
 
                 print("시스템 위치 서비스: \(state.isLocationServicesEnabled)")
+                print("앱 위치 권한: \(state.authorizationStatus.rawValue)")
             }
         }
     }

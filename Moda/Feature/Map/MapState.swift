@@ -7,10 +7,12 @@
 
 import SwiftUI
 import MapKit
+import CoreLocation
 
 struct MapState {
     var cameraPosition: MapCameraPosition
     var isLocationServicesEnabled: Bool
+    var authorizationStatus: CLAuthorizationStatus
     var showLocationAlert: Bool
 
     //TODO: GPS 또는 앱 위치 설정이 꺼져있을 경우에 사용하기

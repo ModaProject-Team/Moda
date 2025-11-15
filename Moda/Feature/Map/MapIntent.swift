@@ -21,6 +21,9 @@ enum MapIntent {
     /// LocationManager 초기화 (델리게이트 콜백 트리거)
     case setupLocationManager
 
+    /// 앱 위치 권한 요청
+    case requestLocationPermission
+
     /// 위치 서비스 Alert 닫기
     case dismissLocationAlert
 }

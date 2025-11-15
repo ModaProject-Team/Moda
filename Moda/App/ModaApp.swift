@@ -23,7 +23,7 @@ struct ModaApp: App {
 //            .environmentObject(navigator)
             
             
-            
+            #warning("수정하고 PR")
             MapView()
         }
     }

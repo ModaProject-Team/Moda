@@ -17,6 +17,11 @@ struct MapView: View {
                 store.send(.setupLocationManager)
                 store.send(.loadInitialLocation)
             }
+            .onChange(of: store.state.isLocationServicesEnabled) { _, isEnabled in
+                if isEnabled && store.state.authorizationStatus == .notDetermined {
+                    store.send(.requestLocationPermission)
+                }
+            }
             .alert(
                 "위치 서비스를 사용할 수 없습니다",
                 isPresented: Binding(
