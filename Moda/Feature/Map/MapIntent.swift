@@ -24,6 +24,12 @@ enum MapIntent {
     /// 앱 위치 권한 요청
     case requestLocationPermission
 
-    /// 위치 서비스 Alert 닫기
-    case dismissLocationAlert
+    /// 앱 설정 화면으로 이동
+    case openAppSettings
+
+    /// 권한 거부 Alert 닫기
+    case dismissPermissionDeniedAlert
+
+    /// 위치 서비스 비활성화 Alert 닫기
+    case dismissLocationServiceDisabledAlert
 }

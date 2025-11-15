@@ -13,7 +13,8 @@ struct MapState {
     var cameraPosition: MapCameraPosition
     var isLocationServicesEnabled: Bool
     var authorizationStatus: CLAuthorizationStatus
-    var showLocationAlert: Bool
+    var showPermissionDeniedAlert: Bool
+    var showLocationServiceDisabledAlert: Bool
 
     //TODO: GPS 또는 앱 위치 설정이 꺼져있을 경우에 사용하기
     static let initialCameraPosition: MapCameraPosition = .region(

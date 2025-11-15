@@ -8,6 +8,7 @@
 import SwiftUI
 import MapKit
 import CoreLocation
+import UIKit
 
 @MainActor
 final class MapStore: NSObject, ObservableObject {
@@ -15,7 +16,8 @@ final class MapStore: NSObject, ObservableObject {
         cameraPosition: MapState.initialCameraPosition,
         isLocationServicesEnabled: false,
         authorizationStatus: .notDetermined,  // 0: 사용자가 허용/거부 등 아무것도 설정하지 않은 상태: 보통 앱을 처음 실행했을 때
-        showLocationAlert: false
+        showPermissionDeniedAlert: false,
+        showLocationServiceDisabledAlert: false
     )
 
     lazy var locationManager: CLLocationManager = {
@@ -50,8 +52,14 @@ final class MapStore: NSObject, ObservableObject {
         case .requestLocationPermission:
             requestLocationPermission()
 
-        case .dismissLocationAlert:
-            state.showLocationAlert = false
+        case .openAppSettings:
+            openAppSettings()
+
+        case .dismissPermissionDeniedAlert:
+            state.showPermissionDeniedAlert = false
+
+        case .dismissLocationServiceDisabledAlert:
+            state.showLocationServiceDisabledAlert = false
         }
     }
 
@@ -60,9 +68,16 @@ final class MapStore: NSObject, ObservableObject {
             // 시스템 위치 서비스가 꺼져있으면 권한 요청하지 않음
             return
         }
-        
+
         // 권한 여부 확인 (허용, 거부, 결정X): notDetermined 상황에서 request
         locationManager.requestWhenInUseAuthorization()
+    }
+
+    private func openAppSettings() {
+        guard let settingsURL = URL(string: UIApplication.openSettingsURLString) else { return }
+        if UIApplication.shared.canOpenURL(settingsURL) {
+            UIApplication.shared.open(settingsURL)
+        }
     }
 }
 
@@ -79,8 +94,13 @@ extension MapStore: CLLocationManagerDelegate {
                 state.isLocationServicesEnabled = isEnabled
                 state.authorizationStatus = authStatus
 
+                // 시스템 위치 서비스가 꺼져있을 때 Alert 표시
                 if !isEnabled {
-                    state.showLocationAlert = true
+                    state.showLocationServiceDisabledAlert = true
+                }
+                // 앱 위치 권한이 거부되었거나, 정책상 제한된 경우 Alert 표시
+                else if authStatus == .denied || authStatus == .restricted {
+                    state.showPermissionDeniedAlert = true
                 }
 
                 print("시스템 위치 서비스: \(state.isLocationServicesEnabled)")
