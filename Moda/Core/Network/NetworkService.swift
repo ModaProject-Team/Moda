@@ -19,6 +19,7 @@ import Foundation
 /// - 자동 JSON 인코딩/디코딩
 /// - 네트워크 연결 상태 확인
 /// - 표준화된 에러 처리
+/// - accessToken 자동 갱신 (419 에러 시)
 /// - 타임아웃 설정 (요청: 30초, 리소스: 60초)
 ///
 /// ## Usage
@@ -105,6 +106,12 @@ final class NetworkService: NetworkServiceProtocol {
     /// 타임아웃 설정이 적용된 커스텀 configuration을 사용합니다.
     private let session: URLSession
 
+    /// Request Interceptor 목록
+    ///
+    /// 요청/응답을 가로채서 처리하는 Interceptor들의 배열입니다.
+    /// 순서대로 실행됩니다.
+    private var interceptors: [RequestInterceptor] = []
+
     /// 네트워크 서비스를 초기화합니다
     ///
     /// 커스텀 URLSession configuration을 설정하여 초기화합니다.
@@ -128,6 +135,16 @@ final class NetworkService: NetworkServiceProtocol {
         configuration.timeoutIntervalForRequest = 30
         configuration.timeoutIntervalForResource = 60
         self.session = URLSession(configuration: configuration)
+
+        // 기본 Interceptor 추가
+        self.interceptors = [TokenRefreshInterceptor()]
+    }
+
+    /// Interceptor를 추가합니다
+    ///
+    /// - Parameter interceptor: 추가할 RequestInterceptor
+    func addInterceptor(_ interceptor: RequestInterceptor) {
+        interceptors.append(interceptor)
     }
 
     /// API 요청을 수행하고 응답을 디코딩합니다
@@ -153,6 +170,8 @@ final class NetworkService: NetworkServiceProtocol {
     /// ## HTTP 상태 코드 처리
     ///
     /// - `200-299`: 성공, 응답 본문을 디코딩하여 반환
+    /// - `419`: accessToken 만료, 자동으로 토큰 갱신 후 재시도
+    /// - `418`: refreshToken 만료, 재로그인 필요
     /// - `400-499`: 클라이언트 에러, 서버의 에러 메시지를 포함한 `NetworkError.serverError` throw
     /// - `500-599`: 서버 에러, `NetworkError.internalServerError` throw
     ///
@@ -197,31 +216,44 @@ final class NetworkService: NetworkServiceProtocol {
             throw NetworkError.networkFailure
         }
 
-        let request = try endpoint.asURLRequest()
+        var request = try endpoint.asURLRequest()
 
-        let (data, response) = try await session.data(for: request)
-
-        guard let httpResponse = response as? HTTPURLResponse else {
-            throw NetworkError.invalidResponse
+        // Interceptor: adapt (요청 전 처리)
+        for interceptor in interceptors {
+            request = try await interceptor.adapt(request)
         }
 
-        switch httpResponse.statusCode {
-        case 200...299:
+        do {
+            let (data, response) = try await session.data(for: request)
+
+            guard let httpResponse = response as? HTTPURLResponse else {
+                throw NetworkError.invalidResponse
+            }
+
+            // 상태 코드에 따른 에러 생성
+            if let error = handleHTTPStatusCode(httpResponse.statusCode, data: data) {
+                throw error
+            }
+
+            // 성공 응답 디코딩
             do {
                 let decodedData = try JSONDecoder().decode(T.self, from: data)
                 return decodedData
             } catch {
                 throw NetworkError.decodingError
             }
-        case 400...499:
-            // 클라이언트 에러 - 서버에서 message 제공
-            let errorMessage = parseErrorMessage(from: data)
-            throw NetworkError.serverError(message: errorMessage)
-        case 500...599:
-            // 서버 내부 오류
-            throw NetworkError.internalServerError
-        default:
-            throw NetworkError.unknown
+
+        } catch {
+            // Interceptor: retry (에러 발생 시 재시도)
+            for interceptor in interceptors {
+                if try await interceptor.retry(request, dueTo: error) {
+                    // 재시도
+                    return try await self.request(endpoint: endpoint, responseType: responseType)
+                }
+            }
+
+            // 재시도하지 않으면 에러 throw
+            throw error
         }
     }
 
@@ -266,24 +298,36 @@ final class NetworkService: NetworkServiceProtocol {
             throw NetworkError.networkFailure
         }
 
-        let request = try endpoint.asURLRequest()
+        var request = try endpoint.asURLRequest()
 
-        let (data, response) = try await session.data(for: request)
-
-        guard let httpResponse = response as? HTTPURLResponse else {
-            throw NetworkError.invalidResponse
+        // Interceptor: adapt (요청 전 처리)
+        for interceptor in interceptors {
+            request = try await interceptor.adapt(request)
         }
 
-        switch httpResponse.statusCode {
-        case 200...299:
-            break // 성공
-        case 400...499:
-            let errorMessage = parseErrorMessage(from: data)
-            throw NetworkError.serverError(message: errorMessage)
-        case 500...599:
-            throw NetworkError.internalServerError
-        default:
-            throw NetworkError.unknown
+        do {
+            let (data, response) = try await session.data(for: request)
+
+            guard let httpResponse = response as? HTTPURLResponse else {
+                throw NetworkError.invalidResponse
+            }
+
+            // 상태 코드에 따른 에러 생성
+            if let error = handleHTTPStatusCode(httpResponse.statusCode, data: data) {
+                throw error
+            }
+
+        } catch {
+            // Interceptor: retry (에러 발생 시 재시도)
+            for interceptor in interceptors {
+                if try await interceptor.retry(request, dueTo: error) {
+                    // 재시도
+                    return try await self.requestWithoutResponse(endpoint: endpoint)
+                }
+            }
+
+            // 재시도하지 않으면 에러 throw
+            throw error
         }
     }
 
@@ -310,6 +354,34 @@ final class NetworkService: NetworkServiceProtocol {
         }
         return errorResponse.message
     }
+
+    /// HTTP 상태 코드에 따라 에러를 반환합니다
+    ///
+    /// - Parameters:
+    ///   - statusCode: HTTP 상태 코드
+    ///   - data: 응답 데이터
+    /// - Returns: 에러가 있으면 NetworkError, 성공이면 nil
+    private func handleHTTPStatusCode(_ statusCode: Int, data: Data) -> NetworkError? {
+        switch statusCode {
+        case 200...299:
+            return nil  // 성공
+        case 419:
+            return .tokenExpired  // AccessToken 만료
+        case 418:
+            // RefreshToken 만료 - 재로그인 필요
+            let errorMessage = parseErrorMessage(from: data)
+            return .serverError(message: errorMessage)
+        case 400...499:
+            // 클라이언트 에러
+            let errorMessage = parseErrorMessage(from: data)
+            return .serverError(message: errorMessage)
+        case 500...599:
+            return .internalServerError  // 서버 내부 오류
+        default:
+            return .unknown
+        }
+    }
+
 }
 
 /// 에러 메시지 상수
