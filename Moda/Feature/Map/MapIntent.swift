@@ -17,4 +17,7 @@ enum MapIntent {
 
     /// 앱이 처음 로드될 때 초기 위치 설정
     case loadInitialLocation
+
+    /// LocationManager 초기화 (델리게이트 콜백 트리거)
+    case setupLocationManager
 }

@@ -14,6 +14,7 @@ struct MapView: View {
     var body: some View {
         Map(position: .constant(store.state.cameraPosition))
             .onAppear {
+                store.action(.setupLocationManager)
                 store.action(.loadInitialLocation)
             }
     }

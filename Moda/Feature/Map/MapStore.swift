@@ -7,11 +7,20 @@
 
 import SwiftUI
 import MapKit
+import CoreLocation
 
 @MainActor
+final class MapStore: NSObject, ObservableObject {
+    @Published private(set) var state = MapState(
+        cameraPosition: MapState.initialCameraPosition,
+        isLocationServicesEnabled: false
+    )
 
-final class MapStore: ObservableObject {
-    @Published private(set) var state = MapState.initial
+    lazy var locationManager: CLLocationManager = {
+        let manager = CLLocationManager()
+        manager.delegate = self
+        return manager
+    }()
 
     func action(_ intent: MapIntent) {
         switch intent {
@@ -28,7 +37,26 @@ final class MapStore: ObservableObject {
 
         case .loadInitialLocation:
             //TODO: 권한 설정 후 진입 위치 수정하기
-            state = .initial
+            state.cameraPosition = MapState.initialCameraPosition
+
+        case .setupLocationManager:
+            //TODO: lazy var의 초기화를 일단 강제로 실행
+            _ = locationManager
+        }
+    }
+}
+
+// MARK: - CLLocationManagerDelegate
+extension MapStore: CLLocationManagerDelegate {
+    
+    // 사용자 권한 상태가 변경된 경우 & CLLocationManager Create (iOS14 이상)
+    nonisolated func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
+        Task {
+            let isEnabled = CLLocationManager.locationServicesEnabled()
+            await MainActor.run {
+                state.isLocationServicesEnabled = isEnabled
+                print(state.isLocationServicesEnabled)
+            }
         }
     }
 }
