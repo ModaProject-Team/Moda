@@ -45,7 +45,7 @@ final class LogAPITestStore: ObservableObject {
 
         do {
             let response = try await networkService.request(
-                endpoint: APIRouter.getLogs,
+                endpoint: LogRouter.getLogs,
                 responseType: LogResponse.self
             )
 

@@ -11,7 +11,7 @@ import SwiftUI
 struct ModaApp: App {
     var body: some Scene {
         WindowGroup {
-            FriendListView()
+            TokenRefreshTestView()
         }
     }
 }
