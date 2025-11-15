@@ -44,6 +44,7 @@ struct LoginResponse: Decodable {
     }
 }
 
+// MARK: - 회원 탈퇴
 struct WithdrawResponse: Decodable {
     let userId: String
     let email: String

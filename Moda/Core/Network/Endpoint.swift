@@ -320,10 +320,6 @@ extension Endpoint {
             headers.forEach { request.setValue($1, forHTTPHeaderField: $0) }
         }
 
-        if let accessToken = TokenManager.shared.accessToken {
-            request.setValue(accessToken, forHTTPHeaderField: "Authorization")
-        }
-
         if let parameters = parameters {
             request.httpBody = try? JSONSerialization.data(withJSONObject: parameters)
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")

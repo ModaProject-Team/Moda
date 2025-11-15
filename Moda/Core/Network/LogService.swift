@@ -30,7 +30,7 @@ final class LogService {
     /// - Returns: 로그 목록을 포함한 `LogResponse`
     /// - Throws: 네트워크 에러 발생 시
     func fetchLogs() async throws -> LogResponse {
-        let endpoint = APIRouter.getLogs
+        let endpoint = LogRouter.getLogs
         let response = try await networkService.request(
             endpoint: endpoint,
             responseType: LogResponse.self
