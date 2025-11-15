@@ -19,6 +19,16 @@ final class UserAPI: UserAPIProtocol {
         self.networkService = networkService
     }
 
+    func validateEmail(email: String) async throws -> EmailValidationResponse {
+        let endpoint = UserRouter.validateEmail(email: email)
+        let response = try await networkService.request(
+            endpoint: endpoint,
+            responseType: EmailValidationResponse.self
+        )
+
+        return response
+    }
+
     func signUp(email: String, password: String, nickname: String) async throws -> SignUpResponse {
         let endpoint = UserRouter.signUp(
             email: email,
@@ -79,7 +89,23 @@ final class UserAPI: UserAPIProtocol {
         return response
     }
 
-    func logout() {
-        TokenManager.shared.clearToken()
+    func withdraw() async throws -> WithdrawResponse {
+        let endpoint = UserRouter.withdraw
+        let response = try await networkService.request(
+            endpoint: endpoint,
+            responseType: WithdrawResponse.self
+        )
+
+        return response
+    }
+
+    func searchUsers(query: String) async throws -> UserSearchResponse {
+        let endpoint = UserRouter.searchUsers(query: query)
+        let response = try await networkService.request(
+            endpoint: endpoint,
+            responseType: UserSearchResponse.self
+        )
+
+        return response
     }
 }
