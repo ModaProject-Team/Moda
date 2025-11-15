@@ -6,7 +6,6 @@
 //
 
 import SwiftUI
-import Combine
 
 struct UserAPITestState {
     var resultMessage: String = "테스트를 시작하려면 버튼을 눌러주세요."
@@ -14,6 +13,7 @@ struct UserAPITestState {
     var isLoading: Bool = false
     var lastSignUpEmail: String?
     var lastSignUpPassword: String?
+    var isLoggedIn: Bool = false
 }
 
 enum UserAPITestIntent {
@@ -64,7 +64,7 @@ final class UserAPITestStore: ObservableObject {
 
         do {
             let response = try await networkService.request(
-                endpoint: APIRouter.validateEmail(email: "test@sesac.com"),
+                endpoint: UserRouter.validateEmail(email: "test@sesac.com"),
                 responseType: EmailValidationResponse.self
             )
 
@@ -86,12 +86,12 @@ final class UserAPITestStore: ObservableObject {
         state.isLoading = true
         state.resultMessage = "회원가입 테스트 중...\n"
 
-        let email = "test_\(UUID().uuidString.prefix(8))@sesac.com"
+        let email = "\(Int.random(in: 1...10000))@ggg.com"
         let password = "password123!@"
 
         do {
             let response = try await networkService.request(
-                endpoint: APIRouter.signUp(
+                endpoint: UserRouter.signUp(
                     email: email,
                     password: password,
                     nickname: "테스트유저"
@@ -123,15 +123,24 @@ final class UserAPITestStore: ObservableObject {
         state.isLoading = true
         state.resultMessage = "이메일 로그인 테스트 중...\n"
 
-        // 회원가입한 계정이 있으면 그걸 사용, 없으면 기본 계정 사용
-        let email = state.lastSignUpEmail ?? "sesac_re_jack@sesac.com"
-        let password = state.lastSignUpPassword ?? "sesac_re_jack_1234@@"
+        // 회원가입한 계정 확인
+        guard let email = state.lastSignUpEmail,
+              let password = state.lastSignUpPassword else {
+            state.resultMessage += """
+            ❌ 로그인 실패
+            먼저 회원가입을 진행해주세요.
+
+            """
+            state.isSuccess = false
+            state.isLoading = false
+            return
+        }
 
         state.resultMessage += "사용 계정: \(email)\n"
 
         do {
             let response = try await networkService.request(
-                endpoint: APIRouter.login(
+                endpoint: UserRouter.login(
                     email: email,
                     password: password
                 ),
@@ -147,7 +156,11 @@ final class UserAPITestStore: ObservableObject {
 
             """
 
-            TokenManager.shared.saveToken(accessToken: response.accessToken)
+            TokenManager.shared.saveToken(
+                accessToken: response.accessToken,
+                refreshToken: response.refreshToken
+            )
+            state.isLoggedIn = true
 
             state.isSuccess = true
         } catch {
@@ -171,7 +184,7 @@ final class UserAPITestStore: ObservableObject {
 
         do {
             let response = try await networkService.request(
-                endpoint: APIRouter.loginKakao(token: "test_kakao_token"),
+                endpoint: UserRouter.loginKakao(token: "test_kakao_token"),
                 responseType: LoginResponse.self
             )
 
@@ -202,7 +215,7 @@ final class UserAPITestStore: ObservableObject {
 
         do {
             let response = try await networkService.request(
-                endpoint: APIRouter.loginApple(token: "test_apple_token"),
+                endpoint: UserRouter.loginApple(token: "test_apple_token"),
                 responseType: LoginResponse.self
             )
 
@@ -227,17 +240,21 @@ final class UserAPITestStore: ObservableObject {
         state.isLoading = true
         state.resultMessage = "회원 탈퇴 테스트 중...\n"
 
-        // 먼저 로그인
-        await testEmailLogin()
+        // 토큰 확인
+        guard TokenManager.shared.accessToken != nil else {
+            state.resultMessage += "❌ 먼저 로그인하세요.\n"
+            state.isSuccess = false
+            state.isLoading = false
+            return
+        }
 
         do {
             let response = try await networkService.request(
-                endpoint: APIRouter.withdraw,
+                endpoint: UserRouter.withdraw,
                 responseType: WithdrawResponse.self
             )
 
             state.resultMessage += """
-
             ✅ 회원 탈퇴 성공!
             User ID: \(response.userId)
             Email: \(response.email)
@@ -247,6 +264,7 @@ final class UserAPITestStore: ObservableObject {
 
             // 토큰 삭제
             TokenManager.shared.clearToken()
+            state.isLoggedIn = false
 
             state.isSuccess = true
         } catch {
@@ -261,11 +279,17 @@ final class UserAPITestStore: ObservableObject {
         state.isLoading = true
         state.resultMessage = "유저 검색 테스트 중...\n"
 
-        await testEmailLogin()
+        // 토큰 확인
+        guard TokenManager.shared.accessToken != nil else {
+            state.resultMessage += "❌ 먼저 로그인하세요.\n"
+            state.isSuccess = false
+            state.isLoading = false
+            return
+        }
 
         do {
             let response = try await networkService.request(
-                endpoint: APIRouter.searchUsers(query: "jack"),
+                endpoint: UserRouter.searchUsers(query: "jack"),
                 responseType: UserSearchResponse.self
             )
 
@@ -274,7 +298,6 @@ final class UserAPITestStore: ObservableObject {
                 .joined(separator: "\n")
 
             state.resultMessage += """
-
             ✅ 유저 검색 성공!
             검색 결과: \(response.data.count)명
             \(userList)
@@ -310,6 +333,8 @@ struct UserAPITestView: View {
         NavigationView {
             ScrollView {
                 VStack(spacing: 20) {
+                    tokenInfoSection
+
                     resultSection
 
                     Divider()
@@ -320,6 +345,24 @@ struct UserAPITestView: View {
             }
             .navigationTitle("User API 테스트")
         }
+    }
+
+    private var tokenInfoSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("로그인 상태")
+                .font(.headline)
+
+            HStack {
+                Image(systemName: store.state.isLoggedIn ? "checkmark.circle.fill" : "xmark.circle")
+                    .foregroundColor(store.state.isLoggedIn ? .green : .gray)
+                Text(store.state.isLoggedIn ? "로그인됨" : "로그인되지 않음")
+                    .font(.caption)
+            }
+        }
+        .padding()
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color.gray.opacity(0.1))
+        .cornerRadius(8)
     }
 
     private var resultSection: some View {
@@ -354,6 +397,7 @@ struct UserAPITestView: View {
 
     private var buttonListSection: some View {
         VStack(spacing: 20) {
+            // 기본 API 테스트
             TestButton(title: "이메일 중복 체크", intent: .validateEmailButtonTapped, isLoading: store.state.isLoading) {
                 store.send(.validateEmailButtonTapped)
             }
@@ -373,6 +417,8 @@ struct UserAPITestView: View {
             TestButton(title: "애플 로그인", intent: .appleLoginButtonTapped, isLoading: store.state.isLoading) {
                 store.send(.appleLoginButtonTapped)
             }
+
+            Divider()
 
             TestButton(title: "회원 탈퇴", intent: .withdrawButtonTapped, isLoading: store.state.isLoading) {
                 store.send(.withdrawButtonTapped)

@@ -9,9 +9,17 @@ import SwiftUI
 
 @main
 struct ModaApp: App {
+    @StateObject private var navigator = AppNavigator.shared
+    
     var body: some Scene {
         WindowGroup {
-            FriendListView()
+            NavigationStack(path: $navigator.path) {
+                HomeView()
+                    .navigationDestination(for: NavigationDestination.self) { destination in
+                        destination.view()
+                    }
+            }
+            .environmentObject(navigator)
         }
     }
 }
