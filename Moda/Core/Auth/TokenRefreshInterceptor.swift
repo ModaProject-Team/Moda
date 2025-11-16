@@ -84,9 +84,9 @@ final class TokenRefreshInterceptor: RequestInterceptor {
 
         do {
             // refreshToken API 호출
-            let refreshResponse = try await AuthService.shared.refreshToken()
+            let refreshResponse = try await AuthAPI.shared.refreshToken()
 
-            // 새 토큰 저장 (AuthService에서 이미 저장하지만 명시적으로 확인)
+            // 새 토큰 저장 (AuthAPI에서 이미 저장하지만 명시적으로 확인)
             TokenManager.shared.saveToken(
                 accessToken: refreshResponse.accessToken,
                 refreshToken: refreshResponse.refreshToken

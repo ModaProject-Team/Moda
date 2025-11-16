@@ -1,5 +1,5 @@
 //
-//  AuthService.swift
+//  AuthAPI.swift
 //  Moda
 //
 //  Created by 금가경 on 11/14/24.
@@ -7,11 +7,11 @@
 
 import Foundation
 
-/// 인증 토큰 관련 비즈니스 로직을 처리하는 서비스
+/// 인증 토큰 관련 API 통신을 처리하는 클래스
 ///
-/// 토큰 갱신 등 인증 토큰 관리 기능을 제공합니다.
-final class AuthService: AuthServiceProtocol {
-    static let shared = AuthService()
+/// 토큰 갱신 등 인증 토큰 관련 서버 API 호출을 제공합니다.
+final class AuthAPI: AuthAPIProtocol {
+    static let shared = AuthAPI()
 
     private let networkService: NetworkServiceProtocol
 

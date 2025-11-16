@@ -36,26 +36,31 @@ enum UserRouter {
 extension UserRouter: Endpoint {
 
     var baseURL: String {
-        return NetworkConfig.authURL
+        return NetworkConfig.baseURL
     }
 
     var path: String {
+        let basePath = "/v1/users"
+        let subPath: String
+
         switch self {
         case .validateEmail:
-            return "/v1/users/validation/email"
+            subPath = "/validation/email"
         case .signUp:
-            return "/v1/users/join"
+            subPath = "/join"
         case .login:
-            return "/v1/users/login"
+            subPath = "/login"
         case .loginKakao:
-            return "/v1/users/login/kakao"
+            subPath = "/login/kakao"
         case .loginApple:
-            return "/v1/users/login/apple"
+            subPath = "/login/apple"
         case .withdraw:
-            return "/v1/users/withdraw"
+            subPath = "/withdraw"
         case .searchUsers:
-            return "/v1/users/search"
+            subPath = "/search"
         }
+
+        return basePath + subPath
     }
 
     var method: HTTPMethod {
