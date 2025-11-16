@@ -12,6 +12,18 @@ import Observation
 private struct FriendAddState {
     var query: String = ""
     let maxLength: Int = 20
+
+    // 검색 관련 상태
+    var results: [FriendSearchItem] = []
+    var isLoading: Bool = false
+    var errorMessage: String?
+    var hasSearched: Bool = false // 첫 검색 여부
+}
+
+//MARK: 검색 결과 모델(목 데이터용 간단 모델 추후 수정필요)
+private struct FriendSearchItem: Identifiable, Hashable {
+    let id: String      // 사용자 ID(고유)
+    let nickname: String
 }
 
 // MARK: - Intent
@@ -26,6 +38,7 @@ private enum FriendAddIntent {
 @Observable
 private final class FriendAddStore {
     var state = FriendAddState()
+    private var searchTask: Task<Void, Never>?
 
     func send(_ intent: FriendAddIntent) {
         switch intent {
@@ -45,17 +58,36 @@ private final class FriendAddStore {
     }
 
     private func handleSearchSubmitted() {
-        // 필요 시 공백 제거
+        // 필요 시 공백 제거 + 길이 보정
         let trimmed = state.query.trimmingCharacters(in: .whitespacesAndNewlines)
-        // 트리밍 후에도 길이 보정(붙여넣기/프로그램적 변경 대비)
         state.query = clampToMaxLength(trimmed)
 
         // 빈 입력은 무시
         guard !state.query.isEmpty else { return }
 
-        // TODO: 여기서 실제 검색 로직을 호출하세요.
-        // 예: await service.searchFriend(by: state.query)
-        print("검색내용: \(state.query)")
+        // 첫 검색 실행 표시
+        state.hasSearched = true
+
+        // 이전 검색 취소
+        searchTask?.cancel()
+
+        // 로딩 시작
+        state.isLoading = true
+        state.errorMessage = nil
+        state.results = []
+
+        let query = state.query
+
+        //TODO: 목 네트워크 호출,네트워크로 추후 대체
+        searchTask = Task {
+            do {
+                let items = try await fetchMockResults(for: query)
+                state.results = items
+            } catch {
+                state.errorMessage = error.localizedDescription
+            }
+            state.isLoading = false
+        }
     }
 
     // MARK: - Helpers
@@ -64,6 +96,25 @@ private final class FriendAddStore {
             return String(text.prefix(state.maxLength))
         } else {
             return text
+        }
+    }
+
+    // TODO: 목 데이터 로더, 네트워크로 추후 대체
+    private func fetchMockResults(for query: String) async throws -> [FriendSearchItem] {
+        // 네트워크 지연 흉내
+        try await Task.sleep(for: .milliseconds(700))
+
+        let lower = query.lowercased()
+        // 특정 키워드로 빈/에러 케이스 테스트 가능
+        if lower == "empty" { return [] }
+        if lower == "error" { throw URLError(.badServerResponse) }
+
+        // 간단한 목 결과
+        return (1...8).map { i in
+            FriendSearchItem(
+                id: "\(lower)_\(i)",
+                nickname: "\(query.capitalized) \(i)"
+            )
         }
     }
 }
@@ -92,7 +143,41 @@ struct FriendAddView: View {
                 }
             )
 
-            Spacer()
+            // 결과 영역
+            Group {
+                if store.state.isLoading {
+                    ProgressView("검색 중…")
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+                } else if let message = store.state.errorMessage {
+                    ContentUnavailableView(
+                        "오류가 발생했어요",
+                        systemImage: "exclamationmark.triangle",
+                        description: Text(message)
+                    )
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else if !store.state.hasSearched {
+                    // 초기 상태(중립 안내): 아직 검색하지 않았을 때
+                    ContentUnavailableView(
+                        "친구를 검색해 보세요",
+                        systemImage: "person.crop.circle.badge.magnifyingglass",
+                        description: Text("ID를 입력하고 검색을 눌러보세요.")
+                    )
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else if store.state.results.isEmpty {
+                    // 검색은 했지만 결과가 없을 때
+                    ContentUnavailableView(
+                        "검색 결과가 없어요",
+                        systemImage: "person.fill.questionmark",
+                        description: Text("다른 ID로 다시 시도해 보세요.")
+                    )
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else {
+                    List(store.state.results) { item in
+                        FriendRow(item: item)
+                    }
+                    .listStyle(.plain)
+                }
+            }
         }
         .navigationTitle("ID로 추가")
         .toolbarTitleDisplayMode(.inline)
@@ -104,6 +189,14 @@ struct FriendAddView: View {
                     Image(systemName: "xmark")
                         .font(.system(size: 18, weight: .semibold))
                 }
+            }
+            //TODO: 지금 검색버튼은 프리뷰 시연용, 나중에 어차피 키보드 올라왔을때 submit 버튼 눌렀을때 동작
+            ToolbarItem(placement: .topBarTrailing) {
+                Button("검색") {
+                    store.send(.searchSubmitted)
+                    isSearching = false
+                }
+                .disabled(store.state.query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || store.state.isLoading)
             }
         }
         .task {
@@ -129,6 +222,7 @@ private struct FriendIDSearchBar: View {
             HStack(alignment: .firstTextBaseline) {
                 TextField("친구 ID", text: $text)
                     .textInputAutocapitalization(.none)
+                    .keyboardType(.asciiCapable) // 영문/숫자 ID라면 권장
                     .disableAutocorrection(true)
                     .focused($isFocused)
                     .submitLabel(.search)
@@ -137,6 +231,7 @@ private struct FriendIDSearchBar: View {
                     }
 
                 Text("\(text.count)/\(maxLength)")
+                    .monospacedDigit()
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             }
@@ -147,6 +242,30 @@ private struct FriendIDSearchBar: View {
         }
         .padding(.horizontal, 16)
         .padding(.top, 12)
+    }
+}
+
+// MARK: - Result Row, 나중에 분리, 재활용 고려하기
+private struct FriendRow: View {
+    let item: FriendSearchItem
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Image(systemName: "person.circle.fill")
+                .font(.system(size: 36))
+                .foregroundStyle(.secondary)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(item.nickname)
+                    .font(.body.weight(.semibold))
+                Text(item.id)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
+
+            Spacer()
+        }
+        .padding(.vertical, 6)
     }
 }
 
