@@ -52,9 +52,11 @@ extension LogRouter: Endpoint {
     }
 
     var path: String {
+        let basePath = "/v1/logs"
+
         switch self {
         case .getLogs:
-            return "/v1/logs"
+            return basePath
         }
     }
 

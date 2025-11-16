@@ -10,6 +10,10 @@ import Foundation
 // MARK: - 이메일 중복 체크
 struct EmailValidationResponse: Decodable {
     let message: String
+
+    func toDomain() -> EmailValidation {
+        EmailValidation(message: message)
+    }
 }
 
 // MARK: - 회원가입
@@ -22,6 +26,17 @@ struct SignUpResponse: Decodable {
         case userId = "user_id"
         case email
         case nickname = "nick"
+    }
+
+    func toDomain() -> User {
+        User(
+            userId: userId,
+            email: email,
+            nickname: nickname,
+            profileImage: nil,
+            accessToken: nil,
+            refreshToken: nil
+        )
     }
 }
 
@@ -42,6 +57,17 @@ struct LoginResponse: Decodable {
         case accessToken
         case refreshToken
     }
+
+    func toDomain() -> User {
+        User(
+            userId: userId,
+            email: email,
+            nickname: nick,
+            profileImage: profileImage,
+            accessToken: accessToken,
+            refreshToken: refreshToken
+        )
+    }
 }
 
 // MARK: - 회원 탈퇴
@@ -55,11 +81,26 @@ struct WithdrawResponse: Decodable {
         case email
         case nick
     }
+
+    func toDomain() -> User {
+        User(
+            userId: userId,
+            email: email,
+            nickname: nick,
+            profileImage: nil,
+            accessToken: nil,
+            refreshToken: nil
+        )
+    }
 }
 
 // MARK: - 유저 검색
 struct UserSearchResponse: Decodable {
     let data: [SearchedUser]
+
+    func toDomain() -> UserSearchResult {
+        UserSearchResult(users: data.map { $0.toDomain() })
+    }
 }
 
 struct SearchedUser: Decodable, Identifiable {
@@ -72,5 +113,13 @@ struct SearchedUser: Decodable, Identifiable {
         case userId = "user_id"
         case nick
         case profileImage
+    }
+
+    func toDomain() -> SearchedUserModel {
+        SearchedUserModel(
+            userId: userId,
+            nickname: nick,
+            profileImage: profileImage
+        )
     }
 }
