@@ -21,11 +21,14 @@ private struct FriendAddState {
 
     // 선택된 셀(선택 시 목록 숨기고 카드만 노출)
     var selectedItem: FriendSearchItem?
+
+    // 선택된 항목의 "친구 여부"(추후 네트워크로 설정, 초기 nil이면 '친구 추가'로 노출)
+    var selectedIsFriend: Bool?
 }
 
 //MARK: 검색 결과 모델(목 데이터용 간단 모델 추후 수정필요)
 private struct FriendSearchItem: Identifiable, Hashable {
-    let id: String      // 사용자 ID(고유)
+    let id: String
     let nickname: String
 }
 
@@ -35,6 +38,12 @@ private enum FriendAddIntent {
     case clearTapped
     case searchSubmitted
     case rowTapped(FriendSearchItem)
+
+    // 카드 친구 추가 버튼 탭
+    case friendAddButtonTapped
+
+    // 카드 닫기(X) 버튼 탭
+    case cardCloseTapped
 }
 
 // MARK: - Store (@Observable)
@@ -54,6 +63,10 @@ private final class FriendAddStore {
             handleSearchSubmitted()
         case .rowTapped(let item):
             handleRowTapped(item)
+        case .friendAddButtonTapped:
+            handlefriendAddButtonTapped()
+        case .cardCloseTapped:
+            handleCardCloseTapped()
         }
     }
 
@@ -79,6 +92,7 @@ private final class FriendAddStore {
 
         // 선택 상태 초기화(새 검색 시작 시 카드 숨김)
         state.selectedItem = nil
+        state.selectedIsFriend = nil
 
         // 로딩 시작
         state.isLoading = true
@@ -102,6 +116,20 @@ private final class FriendAddStore {
     private func handleRowTapped(_ item: FriendSearchItem) {
         // 선택된 셀로 카드 표시
         state.selectedItem = item
+
+        // TODO: 여기서 서버에 해당 유저의 친구 여부 조회 요청
+        state.selectedIsFriend = nil // 아직 모르는 상태(nil) → 버튼은 "친구 추가"로 노출
+    }
+
+    private func handlefriendAddButtonTapped() {
+        // TODO: 네트워크 통신으로 친구 상태 변경
+        print("친구 추가 버튼 눌림")
+    }
+
+    private func handleCardCloseTapped() {
+        // 카드 닫기: 선택 해제 → 기존 검색 결과 리스트 노출
+        state.selectedItem = nil
+        state.selectedIsFriend = nil
     }
 
     // MARK: - Helpers
@@ -159,10 +187,19 @@ struct FriendAddView: View {
 
             // 선택된 카드가 있으면 카드만 노출, 아니면 기존 결과 영역
             if let selected = store.state.selectedItem {
-                FriendSelectedCard(item: selected)
-                    .padding(.horizontal, 16)
-                    .padding(.top, 12)
-                    .frame(maxWidth: .infinity, maxHeight: 300, alignment: .top)
+                FriendSelectedCard(
+                    item: selected,
+                    buttonTitle: (store.state.selectedIsFriend == true) ? "친구 취소" : "친구 추가",
+                    onButtonTap: {
+                        store.send(.friendAddButtonTapped)
+                    },
+                    onCloseTap: {
+                        store.send(.cardCloseTapped)
+                    }
+                )
+                .padding(.horizontal, 16)
+                .padding(.top, 12)
+                .frame(maxWidth: .infinity, maxHeight: 320, alignment: .top)
 
                 Spacer()
             } else {
@@ -274,15 +311,18 @@ private struct FriendIDSearchBar: View {
     }
 }
 
-// MARK: - 선택 카드(심플 버전)
+// MARK: - 친구 선택 카드
 private struct FriendSelectedCard: View {
     let item: FriendSearchItem
+    let buttonTitle: String
+    let onButtonTap: () -> Void
+    let onCloseTap: () -> Void
 
     var body: some View {
         RoundedRectangle(cornerRadius: 16, style: .continuous)
             .fill(Color(uiColor: .secondarySystemBackground))
             .overlay(
-                VStack(spacing: 12) {
+                VStack(spacing: 14) {
                     // 아바타 플레이스홀더
                     ZStack {
                         Circle().fill(Color.gray.opacity(0.15))
@@ -299,10 +339,42 @@ private struct FriendSelectedCard: View {
                             .font(.footnote)
                             .foregroundStyle(.secondary)
                     }
+
+                    Button {
+                        // View는 로직을 갖지 않고 Intent만 보냄
+                        onButtonTap()
+                    } label: {
+                        Text(buttonTitle)
+                            .font(.headline.weight(.semibold))
+                            .foregroundStyle(.white)
+                            .frame(maxWidth: 140)
+                            .frame(height: 48)
+                            .background(
+                                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                    .fill(Color.orange)
+                            )
+                    }
+                    .buttonStyle(.plain)
                 }
                 .padding(.vertical, 16)
                 .padding(.horizontal, 12)
             )
+            // 카드 우상단 X 버튼
+            .overlay(alignment: .topTrailing) {
+                Button {
+                    onCloseTap()
+                } label: {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 12, weight: .bold))
+                        .foregroundStyle(.secondary)
+                        .padding(8)
+                        .background(
+                            Circle().fill(Color.black.opacity(0.08))
+                        )
+                }
+                .buttonStyle(.plain)
+                .padding(8) // 카드 모서리와 간격
+            }
     }
 }
 
