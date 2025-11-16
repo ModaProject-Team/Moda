@@ -81,15 +81,16 @@ final class PostAPITestStore: ObservableObject {
 
         do {
             let response = try await postAPI.getPosts(next: nil, limit: "5", category: nil)
+            let result = response.toDomain()
 
-            let postList = response.data.prefix(3).enumerated()
-                .map { "\($0 + 1). \($1.title) - \($1.creator.nick)" }
+            let postList = result.posts.prefix(3).enumerated()
+                .map { "\($0 + 1). \($1.title) - \($1.creator.nickname)" }
                 .joined(separator: "\n")
 
             state.resultMessage += """
             ✅ 성공!
-            총 \(response.data.count)개 게시글
-            Next Cursor: \(response.nextCursor)
+            총 \(result.posts.count)개 게시글
+            Next Cursor: \(result.nextCursor)
 
             \(postList.isEmpty ? "게시글이 없습니다." : postList)
 
@@ -129,15 +130,16 @@ final class PostAPITestStore: ObservableObject {
                 longitude: 126.886417,
                 latitude: 37.517682
             )
+            let post = response.toDomain()
 
-            state.lastCreatedPostId = response.postId
+            state.lastCreatedPostId = post.postId
 
             state.resultMessage += """
             ✅ 게시글 작성 성공!
-            Post ID: \(response.postId)
-            Title: \(response.title)
-            Category: \(response.category)
-            HashTags: \(response.hashTags.joined(separator: ", "))
+            Post ID: \(post.postId)
+            Title: \(post.title)
+            Category: \(post.category)
+            HashTags: \(post.hashTags.joined(separator: ", "))
 
             """
             state.isSuccess = true
@@ -169,15 +171,16 @@ final class PostAPITestStore: ObservableObject {
 
         do {
             let response = try await postAPI.getPost(postId: postId)
+            let post = response.toDomain()
 
             state.resultMessage += """
             ✅ 게시글 상세 조회 성공!
-            Post ID: \(response.postId)
-            Title: \(response.title)
-            Content: \(response.content ?? "없음")
-            Creator: \(response.creator.nick)
-            Likes: \(response.likes.count)명
-            Comments: \(response.commentCount ?? 0)개
+            Post ID: \(post.postId)
+            Title: \(post.title)
+            Content: \(post.content ?? "없음")
+            Creator: \(post.creator.nickname)
+            Likes: \(post.likes.count)명
+            Comments: \(post.commentCount ?? 0)개
 
             """
             state.isSuccess = true
@@ -223,12 +226,13 @@ final class PostAPITestStore: ObservableObject {
                 longitude: nil,
                 latitude: nil
             )
+            let post = response.toDomain()
 
             state.resultMessage += """
             ✅ 게시글 수정 성공!
-            Post ID: \(response.postId)
-            Title: \(response.title)
-            Content: \(response.content ?? "없음")
+            Post ID: \(post.postId)
+            Title: \(post.title)
+            Content: \(post.content ?? "없음")
 
             """
             state.isSuccess = true
@@ -297,10 +301,11 @@ final class PostAPITestStore: ObservableObject {
 
         do {
             let response = try await postAPI.likePost(postId: postId, likeStatus: true)
+            let result = response.toDomain()
 
             state.resultMessage += """
             ✅ 게시글 좋아요 성공!
-            Like Status: \(response.likeStatus)
+            Like Status: \(result.likeStatus)
 
             """
             state.isSuccess = true
@@ -325,14 +330,15 @@ final class PostAPITestStore: ObservableObject {
 
         do {
             let response = try await postAPI.getMyLikedPosts(next: nil, limit: "5", category: nil)
+            let result = response.toDomain()
 
-            let postList = response.data.prefix(3).enumerated()
+            let postList = result.posts.prefix(3).enumerated()
                 .map { "\($0 + 1). \($1.title)" }
                 .joined(separator: "\n")
 
             state.resultMessage += """
             ✅ 좋아요한 게시글 조회 성공!
-            총 \(response.data.count)개
+            총 \(result.posts.count)개
 
             \(postList.isEmpty ? "좋아요한 게시글이 없습니다." : postList)
 
@@ -364,15 +370,16 @@ final class PostAPITestStore: ObservableObject {
                 category: nil,
                 hashTag: "Swift"
             )
+            let result = response.toDomain()
 
-            let postList = response.data.prefix(3).enumerated()
+            let postList = result.posts.prefix(3).enumerated()
                 .map { "\($0 + 1). \($1.title)" }
                 .joined(separator: "\n")
 
             state.resultMessage += """
             ✅ 해시태그 검색 성공!
             검색어: #Swift
-            총 \(response.data.count)개
+            총 \(result.posts.count)개
 
             \(postList.isEmpty ? "검색 결과가 없습니다." : postList)
 
@@ -399,14 +406,15 @@ final class PostAPITestStore: ObservableObject {
 
         do {
             let response = try await postAPI.getFeed(next: nil, limit: "5", category: nil)
+            let result = response.toDomain()
 
-            let postList = response.data.prefix(3).enumerated()
-                .map { "\($0 + 1). \($1.title) - \($1.creator.nick)" }
+            let postList = result.posts.prefix(3).enumerated()
+                .map { "\($0 + 1). \($1.title) - \($1.creator.nickname)" }
                 .joined(separator: "\n")
 
             state.resultMessage += """
             ✅ 팔로우 피드 조회 성공!
-            총 \(response.data.count)개
+            총 \(result.posts.count)개
 
             \(postList.isEmpty ? "팔로우한 사용자의 게시글이 없습니다." : postList)
 
@@ -440,14 +448,15 @@ final class PostAPITestStore: ObservableObject {
                 orderBy: "distance",
                 sortBy: "asc"
             )
+            let posts = response.toDomain()
 
-            let postList = response.data.prefix(3).enumerated()
+            let postList = posts.prefix(3).enumerated()
                 .map { "\($0 + 1). \($1.title) - \($1.distance ?? 0)m" }
                 .joined(separator: "\n")
 
             state.resultMessage += """
             ✅ 위치기반 검색 성공!
-            총 \(response.data.count)개
+            총 \(posts.count)개
 
             \(postList.isEmpty ? "검색 결과가 없습니다." : postList)
 
@@ -474,15 +483,16 @@ final class PostAPITestStore: ObservableObject {
 
         do {
             let response = try await postAPI.searchPosts(title: "테스트", category: nil)
+            let posts = response.toDomain()
 
-            let postList = response.data.prefix(3).enumerated()
+            let postList = posts.prefix(3).enumerated()
                 .map { "\($0 + 1). \($1.title)" }
                 .joined(separator: "\n")
 
             state.resultMessage += """
             ✅ 제목 검색 성공!
             검색어: 테스트
-            총 \(response.data.count)개
+            총 \(posts.count)개
 
             \(postList.isEmpty ? "검색 결과가 없습니다." : postList)
 

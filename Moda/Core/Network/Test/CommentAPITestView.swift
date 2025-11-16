@@ -80,17 +80,18 @@ final class CommentAPITestStore: ObservableObject {
 
         do {
             let response = try await commentAPI.getComments(postId: state.testPostId)
+            let comments = response.toDomain()
 
-            let commentList = response.data.prefix(3).enumerated()
+            let commentList = comments.prefix(3).enumerated()
                 .map { index, comment in
                     let replyCount = comment.replies?.count ?? 0
-                    return "\(index + 1). \(comment.creator.nick): \(comment.content.prefix(20))... (답글 \(replyCount)개)"
+                    return "\(index + 1). \(comment.creator.nickname): \(comment.content.prefix(20))... (답글 \(replyCount)개)"
                 }
                 .joined(separator: "\n")
 
             state.resultMessage += """
             ✅ 댓글 조회 성공!
-            총 \(response.data.count)개 댓글
+            총 \(comments.count)개 댓글
 
             \(commentList.isEmpty ? "댓글이 없습니다." : commentList)
 
@@ -127,14 +128,15 @@ final class CommentAPITestStore: ObservableObject {
                 postId: state.testPostId,
                 content: "테스트 댓글입니다. \(Int.random(in: 1...1000))"
             )
+            let comment = response.toDomain()
 
-            state.lastCreatedCommentId = response.commentId
+            state.lastCreatedCommentId = comment.commentId
 
             state.resultMessage += """
             ✅ 댓글 작성 성공!
-            Comment ID: \(response.commentId)
-            Content: \(response.content)
-            Creator: \(response.creator.nick)
+            Comment ID: \(comment.commentId)
+            Content: \(comment.content)
+            Creator: \(comment.creator.nickname)
 
             """
             state.isSuccess = true
@@ -177,11 +179,12 @@ final class CommentAPITestStore: ObservableObject {
                 commentId: commentId,
                 content: "수정된 댓글입니다. \(Int.random(in: 1...1000))"
             )
+            let comment = response.toDomain()
 
             state.resultMessage += """
             ✅ 댓글 수정 성공!
-            Comment ID: \(response.commentId)
-            Content: \(response.content)
+            Comment ID: \(comment.commentId)
+            Content: \(comment.content)
 
             """
             state.isSuccess = true
@@ -268,12 +271,13 @@ final class CommentAPITestStore: ObservableObject {
                 commentId: commentId,
                 content: "테스트 대댓글입니다. \(Int.random(in: 1...1000))"
             )
+            let reply = response.toDomain()
 
             state.resultMessage += """
             ✅ 대댓글 작성 성공!
-            Reply ID: \(response.commentId)
-            Content: \(response.content)
-            Creator: \(response.creator.nick)
+            Reply ID: \(reply.commentId)
+            Content: \(reply.content)
+            Creator: \(reply.creator.nickname)
 
             """
             state.isSuccess = true
