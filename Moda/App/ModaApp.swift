@@ -14,7 +14,7 @@ struct ModaApp: App {
     var body: some Scene {
         WindowGroup {
             NavigationStack(path: $navigator.path) {
-                FollowAPITestView()
+                HomeView()
                     .navigationDestination(for: NavigationDestination.self) { destination in
                         destination.view()
                     }
