@@ -36,7 +36,7 @@ enum UserRouter {
 extension UserRouter: Endpoint {
 
     var baseURL: String {
-        return NetworkConfig.authURL
+        return NetworkConfig.baseURL
     }
 
     var path: String {
