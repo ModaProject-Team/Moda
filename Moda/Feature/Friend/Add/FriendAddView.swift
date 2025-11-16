@@ -1,0 +1,409 @@
+//
+//  FriendAddView.swift
+//  Moda
+//
+//  Created by hyunMac on 11/16/25.
+//
+
+import SwiftUI
+import Observation
+
+// MARK: - State
+private struct FriendAddState {
+    var query: String = ""
+    let maxLength: Int = 20
+
+    // 검색 관련 상태
+    var results: [FriendSearchItem] = []
+    var isLoading: Bool = false
+    var errorMessage: String?
+    var hasSearched: Bool = false // 첫 검색 여부
+
+    // 선택된 셀(선택 시 목록 숨기고 카드만 노출)
+    var selectedItem: FriendSearchItem?
+
+    // 선택된 항목의 "친구 여부"(추후 네트워크로 설정, 초기 nil이면 '친구 추가'로 노출)
+    var selectedIsFriend: Bool?
+}
+
+//MARK: 검색 결과 모델(목 데이터용 간단 모델 추후 수정필요)
+private struct FriendSearchItem: Identifiable, Hashable {
+    let id: String
+    let nickname: String
+}
+
+// MARK: - Intent
+private enum FriendAddIntent {
+    case queryChanged(String)
+    case clearTapped
+    case searchSubmitted
+    case rowTapped(FriendSearchItem)
+
+    // 카드 친구 추가 버튼 탭
+    case friendAddButtonTapped
+
+    // 카드 닫기(X) 버튼 탭
+    case cardCloseTapped
+}
+
+// MARK: - Store (@Observable)
+@MainActor
+@Observable
+private final class FriendAddStore {
+    var state = FriendAddState()
+    private var searchTask: Task<Void, Never>?
+
+    func send(_ intent: FriendAddIntent) {
+        switch intent {
+        case .queryChanged(let text):
+            handleQueryChanged(text)
+        case .clearTapped:
+            state.query = ""
+        case .searchSubmitted:
+            handleSearchSubmitted()
+        case .rowTapped(let item):
+            handleRowTapped(item)
+        case .friendAddButtonTapped:
+            handlefriendAddButtonTapped()
+        case .cardCloseTapped:
+            handleCardCloseTapped()
+        }
+    }
+
+    // MARK: - Handlers
+    private func handleQueryChanged(_ text: String) {
+        // 입력 중 최대길이 도달시 입력 방지
+        state.query = clampToMaxLength(text)
+    }
+
+    private func handleSearchSubmitted() {
+        // 필요 시 공백 제거 + 길이 보정
+        let trimmed = state.query.trimmingCharacters(in: .whitespacesAndNewlines)
+        state.query = clampToMaxLength(trimmed)
+
+        // 빈 입력은 무시
+        guard !state.query.isEmpty else { return }
+
+        // 첫 검색 실행 표시
+        state.hasSearched = true
+
+        // 이전 검색 취소
+        searchTask?.cancel()
+
+        // 선택 상태 초기화(새 검색 시작 시 카드 숨김)
+        state.selectedItem = nil
+        state.selectedIsFriend = nil
+
+        // 로딩 시작
+        state.isLoading = true
+        state.errorMessage = nil
+        state.results = []
+
+        let query = state.query
+
+        // TODO: 목 네트워크 호출, 네트워크로 추후 대체
+        searchTask = Task {
+            do {
+                let items = try await fetchMockResults(for: query)
+                state.results = items
+            } catch {
+                state.errorMessage = error.localizedDescription
+            }
+            state.isLoading = false
+        }
+    }
+
+    private func handleRowTapped(_ item: FriendSearchItem) {
+        // 선택된 셀로 카드 표시
+        state.selectedItem = item
+
+        // TODO: 여기서 서버에 해당 유저의 친구 여부 조회 요청
+        state.selectedIsFriend = nil // 아직 모르는 상태(nil) → 버튼은 "친구 추가"로 노출
+    }
+
+    private func handlefriendAddButtonTapped() {
+        // TODO: 네트워크 통신으로 친구 상태 변경
+        print("친구 추가 버튼 눌림")
+    }
+
+    private func handleCardCloseTapped() {
+        // 카드 닫기: 선택 해제 → 기존 검색 결과 리스트 노출
+        state.selectedItem = nil
+        state.selectedIsFriend = nil
+    }
+
+    // MARK: - Helpers
+    private func clampToMaxLength(_ text: String) -> String {
+        if text.count > state.maxLength {
+            return String(text.prefix(state.maxLength))
+        } else {
+            return text
+        }
+    }
+
+    // TODO: 목 데이터 로더, 네트워크로 추후 대체
+    private func fetchMockResults(for query: String) async throws -> [FriendSearchItem] {
+        // 네트워크 지연 흉내
+        try await Task.sleep(for: .milliseconds(700))
+
+        let lower = query.lowercased()
+        // 특정 키워드로 빈/에러 케이스 테스트 가능
+        if lower == "empty" { return [] }
+        if lower == "error" { throw URLError(.badServerResponse) }
+
+        // 간단한 목 결과
+        return (1...8).map { i in
+            FriendSearchItem(
+                id: "\(lower)_\(i)",
+                nickname: "\(query.capitalized) \(i)"
+            )
+        }
+    }
+}
+
+// MARK: - View
+struct FriendAddView: View {
+    @State private var store = FriendAddStore()
+    @FocusState private var isSearching: Bool
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        VStack(spacing: 0) {
+            FriendIDSearchBar(
+                text: Binding(
+                    get: { store.state.query },
+                    set: { store.send(.queryChanged($0)) }
+                ),
+                isFocused: _isSearching,
+                maxLength: store.state.maxLength,
+                onSubmit: {
+                    // 키보드의 Search 버튼을 눌렀을 때만 검색
+                    store.send(.searchSubmitted)
+                    isSearching = false
+                }, onClear: {
+                    store.send(.clearTapped)
+                }
+            )
+
+            // 선택된 카드가 있으면 카드만 노출, 아니면 기존 결과 영역
+            if let selected = store.state.selectedItem {
+                FriendSelectedCard(
+                    item: selected,
+                    buttonTitle: (store.state.selectedIsFriend == true) ? "친구 취소" : "친구 추가",
+                    onButtonTap: {
+                        store.send(.friendAddButtonTapped)
+                    },
+                    onCloseTap: {
+                        store.send(.cardCloseTapped)
+                    }
+                )
+                .padding(.horizontal, 16)
+                .padding(.top, 12)
+                .frame(maxWidth: .infinity, maxHeight: 320, alignment: .top)
+
+                Spacer()
+            } else {
+                // 결과 영역
+                Group {
+                    if store.state.isLoading {
+                        ProgressView("검색 중…")
+                            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+                    } else if let message = store.state.errorMessage {
+                        ContentUnavailableView(
+                            "오류가 발생했어요",
+                            systemImage: "exclamationmark.triangle",
+                            description: Text(message)
+                        )
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    } else if !store.state.hasSearched {
+                        // 초기 상태(중립 안내): 아직 검색하지 않았을 때
+                        ContentUnavailableView(
+                            "친구를 검색해 보세요",
+                            systemImage: "person.crop.circle.badge.magnifyingglass",
+                            description: Text("ID를 입력하고 검색을 눌러보세요.")
+                        )
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    } else if store.state.results.isEmpty {
+                        // 검색은 했지만 결과가 없을 때
+                        ContentUnavailableView(
+                            "검색 결과가 없어요",
+                            systemImage: "person.fill.questionmark",
+                            description: Text("다른 ID로 다시 시도해 보세요.")
+                        )
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    } else {
+                        List(store.state.results) { item in
+                            Button {
+                                store.send(.rowTapped(item))
+                                isSearching = false
+                            } label: {
+                                FriendRow(item: item)
+                            }
+                        }
+                        .listStyle(.plain)
+                    }
+                }
+            }
+        }
+        .navigationTitle("ID로 추가")
+        .toolbarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .topBarLeading) {
+                Button {
+                    dismiss()
+                } label: {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 18, weight: .semibold))
+                }
+            }
+            //MARK: 지금 검색버튼은 프리뷰 시연용, 나중에 어차피 키보드 올라왔을때 submit 버튼 눌렀을때 동작
+            ToolbarItem(placement: .topBarTrailing) {
+                Button("검색") {
+                    store.send(.searchSubmitted)
+                    isSearching = false
+                }
+                .disabled(store.state.query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || store.state.isLoading)
+            }
+        }
+        .task {
+            // 진입 시 키보드 살짝 지연 후 포커스
+            try? await Task.sleep(for: .milliseconds(250))
+            await MainActor.run {
+                isSearching = true
+            }
+        }
+    }
+}
+
+// MARK: - Search Bar
+private struct FriendIDSearchBar: View {
+    @Binding var text: String
+    @FocusState var isFocused: Bool
+    let maxLength: Int
+    let onSubmit: () -> Void
+    let onClear: () -> Void
+
+    var body: some View {
+        VStack(spacing: 6) {
+            HStack(alignment: .firstTextBaseline) {
+                TextField("친구 ID", text: $text)
+                    .textInputAutocapitalization(.none)
+                    .keyboardType(.asciiCapable) // 영문/숫자 ID라면 권장
+                    .disableAutocorrection(true)
+                    .focused($isFocused)
+                    .submitLabel(.search)
+                    .onSubmit {
+                        onSubmit()
+                    }
+
+                Text("\(text.count)/\(maxLength)")
+                    .monospacedDigit()
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
+            // 언더라인
+            Rectangle()
+                .fill(Color.primary.opacity(0.2))
+                .frame(height: 1)
+        }
+        .padding(.horizontal, 16)
+        .padding(.top, 12)
+    }
+}
+
+// MARK: - 친구 선택 카드
+private struct FriendSelectedCard: View {
+    let item: FriendSearchItem
+    let buttonTitle: String
+    let onButtonTap: () -> Void
+    let onCloseTap: () -> Void
+
+    var body: some View {
+        RoundedRectangle(cornerRadius: 16, style: .continuous)
+            .fill(Color(uiColor: .secondarySystemBackground))
+            .overlay(
+                VStack(spacing: 14) {
+                    // 아바타 플레이스홀더
+                    ZStack {
+                        Circle().fill(Color.gray.opacity(0.15))
+                        Image(systemName: "person.fill")
+                            .font(.system(size: 28))
+                            .foregroundStyle(.secondary)
+                    }
+                    .frame(width: 72, height: 72)
+
+                    VStack(spacing: 4) {
+                        Text(item.nickname)
+                            .font(.headline)
+                        Text("ID: \(item.id)")
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                    }
+
+                    Button {
+                        // View는 로직을 갖지 않고 Intent만 보냄
+                        onButtonTap()
+                    } label: {
+                        Text(buttonTitle)
+                            .font(.headline.weight(.semibold))
+                            .foregroundStyle(.white)
+                            .frame(maxWidth: 140)
+                            .frame(height: 48)
+                            .background(
+                                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                    .fill(Color.orange)
+                            )
+                    }
+                    .buttonStyle(.plain)
+                }
+                .padding(.vertical, 16)
+                .padding(.horizontal, 12)
+            )
+            // 카드 우상단 X 버튼
+            .overlay(alignment: .topTrailing) {
+                Button {
+                    onCloseTap()
+                } label: {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 12, weight: .bold))
+                        .foregroundStyle(.secondary)
+                        .padding(8)
+                        .background(
+                            Circle().fill(Color.black.opacity(0.08))
+                        )
+                }
+                .buttonStyle(.plain)
+                .padding(8) // 카드 모서리와 간격
+            }
+    }
+}
+
+// MARK: - Result Row, 나중에 분리, 재활용 고려하기
+private struct FriendRow: View {
+    let item: FriendSearchItem
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Image(systemName: "person.circle.fill")
+                .font(.system(size: 36))
+                .foregroundStyle(.secondary)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(item.nickname)
+                    .font(.body.weight(.semibold))
+                Text(item.id)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
+
+            Spacer()
+        }
+        .padding(.vertical, 6)
+    }
+}
+
+#Preview {
+    NavigationStack {
+        FriendAddView()
+    }
+}

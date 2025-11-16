@@ -82,7 +82,7 @@ struct FriendSearchView: View {
         VStack(spacing: 0) {
             // 상단 검색 영역 (서치바)
             HStack(spacing: 8) {
-                SearchField(
+                FriendSearchBar(
                     text: Binding(
                         get: { store.state.query },
                         set: { store.send(.queryChanged($0)) }
@@ -137,7 +137,7 @@ struct FriendSearchView: View {
 }
 
 // MARK: - Search Field
-private struct SearchField: View {
+private struct FriendSearchBar: View {
     @Binding var text: String
     @FocusState var isFocused: Bool
     var onClear: () -> Void
