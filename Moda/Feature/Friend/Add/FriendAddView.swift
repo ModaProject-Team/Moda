@@ -18,6 +18,9 @@ private struct FriendAddState {
     var isLoading: Bool = false
     var errorMessage: String?
     var hasSearched: Bool = false // 첫 검색 여부
+
+    // 선택된 셀(선택 시 목록 숨기고 카드만 노출)
+    var selectedItem: FriendSearchItem?
 }
 
 //MARK: 검색 결과 모델(목 데이터용 간단 모델 추후 수정필요)
@@ -31,6 +34,7 @@ private enum FriendAddIntent {
     case queryChanged(String)
     case clearTapped
     case searchSubmitted
+    case rowTapped(FriendSearchItem)
 }
 
 // MARK: - Store (@Observable)
@@ -48,6 +52,8 @@ private final class FriendAddStore {
             state.query = ""
         case .searchSubmitted:
             handleSearchSubmitted()
+        case .rowTapped(let item):
+            handleRowTapped(item)
         }
     }
 
@@ -71,6 +77,9 @@ private final class FriendAddStore {
         // 이전 검색 취소
         searchTask?.cancel()
 
+        // 선택 상태 초기화(새 검색 시작 시 카드 숨김)
+        state.selectedItem = nil
+
         // 로딩 시작
         state.isLoading = true
         state.errorMessage = nil
@@ -78,7 +87,7 @@ private final class FriendAddStore {
 
         let query = state.query
 
-        //TODO: 목 네트워크 호출,네트워크로 추후 대체
+        // TODO: 목 네트워크 호출, 네트워크로 추후 대체
         searchTask = Task {
             do {
                 let items = try await fetchMockResults(for: query)
@@ -88,6 +97,11 @@ private final class FriendAddStore {
             }
             state.isLoading = false
         }
+    }
+
+    private func handleRowTapped(_ item: FriendSearchItem) {
+        // 선택된 셀로 카드 표시
+        state.selectedItem = item
     }
 
     // MARK: - Helpers
@@ -143,39 +157,54 @@ struct FriendAddView: View {
                 }
             )
 
-            // 결과 영역
-            Group {
-                if store.state.isLoading {
-                    ProgressView("검색 중…")
-                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
-                } else if let message = store.state.errorMessage {
-                    ContentUnavailableView(
-                        "오류가 발생했어요",
-                        systemImage: "exclamationmark.triangle",
-                        description: Text(message)
-                    )
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                } else if !store.state.hasSearched {
-                    // 초기 상태(중립 안내): 아직 검색하지 않았을 때
-                    ContentUnavailableView(
-                        "친구를 검색해 보세요",
-                        systemImage: "person.crop.circle.badge.magnifyingglass",
-                        description: Text("ID를 입력하고 검색을 눌러보세요.")
-                    )
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                } else if store.state.results.isEmpty {
-                    // 검색은 했지만 결과가 없을 때
-                    ContentUnavailableView(
-                        "검색 결과가 없어요",
-                        systemImage: "person.fill.questionmark",
-                        description: Text("다른 ID로 다시 시도해 보세요.")
-                    )
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                } else {
-                    List(store.state.results) { item in
-                        FriendRow(item: item)
+            // 선택된 카드가 있으면 카드만 노출, 아니면 기존 결과 영역
+            if let selected = store.state.selectedItem {
+                FriendSelectedCard(item: selected)
+                    .padding(.horizontal, 16)
+                    .padding(.top, 12)
+                    .frame(maxWidth: .infinity, maxHeight: 300, alignment: .top)
+
+                Spacer()
+            } else {
+                // 결과 영역
+                Group {
+                    if store.state.isLoading {
+                        ProgressView("검색 중…")
+                            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+                    } else if let message = store.state.errorMessage {
+                        ContentUnavailableView(
+                            "오류가 발생했어요",
+                            systemImage: "exclamationmark.triangle",
+                            description: Text(message)
+                        )
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    } else if !store.state.hasSearched {
+                        // 초기 상태(중립 안내): 아직 검색하지 않았을 때
+                        ContentUnavailableView(
+                            "친구를 검색해 보세요",
+                            systemImage: "person.crop.circle.badge.magnifyingglass",
+                            description: Text("ID를 입력하고 검색을 눌러보세요.")
+                        )
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    } else if store.state.results.isEmpty {
+                        // 검색은 했지만 결과가 없을 때
+                        ContentUnavailableView(
+                            "검색 결과가 없어요",
+                            systemImage: "person.fill.questionmark",
+                            description: Text("다른 ID로 다시 시도해 보세요.")
+                        )
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    } else {
+                        List(store.state.results) { item in
+                            Button {
+                                store.send(.rowTapped(item))
+                                isSearching = false
+                            } label: {
+                                FriendRow(item: item)
+                            }
+                        }
+                        .listStyle(.plain)
                     }
-                    .listStyle(.plain)
                 }
             }
         }
@@ -190,7 +219,7 @@ struct FriendAddView: View {
                         .font(.system(size: 18, weight: .semibold))
                 }
             }
-            //TODO: 지금 검색버튼은 프리뷰 시연용, 나중에 어차피 키보드 올라왔을때 submit 버튼 눌렀을때 동작
+            //MARK: 지금 검색버튼은 프리뷰 시연용, 나중에 어차피 키보드 올라왔을때 submit 버튼 눌렀을때 동작
             ToolbarItem(placement: .topBarTrailing) {
                 Button("검색") {
                     store.send(.searchSubmitted)
@@ -242,6 +271,38 @@ private struct FriendIDSearchBar: View {
         }
         .padding(.horizontal, 16)
         .padding(.top, 12)
+    }
+}
+
+// MARK: - 선택 카드(심플 버전)
+private struct FriendSelectedCard: View {
+    let item: FriendSearchItem
+
+    var body: some View {
+        RoundedRectangle(cornerRadius: 16, style: .continuous)
+            .fill(Color(uiColor: .secondarySystemBackground))
+            .overlay(
+                VStack(spacing: 12) {
+                    // 아바타 플레이스홀더
+                    ZStack {
+                        Circle().fill(Color.gray.opacity(0.15))
+                        Image(systemName: "person.fill")
+                            .font(.system(size: 28))
+                            .foregroundStyle(.secondary)
+                    }
+                    .frame(width: 72, height: 72)
+
+                    VStack(spacing: 4) {
+                        Text(item.nickname)
+                            .font(.headline)
+                        Text("ID: \(item.id)")
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .padding(.vertical, 16)
+                .padding(.horizontal, 12)
+            )
     }
 }
 
