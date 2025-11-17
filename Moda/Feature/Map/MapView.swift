@@ -16,10 +16,15 @@ struct MapView: View {
         Map(position: Binding(
             get: { store.state.cameraPosition },
             set: { store.send(.updateCameraPosition($0)) }
-        ))
-            .onAppear {
-                store.send(.setupLocationManager)
-            }
+        )) {
+            UserAnnotation()  // 사용자 실시간 위치 표시 뷰
+        }
+        .mapControls {
+            MapUserLocationButton()  // 사용자 위치로 카메라를 이동
+        }
+        .onAppear {
+            store.send(.setupLocationManager)
+        }
             .alert(
                 "위치 서비스를 사용할 수 없습니다",
                 isPresented: Binding(
