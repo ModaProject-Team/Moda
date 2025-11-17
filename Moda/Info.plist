@@ -16,5 +16,7 @@
 		<string>SUIT-SemiBold.otf</string>
 		<string>HancomMalangMalang-Bold.otf</string>
 	</array>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>지도에서 현재 위치를 표시하기 위해 위치 권한이 필요합니다.</string>
 </dict>
 </plist>

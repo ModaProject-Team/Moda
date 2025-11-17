@@ -13,6 +13,7 @@ struct ModaApp: App {
     
     var body: some Scene {
         WindowGroup {
+            
             NavigationStack(path: $navigator.path) {
                 MainTabView()
                     .navigationDestination(for: NavigationDestination.self) { destination in
@@ -20,6 +21,8 @@ struct ModaApp: App {
                     }
             }
             .environmentObject(navigator)
+            
+//            MapView()
         }
     }
 }
