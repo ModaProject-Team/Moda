@@ -94,6 +94,7 @@ struct FeedView: View {
 
             HStack(spacing: 10) {
                 QuickActionButton(icon: "arrow.up.circle.fill", title: "올리기") {
+                    navigator.push(.productUpload)
                 }
                 QuickActionButton(icon: "heart.fill", title: "찜 목록") {
                 }
@@ -138,6 +139,7 @@ struct FeedView: View {
             HStack {
                 Spacer()
                 Button {
+                    navigator.push(.productUpload)
                 } label: {
                     HStack(spacing: 8) {
                         Image(systemName: "plus")
