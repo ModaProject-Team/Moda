@@ -1,0 +1,264 @@
+//
+//  PostCard.swift
+//  Moda
+//
+//  Created by 금가경 on 11/16/25.
+//
+
+import Foundation
+
+struct PostCard: Identifiable {
+    let id: String
+    let category: String
+    let title: String
+    let price: Int?
+    let createdAt: String
+    let creator: Creator
+    let imageURL: String?
+    let likes: [String]
+    let latitude: Double?
+    let longitude: Double?
+
+    struct Creator {
+        let userId: String
+        let nickname: String
+        let profileImage: String?
+    }
+
+    var isLiked: Bool = false
+
+    var likeCount: Int {
+        likes.count
+    }
+
+    var formattedPrice: String {
+        guard let price = price else { return "가격 미정" }
+        if price == 0 {
+            return "나눔"
+        }
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .decimal
+        let formattedNumber = formatter.string(from: NSNumber(value: price)) ?? "\(price)"
+        return "\(formattedNumber)원"
+    }
+
+    var formattedDate: String {
+        let isoFormatter = ISO8601DateFormatter()
+        isoFormatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+
+        var parsedDate: Date?
+
+        if let date = isoFormatter.date(from: createdAt) {
+            parsedDate = date
+        } else {
+            let dateFormatter = DateFormatter()
+            dateFormatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSSZ"
+            dateFormatter.locale = Locale(identifier: "en_US_POSIX")
+            parsedDate = dateFormatter.date(from: createdAt)
+        }
+
+        guard let date = parsedDate else {
+            return createdAt
+        }
+
+        let now = Date()
+        let calendar = Calendar.current
+        let components = calendar.dateComponents([.day], from: date, to: now)
+
+        guard let daysDifference = components.day else {
+            let outputFormatter = DateFormatter()
+            outputFormatter.locale = Locale(identifier: "ko_KR")
+            outputFormatter.dateFormat = "MM.dd"
+            return outputFormatter.string(from: date)
+        }
+
+        if daysDifference == 0 {
+            return "오늘"
+        } else if daysDifference > 0 && daysDifference <= 7 {
+            return "\(daysDifference)일 전"
+        } else {
+            let outputFormatter = DateFormatter()
+            outputFormatter.locale = Locale(identifier: "ko_KR")
+            outputFormatter.dateFormat = "MM.dd"
+            return outputFormatter.string(from: date)
+        }
+    }
+
+    var formattedLocation: String? {
+        guard let _ = latitude, let _ = longitude else { return nil }
+        return "서울시 강남구"
+    }
+
+    func formattedDistance(from currentLocation: (latitude: Double, longitude: Double)? = nil) -> String? {
+        guard let latitude = latitude,
+              let longitude = longitude,
+              let current = currentLocation else {
+            let distances = ["300m", "500m", "800m", "1.2km", "1.5km", "2km"]
+            let index = abs(id.hashValue) % distances.count
+            return distances[index]
+        }
+
+        let earthRadius = 6371000.0
+
+        let lat1Rad = current.latitude * .pi / 180
+        let lat2Rad = latitude * .pi / 180
+        let deltaLat = (latitude - current.latitude) * .pi / 180
+        let deltaLon = (longitude - current.longitude) * .pi / 180
+
+        let a = sin(deltaLat / 2) * sin(deltaLat / 2) +
+                cos(lat1Rad) * cos(lat2Rad) *
+                sin(deltaLon / 2) * sin(deltaLon / 2)
+        let c = 2 * atan2(sqrt(a), sqrt(1 - a))
+        let distance = earthRadius * c
+
+        if distance < 1000 {
+            return String(format: "%.0fm", distance)
+        } else {
+            return String(format: "%.1fkm", distance / 1000)
+        }
+    }
+}
+
+extension Post {
+    func toPostCard(currentUserId: String? = nil) -> PostCard {
+        var postCard = PostCard(
+            id: postId,
+            category: category,
+            title: title,
+            price: price,
+            createdAt: createdAt,
+            creator: PostCard.Creator(
+                userId: creator.userId,
+                nickname: creator.nickname,
+                profileImage: creator.profileImage
+            ),
+            imageURL: files.first,
+            likes: likes,
+            latitude: geolocation?.latitude,
+            longitude: geolocation?.longitude
+        )
+
+        if let currentUserId = currentUserId {
+            postCard.isLiked = likes.contains(currentUserId)
+        }
+
+        return postCard
+    }
+}
+
+extension PostCard {
+    static var mockData: [PostCard] {
+        let calendar = Calendar.current
+        let now = Date()
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+
+        let today = formatter.string(from: now)
+        let twoDaysAgo = formatter.string(from: calendar.date(byAdding: .day, value: -2, to: now)!)
+        let threeDaysAgo = formatter.string(from: calendar.date(byAdding: .day, value: -3, to: now)!)
+        let fiveDaysAgo = formatter.string(from: calendar.date(byAdding: .day, value: -5, to: now)!)
+        let oneWeekAgo = formatter.string(from: calendar.date(byAdding: .day, value: -7, to: now)!)
+        let twoWeeksAgo = formatter.string(from: calendar.date(byAdding: .day, value: -14, to: now)!)
+
+        return [
+            PostCard(
+                id: "1",
+                category: "study",
+                title: "같이 앱 만드실 분 구해요",
+                price: 0,
+                createdAt: today,
+                creator: Creator(
+                    userId: "user1",
+                    nickname: "수지",
+                    profileImage: nil
+                ),
+                imageURL: nil,
+                likes: ["user2", "user3"],
+                latitude: 37.517682,
+                longitude: 126.886417
+            ),
+            PostCard(
+                id: "2",
+                category: "electronics",
+                title: "애플 충전기 팔아요",
+                price: 15000,
+                createdAt: twoDaysAgo,
+                creator: Creator(
+                    userId: "user2",
+                    nickname: "민준",
+                    profileImage: nil
+                ),
+                imageURL: nil,
+                likes: ["user1", "user3", "user4"],
+                latitude: 37.517682,
+                longitude: 126.886417,
+                isLiked: true
+            ),
+            PostCard(
+                id: "3",
+                category: "fashion",
+                title: "나이키 후드티 거의 새거",
+                price: 35000,
+                createdAt: threeDaysAgo,
+                creator: Creator(
+                    userId: "user3",
+                    nickname: "서연",
+                    profileImage: nil
+                ),
+                imageURL: nil,
+                likes: ["user2", "user5"],
+                latitude: 37.517682,
+                longitude: 126.886417
+            ),
+            PostCard(
+                id: "4",
+                category: "books",
+                title: "Swift 책 필요하신 분",
+                price: 25000,
+                createdAt: fiveDaysAgo,
+                creator: Creator(
+                    userId: "user4",
+                    nickname: "지호",
+                    profileImage: nil
+                ),
+                imageURL: nil,
+                likes: ["user1"],
+                latitude: 37.517682,
+                longitude: 126.886417
+            ),
+            PostCard(
+                id: "5",
+                category: "living",
+                title: "키보드 팔아요 상태좋음",
+                price: 45000,
+                createdAt: oneWeekAgo,
+                creator: Creator(
+                    userId: "user5",
+                    nickname: "하은",
+                    profileImage: nil
+                ),
+                imageURL: nil,
+                likes: ["user1", "user2", "user3", "user4", "user5"],
+                latitude: 37.517682,
+                longitude: 126.886417,
+                isLiked: true
+            ),
+            PostCard(
+                id: "6",
+                category: "sports",
+                title: "요가 매트 나눔해요",
+                price: 0,
+                createdAt: twoWeeksAgo,
+                creator: Creator(
+                    userId: "user6",
+                    nickname: "준서",
+                    profileImage: nil
+                ),
+                imageURL: nil,
+                likes: ["user2", "user3", "user6"],
+                latitude: 37.517682,
+                longitude: 126.886417
+            )
+        ]
+    }
+}
