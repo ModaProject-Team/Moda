@@ -59,6 +59,7 @@ final class AppNavigator: ObservableObject {
     /// SwiftUI의 `NavigationPath`를 사용하여 화면 스택을 관리합니다.
     /// Published로 선언되어 스택 변경 시 자동으로 UI가 업데이트됩니다.
     @Published var path = NavigationPath()
+    @Published var isLoggedIn = false
 
     /// 싱글톤 인스턴스
     ///

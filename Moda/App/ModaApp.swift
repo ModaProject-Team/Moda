@@ -13,16 +13,19 @@ struct ModaApp: App {
     
     var body: some Scene {
         WindowGroup {
-            
             NavigationStack(path: $navigator.path) {
-                MainTabView()
-                    .navigationDestination(for: NavigationDestination.self) { destination in
-                        destination.view()
+                Group {
+                    if navigator.isLoggedIn {
+                        MainTabView()
+                    } else {
+                        LoginView()
                     }
+                }
+                .navigationDestination(for: NavigationDestination.self) { destination in
+                    destination.view()
+                }
             }
             .environmentObject(navigator)
-            
-//            MapView()
         }
     }
 }
