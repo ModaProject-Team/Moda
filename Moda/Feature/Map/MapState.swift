@@ -11,6 +11,7 @@ import CoreLocation
 
 struct MapState {
     var cameraPosition: MapCameraPosition
+    var currentSpan: MKCoordinateSpan
     var isLocationServicesEnabled: Bool
     var authorizationStatus: CLAuthorizationStatus
     var showPermissionDeniedAlert: Bool
@@ -18,6 +19,7 @@ struct MapState {
     var showLocationUpdateFailedAlert: Bool
     var currentLocation: CLLocationCoordinate2D?
     var posts: [PostAnnotation]
+    var selectedPostId: String?
 
     //TODO: GPS 또는 앱 위치 설정이 꺼져있을 경우에 사용하기
     static let initialCameraPosition: MapCameraPosition = .region(
@@ -29,15 +31,18 @@ struct MapState {
 
     init(
         cameraPosition: MapCameraPosition = MapState.initialCameraPosition,
+        currentSpan: MKCoordinateSpan = MKCoordinateSpan(latitudeDelta: 0.015, longitudeDelta: 0.015),
         isLocationServicesEnabled: Bool = false,
         authorizationStatus: CLAuthorizationStatus = .notDetermined,
         showPermissionDeniedAlert: Bool = false,
         showLocationServiceDisabledAlert: Bool = false,
         showLocationUpdateFailedAlert: Bool = false,
         currentLocation: CLLocationCoordinate2D? = nil,
-        posts: [PostAnnotation] = PostAnnotation.mockData
+        posts: [PostAnnotation] = PostAnnotation.mockData,
+        selectedPostId: String? = nil
     ) {
         self.cameraPosition = cameraPosition
+        self.currentSpan = currentSpan
         self.isLocationServicesEnabled = isLocationServicesEnabled
         self.authorizationStatus = authorizationStatus
         self.showPermissionDeniedAlert = showPermissionDeniedAlert
@@ -45,5 +50,6 @@ struct MapState {
         self.showLocationUpdateFailedAlert = showLocationUpdateFailedAlert
         self.currentLocation = currentLocation
         self.posts = posts
+        self.selectedPostId = selectedPostId
     }
 }

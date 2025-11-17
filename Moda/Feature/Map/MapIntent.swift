@@ -38,4 +38,10 @@ enum MapIntent {
 
     /// 사용자의 현재 위치로 카메라 이동
     case moveToUserLocation
+
+    /// 게시물 선택
+    case selectPost(String?)
+
+    /// 지도 확대/축소 레벨 업데이트
+    case updateSpan(MKCoordinateSpan)
 }

@@ -23,9 +23,24 @@ struct MapView: View {
 
                 ForEach(store.state.posts) { post in
                     Annotation(post.title, coordinate: post.coordinate) {
-                        CustomAnnotationView(post: post)
+                        CustomAnnotationView(
+                            post: post,
+                            isSelected: store.state.selectedPostId == post.id
+                        )
+                        .onTapGesture {
+                            withAnimation {
+                                if store.state.selectedPostId == post.id {
+                                    store.send(.selectPost(nil))
+                                } else {
+                                    store.send(.selectPost(post.id))
+                                }
+                            }
+                        }
                     }
                 }
+            }
+            .onMapCameraChange { context in
+                store.send(.updateSpan(context.region.span))
             }
             .ignoresSafeArea()
             

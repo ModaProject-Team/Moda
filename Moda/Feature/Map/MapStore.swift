@@ -70,6 +70,23 @@ final class MapStore: NSObject, ObservableObject {
                     )
                 )
             }
+
+        case .selectPost(let postId):
+            state.selectedPostId = postId
+
+            // 선택된 핀을 지도 중앙으로 이동 (현재 확대 레벨 유지)
+            if let postId = postId,
+               let selectedPost = state.posts.first(where: { $0.id == postId }) {
+                state.cameraPosition = .region(
+                    MKCoordinateRegion(
+                        center: selectedPost.coordinate,
+                        span: state.currentSpan
+                    )
+                )
+            }
+
+        case .updateSpan(let span):
+            state.currentSpan = span
         }
     }
 

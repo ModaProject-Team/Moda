@@ -9,13 +9,19 @@ import SwiftUI
 
 struct CustomAnnotationView: View {
     let post: PostAnnotation
+    let isSelected: Bool
 
     var body: some View {
         VStack(spacing: 0) {
-            
+
             ZStack {
+                if isSelected {
+                    RoundedRectangle(cornerRadius: 17)
+                        .frame(width: 54, height: 54)
+                }
+
                 RoundedRectangle(cornerRadius: 17)
-                    .fill(Color.white)
+                    .fill(isSelected ? Color.blue1 : Color.white)
                     .frame(width: 54, height: 54)
                     .shadow(color: .black.opacity(0.15), radius: 4, x: 0, y: 2)
 
@@ -25,12 +31,16 @@ struct CustomAnnotationView: View {
                     .frame(width: 44, height: 44)
                     .clipShape(RoundedRectangle(cornerRadius: 13))
             }
+            .scaleEffect(isSelected ? 1.2 : 1.0)
+            .animation(.spring(response: 0.3, dampingFraction: 0.6), value: isSelected)
 
             Triangle()
-                .fill(Color.white)
+                .fill(isSelected ? Color.blue1.opacity(0.1) : Color.white)
                 .frame(width: 16, height: 8)
                 .shadow(color: .black.opacity(0.1), radius: 2, x: 0, y: 2)
                 .offset(y: -1)
+                .scaleEffect(isSelected ? 1.2 : 1.0)
+                .animation(.spring(response: 0.3, dampingFraction: 0.6), value: isSelected)
         }
     }
 }
