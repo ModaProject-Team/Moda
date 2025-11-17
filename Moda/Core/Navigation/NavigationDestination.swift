@@ -78,8 +78,20 @@ enum NavigationDestination: Hashable {
     /// 물건 올리기 화면
     case productUpload
 
+    // MARK: FriendTab
+    /// 친구 검색 화면
+    case friendSearch
+
+    /// 친구 추가화 면
+    case friendAdd
+
+    /// 프로필 디테일 화면
+    case profileDetail
+
+    // MARK: ChatTab
     /// 채팅방 화면
     case chatRoom(roomId: String, participantName: String)
+
 }
 
 // MARK: - View Mapping
@@ -106,8 +118,21 @@ extension NavigationDestination {
             Text("Settings View")
         case .productUpload:
             ProductUploadView()
+
+        //MARK: FriendTab
+        case .friendSearch:
+            FriendSearchView()
+        case .friendAdd:
+            FriendAddView()
+        case .profileDetail:
+            ProfileDetailView()
+
+
+        //MARK: ChatTab
         case .chatRoom(let roomId, let participantName):
             ChatRoomView(roomId: roomId, participantName: participantName)
+
         }
+
     }
 }

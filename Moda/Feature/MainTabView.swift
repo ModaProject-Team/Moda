@@ -53,7 +53,7 @@ struct MainTabView: View {
         case .map:
             PlaceholderView(title: "지도")
         case .friends:
-            PlaceholderView(title: "친구")
+            FriendListView()
         case .chat:
             ChatListView()
         case .profile:
