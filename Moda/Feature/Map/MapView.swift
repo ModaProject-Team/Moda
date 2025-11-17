@@ -13,8 +13,7 @@ struct MapView: View {
     @StateObject private var store = MapStore()
     
     var body: some View {
-        ZStack(alignment: .topTrailing) {
-            
+        ZStack {
             Map(position: Binding(
                 get: { store.state.cameraPosition },
                 set: { store.send(.updateCameraPosition($0)) }
@@ -42,28 +41,49 @@ struct MapView: View {
             .onMapCameraChange { context in
                 store.send(.updateSpan(context.region.span))
             }
-            .ignoresSafeArea()
-            
-            VStack {
-                Button {
-                    withAnimation {
-                        store.send(.moveToUserLocation)
-                    }
-                } label: {
-                    Image(systemName: "dot.scope")
-                        .font(.title3)
-                        .foregroundColor(.white)
-                        .padding(.all, 8)
-                        .background(Color.blue1)
-                        .clipShape(Circle())
-                        .shadow(radius: 3)
+            .onTapGesture {
+                // 지도의 빈 곳을 탭하면 선택 해제
+                withAnimation {
+                    store.send(.selectPost(nil))
                 }
-                .padding(.top, 8)
-                .padding(.trailing, 16)
-                
-                Spacer()
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
+            .ignoresSafeArea()
+
+            // 우측 상단 현재 위치 버튼
+            VStack {
+                HStack {
+                    Spacer()
+                    VStack {
+                        Button {
+                            withAnimation {
+                                store.send(.moveToUserLocation)
+                            }
+                        } label: {
+                            Image(systemName: "dot.scope")
+                                .font(.title3)
+                                .foregroundColor(.white)
+                                .padding(.all, 8)
+                                .background(Color.blue1)
+                                .clipShape(Circle())
+                                .shadow(radius: 3)
+                        }
+                        .padding(.top, 8)
+                        .padding(.trailing, 16)
+
+                        Spacer()
+                    }
+                }
+            }
+
+            // 하단 게시물 카드
+            VStack {
+                Spacer()
+
+                if let selectedPostId = store.state.selectedPostId,
+                   let selectedPost = store.state.posts.first(where: { $0.id == selectedPostId }) {
+                    MapPostCardView(post: selectedPost)
+                }
+            }
         }
         .navigationBarHidden(true)
         .onAppear {
