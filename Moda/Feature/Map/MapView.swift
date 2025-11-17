@@ -20,6 +20,14 @@ struct MapView: View {
                 set: { store.send(.updateCameraPosition($0)) }
             )) {
                 UserAnnotation()
+
+                ForEach(store.state.posts) { post in
+                    Annotation(post.title, coordinate: post.coordinate) {
+                        Image(systemName: "mappin.circle.fill")
+                            .foregroundColor(.blue1)
+                            .font(.title)
+                    }
+                }
             }
             .ignoresSafeArea()
             

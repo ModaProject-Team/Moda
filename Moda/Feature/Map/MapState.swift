@@ -17,6 +17,7 @@ struct MapState {
     var showLocationServiceDisabledAlert: Bool
     var showLocationUpdateFailedAlert: Bool
     var currentLocation: CLLocationCoordinate2D?
+    var posts: [PostAnnotation]
 
     //TODO: GPS 또는 앱 위치 설정이 꺼져있을 경우에 사용하기
     static let initialCameraPosition: MapCameraPosition = .region(
@@ -33,7 +34,8 @@ struct MapState {
         showPermissionDeniedAlert: Bool = false,
         showLocationServiceDisabledAlert: Bool = false,
         showLocationUpdateFailedAlert: Bool = false,
-        currentLocation: CLLocationCoordinate2D? = nil
+        currentLocation: CLLocationCoordinate2D? = nil,
+        posts: [PostAnnotation] = PostAnnotation.mockData
     ) {
         self.cameraPosition = cameraPosition
         self.isLocationServicesEnabled = isLocationServicesEnabled
@@ -42,5 +44,6 @@ struct MapState {
         self.showLocationServiceDisabledAlert = showLocationServiceDisabledAlert
         self.showLocationUpdateFailedAlert = showLocationUpdateFailedAlert
         self.currentLocation = currentLocation
+        self.posts = posts
     }
 }
