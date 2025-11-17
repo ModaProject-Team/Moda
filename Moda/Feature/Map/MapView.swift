@@ -20,9 +20,6 @@ struct MapView: View {
             .onAppear {
                 store.send(.setupLocationManager)
             }
-            .onChange(of: store.state.authorizationStatus) { _, status in
-                checkAndRequestPermission(status: status)
-            }
             .alert(
                 "위치 서비스를 사용할 수 없습니다",
                 isPresented: Binding(
@@ -54,13 +51,6 @@ struct MapView: View {
                 Text("앱에서 위치 기능을 사용하려면 설정에서 권한을 허용해주세요.")
             }
     }
-
-    private func checkAndRequestPermission(status: CLAuthorizationStatus) {
-        if status == .notDetermined && store.state.isLocationServicesEnabled {
-            store.send(.requestLocationPermission)
-        }
-    }
-
 }
 
 #Preview {
