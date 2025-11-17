@@ -91,8 +91,7 @@ extension NavigationDestination {
             // TODO: SignUpView 구현 후 교체
             Text("SignUp View")
         case .home:
-            // TODO: HomeView 구현 후 교체
-            HomeView()
+            FeedView()
         case .profile:
             // TODO: ProfileView 구현 후 교체
             Text("Profile View")
