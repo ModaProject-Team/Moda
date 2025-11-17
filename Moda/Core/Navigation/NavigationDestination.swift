@@ -77,6 +77,9 @@ enum NavigationDestination: Hashable {
 
     /// 물건 올리기 화면
     case productUpload
+
+    /// 채팅방 화면
+    case chatRoom(roomId: String, participantName: String)
 }
 
 // MARK: - View Mapping
@@ -103,6 +106,8 @@ extension NavigationDestination {
             Text("Settings View")
         case .productUpload:
             ProductUploadView()
+        case .chatRoom(let roomId, let participantName):
+            ChatRoomView(roomId: roomId, participantName: participantName)
         }
     }
 }
