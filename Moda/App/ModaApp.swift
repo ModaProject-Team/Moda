@@ -14,17 +14,15 @@ struct ModaApp: App {
     var body: some Scene {
         WindowGroup {
             
-//            NavigationStack(path: $navigator.path) {
-//                HomeView()
-//                    .navigationDestination(for: NavigationDestination.self) { destination in
-//                        destination.view()
-//                    }
-//            }
-//            .environmentObject(navigator)
+            NavigationStack(path: $navigator.path) {
+                HomeView()
+                    .navigationDestination(for: NavigationDestination.self) { destination in
+                        destination.view()
+                    }
+            }
+            .environmentObject(navigator)
             
-            
-            #warning("수정하고 PR")
-            MapView()
+//            MapView()
         }
     }
 }
