@@ -60,6 +60,60 @@ final class MapStore: NSObject, ObservableObject {
             if state.authorizationStatus == .authorizedWhenInUse || state.authorizationStatus == .authorizedAlways {
                 locationManager.startUpdatingLocation()
             }
+
+        case .moveToUserLocation:
+            if let currentLocation = state.currentLocation {
+                state.cameraPosition = .region(
+                    MKCoordinateRegion(
+                        center: currentLocation,
+                        span: MKCoordinateSpan(latitudeDelta: 0.015, longitudeDelta: 0.015)
+                    )
+                )
+            }
+
+        case .selectPost(let postId):
+            state.selectedPostId = postId
+
+            // 경도 기준 정렬된 배열에서 인덱스 찾기
+            if let postId = postId {
+                state.selectedPostIndex = state.sortedPosts.firstIndex(where: { $0.id == postId })
+            } else {
+                state.selectedPostIndex = nil
+            }
+
+            // 선택된 핀을 지도 중앙으로 이동 (현재 확대 레벨 유지)
+            if let postId = postId,
+               let selectedPost = state.posts.first(where: { $0.id == postId }) {
+                state.cameraPosition = .region(
+                    MKCoordinateRegion(
+                        center: selectedPost.coordinate,
+                        span: state.currentSpan
+                    )
+                )
+            }
+
+        case .selectPostByIndex(let index):
+            let sortedPosts = state.sortedPosts
+            guard let index = index, index >= 0, index < sortedPosts.count else {
+                state.selectedPostId = nil
+                state.selectedPostIndex = nil
+                return
+            }
+
+            let selectedPost = sortedPosts[index]
+            state.selectedPostId = selectedPost.id
+            state.selectedPostIndex = index
+
+            // 선택된 핀을 지도 중앙으로 이동 (현재 확대 레벨 유지)
+            state.cameraPosition = .region(
+                MKCoordinateRegion(
+                    center: selectedPost.coordinate,
+                    span: state.currentSpan
+                )
+            )
+
+        case .updateSpan(let span):
+            state.currentSpan = span
         }
     }
 

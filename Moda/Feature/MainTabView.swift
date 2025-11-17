@@ -51,7 +51,7 @@ struct MainTabView: View {
         case .home:
             FeedView()
         case .map:
-            PlaceholderView(title: "지도")
+            MapView()
         case .friends:
             FriendListView()
         case .chat:
