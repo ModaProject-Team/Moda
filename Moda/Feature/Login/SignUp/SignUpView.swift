@@ -15,24 +15,25 @@ struct SignUpView: View {
             Color.white
                 .ignoresSafeArea()
 
-            VStack(spacing: 0) {
-                Spacer()
+            ScrollView {
+                VStack(spacing: 0) {
+                    Spacer()
+                        .frame(height: 20)
 
-                headerSection
+                    headerSection
 
-                Spacer()
+                    Spacer()
+                        .frame(height: 40)
 
-                signUpOptionsSection
+                    signUpOptionsSection
 
-                Spacer()
-                    .frame(height: 60)
+                    Spacer()
+                        .frame(height: 32)
 
-                loginLinkSection
-
-                Spacer()
-                    .frame(height: 32)
+                    loginLinkSection
+                }
+                .padding(.horizontal, 24)
             }
-            .padding(.horizontal, 24)
         }
         .navigationBarBackButtonHidden(true)
         .toolbar {
@@ -48,11 +49,11 @@ struct SignUpView: View {
     }
 
     private var headerSection: some View {
-        VStack(spacing: 12) {
+        VStack(spacing: 4) {
             Image("AppIcon")
                 .resizable()
                 .scaledToFit()
-                .frame(height: 80)
+                .frame(height: 100)
 
             Text("회원가입")
                 .H1()
@@ -65,7 +66,7 @@ struct SignUpView: View {
     }
 
     private var signUpOptionsSection: some View {
-        VStack(spacing: 12) {
+        VStack(spacing: 24) {
             Button {
                 navigator.push(.emailSignUp)
             } label: {
@@ -127,7 +128,7 @@ struct SignUpView: View {
             } label: {
                 Text("로그인")
                     .Body2()
-                    .foregroundColor(.gray1)
+                    .foregroundColor(.blue1)
                     .underline()
             }
         }
