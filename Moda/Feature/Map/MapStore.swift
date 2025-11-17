@@ -12,13 +12,8 @@ import UIKit
 
 @MainActor
 final class MapStore: NSObject, ObservableObject {
-    @Published private(set) var state = MapState(
-        cameraPosition: MapState.initialCameraPosition,
-        isLocationServicesEnabled: false,
-        authorizationStatus: .notDetermined,  // 0: 사용자가 허용/거부 등 아무것도 설정하지 않은 상태: 보통 앱을 처음 실행했을 때
-        showPermissionDeniedAlert: false,
-        showLocationServiceDisabledAlert: false
-    )
+    
+    @Published private(set) var state = MapState()
 
     lazy var locationManager: CLLocationManager = {
         let manager = CLLocationManager()
@@ -40,10 +35,6 @@ final class MapStore: NSObject, ObservableObject {
                     span: MKCoordinateSpan(latitudeDelta: 0.015, longitudeDelta: 0.015)
                 )
             )
-
-        case .loadInitialLocation:
-            //TODO: 권한 설정 후 진입 위치 수정하기
-            state.cameraPosition = MapState.initialCameraPosition
 
         case .setupLocationManager:
             //TODO: lazy var의 초기화를 일단 강제로 실행
@@ -94,6 +85,10 @@ extension MapStore: CLLocationManagerDelegate {
                 state.isLocationServicesEnabled = isEnabled
                 state.authorizationStatus = authStatus
 
+                print("시스템 위치 서비스: \(state.isLocationServicesEnabled)")
+                print("앱 위치 권한: \(state.authorizationStatus.rawValue)")
+                print("CLAuthorizationStatus - notDetermined: 0, restricted: 1, denied: 2, authorizedAlways: 3, authorizedWhenInUse: 4")
+
                 // 시스템 위치 서비스가 꺼져있을 때 Alert 표시
                 if !isEnabled {
                     state.showLocationServiceDisabledAlert = true
@@ -102,9 +97,40 @@ extension MapStore: CLLocationManagerDelegate {
                 else if authStatus == .denied || authStatus == .restricted {
                     state.showPermissionDeniedAlert = true
                 }
+                // 위치 권한이 허용되었을 때 위치 업데이트 시작
+                else if authStatus == .authorizedWhenInUse || authStatus == .authorizedAlways {
+                    manager.startUpdatingLocation()
+                }
+                // 권한 미설정 상태일 때 권한 요청
+                else if authStatus == .notDetermined && isEnabled {
+                    manager.requestWhenInUseAuthorization()
+                }
+            }
+        }
+    }
 
-                print("시스템 위치 서비스: \(state.isLocationServicesEnabled)")
-                print("앱 위치 권한: \(state.authorizationStatus.rawValue)")
+    // 위치 업데이트를 받았을 때 호출
+    nonisolated func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
+        guard let location = locations.last else { return }
+
+        Task {
+            await MainActor.run {
+                let coordinate = location.coordinate  // 위경도
+                state.currentLocation = coordinate
+
+                // 사용자 위치로 카메라 이동
+                state.cameraPosition = .region(
+                    MKCoordinateRegion(
+                        center: coordinate,
+                        span: MKCoordinateSpan(latitudeDelta: 0.015, longitudeDelta: 0.015)
+                    )
+                )
+                
+                // 계속 들어오는 GPS 업데이트를 중단
+                locationManager.stopUpdatingLocation()
+
+                // TODO: 위치 기반 데이터 로드
+                print("현재 위치: \(coordinate.latitude), \(coordinate.longitude)")
             }
         }
     }

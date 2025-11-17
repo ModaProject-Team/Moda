@@ -13,10 +13,12 @@ struct MapView: View {
     @StateObject private var store = MapStore()
 
     var body: some View {
-        Map(position: .constant(store.state.cameraPosition))
+        Map(position: Binding(
+            get: { store.state.cameraPosition },
+            set: { store.send(.updateCameraPosition($0)) }
+        ))
             .onAppear {
                 store.send(.setupLocationManager)
-                store.send(.loadInitialLocation)
             }
             .onChange(of: store.state.authorizationStatus) { _, status in
                 checkAndRequestPermission(status: status)

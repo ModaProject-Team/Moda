@@ -15,9 +15,6 @@ enum MapIntent {
     /// 특정 좌표로 카메라를 이동 (예: 현재 위치로 이동)
     case moveToLocation(CLLocationCoordinate2D)
 
-    /// 앱이 처음 로드될 때 초기 위치 설정
-    case loadInitialLocation
-
     /// LocationManager 초기화 (델리게이트 콜백 트리거)
     case setupLocationManager
 
