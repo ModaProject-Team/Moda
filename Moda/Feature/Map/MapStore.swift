@@ -51,6 +51,15 @@ final class MapStore: NSObject, ObservableObject {
 
         case .dismissLocationServiceDisabledAlert:
             state.showLocationServiceDisabledAlert = false
+
+        case .dismissLocationUpdateFailedAlert:
+            state.showLocationUpdateFailedAlert = false
+
+        case .retryLocationUpdate:
+            state.showLocationUpdateFailedAlert = false
+            if state.authorizationStatus == .authorizedWhenInUse || state.authorizationStatus == .authorizedAlways {
+                locationManager.startUpdatingLocation()
+            }
         }
     }
 
@@ -125,12 +134,26 @@ extension MapStore: CLLocationManagerDelegate {
                         span: MKCoordinateSpan(latitudeDelta: 0.015, longitudeDelta: 0.015)
                     )
                 )
-                
+
                 // 계속 들어오는 GPS 업데이트를 중단
                 locationManager.stopUpdatingLocation()
 
                 // TODO: 위치 기반 데이터 로드
                 print("현재 위치: \(coordinate.latitude), \(coordinate.longitude)")
+            }
+        }
+    }
+
+    // 위치 업데이트 실패 시 호출
+    nonisolated func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
+        Task {
+            await MainActor.run {
+                print("위치 업데이트 실패: \(error.localizedDescription)")
+
+                state.cameraPosition = MapState.initialCameraPosition
+                state.showLocationUpdateFailedAlert = true
+
+                locationManager.stopUpdatingLocation()
             }
         }
     }

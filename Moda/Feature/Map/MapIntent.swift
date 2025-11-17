@@ -29,4 +29,10 @@ enum MapIntent {
 
     /// 위치 서비스 비활성화 Alert 닫기
     case dismissLocationServiceDisabledAlert
+
+    /// 위치 업데이트 실패 Alert 닫기
+    case dismissLocationUpdateFailedAlert
+
+    /// 위치 업데이트 재시도
+    case retryLocationUpdate
 }

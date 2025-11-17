@@ -15,6 +15,7 @@ struct MapState {
     var authorizationStatus: CLAuthorizationStatus
     var showPermissionDeniedAlert: Bool
     var showLocationServiceDisabledAlert: Bool
+    var showLocationUpdateFailedAlert: Bool
     var currentLocation: CLLocationCoordinate2D?
 
     //TODO: GPS 또는 앱 위치 설정이 꺼져있을 경우에 사용하기
@@ -31,6 +32,7 @@ struct MapState {
         authorizationStatus: CLAuthorizationStatus = .notDetermined,
         showPermissionDeniedAlert: Bool = false,
         showLocationServiceDisabledAlert: Bool = false,
+        showLocationUpdateFailedAlert: Bool = false,
         currentLocation: CLLocationCoordinate2D? = nil
     ) {
         self.cameraPosition = cameraPosition
@@ -38,6 +40,7 @@ struct MapState {
         self.authorizationStatus = authorizationStatus
         self.showPermissionDeniedAlert = showPermissionDeniedAlert
         self.showLocationServiceDisabledAlert = showLocationServiceDisabledAlert
+        self.showLocationUpdateFailedAlert = showLocationUpdateFailedAlert
         self.currentLocation = currentLocation
     }
 }

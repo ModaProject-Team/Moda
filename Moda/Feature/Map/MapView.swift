@@ -55,6 +55,22 @@ struct MapView: View {
             } message: {
                 Text("앱에서 위치 기능을 사용하려면 설정에서 권한을 허용해주세요.")
             }
+            .alert(
+                "위치를 가져올 수 없습니다",
+                isPresented: Binding(
+                    get: { store.state.showLocationUpdateFailedAlert },
+                    set: { if !$0 { store.send(.dismissLocationUpdateFailedAlert) } }
+                )
+            ) {
+                Button("취소", role: .cancel) {
+                    store.send(.dismissLocationUpdateFailedAlert)
+                }
+                Button("재시도") {
+                    store.send(.retryLocationUpdate)
+                }
+            } message: {
+                Text("현재 위치를 가져오는 중 문제가 발생했습니다. 다시 시도해주세요.")
+            }
     }
 }
 
