@@ -63,6 +63,9 @@ enum NavigationDestination: Hashable {
     /// 회원가입 화면
     case signUp
 
+    /// 이메일 회원가입 화면
+    case emailSignUp
+
     /// 홈 화면
     case home
 
@@ -85,11 +88,11 @@ extension NavigationDestination {
     func view() -> some View {
         switch self {
         case .login:
-            // TODO: LoginView 구현 후 교체
-            Text("Login View")
+            LoginView()
         case .signUp:
-            // TODO: SignUpView 구현 후 교체
-            Text("SignUp View")
+            SignUpView()
+        case .emailSignUp:
+            EmailSignUpView()
         case .home:
             FeedView()
         case .profile:
