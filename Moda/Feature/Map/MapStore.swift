@@ -60,6 +60,16 @@ final class MapStore: NSObject, ObservableObject {
             if state.authorizationStatus == .authorizedWhenInUse || state.authorizationStatus == .authorizedAlways {
                 locationManager.startUpdatingLocation()
             }
+
+        case .moveToUserLocation:
+            if let currentLocation = state.currentLocation {
+                state.cameraPosition = .region(
+                    MKCoordinateRegion(
+                        center: currentLocation,
+                        span: MKCoordinateSpan(latitudeDelta: 0.015, longitudeDelta: 0.015)
+                    )
+                )
+            }
         }
     }
 

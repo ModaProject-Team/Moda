@@ -35,4 +35,7 @@ enum MapIntent {
 
     /// 위치 업데이트 재시도
     case retryLocationUpdate
+
+    /// 사용자의 현재 위치로 카메라 이동
+    case moveToUserLocation
 }

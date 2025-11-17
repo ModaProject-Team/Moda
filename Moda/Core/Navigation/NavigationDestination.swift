@@ -91,7 +91,9 @@ enum NavigationDestination: Hashable {
     // MARK: ChatTab
     /// 채팅방 화면
     case chatRoom(roomId: String, participantName: String)
-
+    
+    /// 지도
+    case map
 }
 
 // MARK: - View Mapping
@@ -131,7 +133,9 @@ extension NavigationDestination {
         //MARK: ChatTab
         case .chatRoom(let roomId, let participantName):
             ChatRoomView(roomId: roomId, participantName: participantName)
-
+            
+        case .map:
+            MapView()
         }
 
     }
