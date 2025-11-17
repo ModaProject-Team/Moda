@@ -12,7 +12,7 @@ import UIKit
 
 @MainActor
 final class MapStore: NSObject, ObservableObject {
-    
+
     @Published private(set) var state = MapState()
 
     lazy var locationManager: CLLocationManager = {
@@ -83,7 +83,7 @@ final class MapStore: NSObject, ObservableObject {
 
 // MARK: - CLLocationManagerDelegate
 extension MapStore: CLLocationManagerDelegate {
-    
+
     // 사용자 권한 상태가 변경된 경우 & CLLocationManager Create (iOS14 이상)
     nonisolated func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
         Task {
