@@ -41,12 +41,6 @@ struct MapView: View {
             .onMapCameraChange { context in
                 store.send(.updateSpan(context.region.span))
             }
-            .onTapGesture {
-                // 지도의 빈 곳을 탭하면 선택 해제
-                withAnimation {
-                    store.send(.selectPost(nil))
-                }
-            }
             .ignoresSafeArea()
 
             // 우측 상단 현재 위치 버튼
@@ -76,13 +70,28 @@ struct MapView: View {
             }
 
             // 하단 게시물 카드
-            VStack {
-                Spacer()
+            if store.state.selectedPostIndex != nil {
+                VStack {
+                    Spacer()
 
-                if let selectedPostId = store.state.selectedPostId,
-                   let selectedPost = store.state.posts.first(where: { $0.id == selectedPostId }) {
-                    MapPostCardView(post: selectedPost)
+                    TabView(selection: Binding(
+                        get: { store.state.selectedPostIndex ?? 0 },
+                        set: { newIndex in
+                            withAnimation {
+                                store.send(.selectPostByIndex(newIndex))
+                            }
+                        }
+                    )) {
+                        ForEach(Array(store.state.sortedPosts.enumerated()), id: \.element.id) { index, post in
+                            MapPostCardView(post: post)
+                                .tag(index)
+                                .padding(.top, 10)
+                        }
+                    }
+                    .tabViewStyle(.page(indexDisplayMode: .never))
+                    .frame(height: 180)
                 }
+                .allowsHitTesting(true)
             }
         }
         .navigationBarHidden(true)

@@ -44,4 +44,7 @@ enum MapIntent {
 
     /// 지도 확대/축소 레벨 업데이트
     case updateSpan(MKCoordinateSpan)
+
+    /// 게시물 인덱스로 선택
+    case selectPostByIndex(Int?)
 }

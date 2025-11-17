@@ -20,6 +20,12 @@ struct MapState {
     var currentLocation: CLLocationCoordinate2D?
     var posts: [PostAnnotation]
     var selectedPostId: String?
+    var selectedPostIndex: Int?
+
+    // 경도 기준으로 정렬된 게시물 배열
+    var sortedPosts: [PostAnnotation] {
+        posts.sorted { $0.longitude < $1.longitude }
+    }
 
     //TODO: GPS 또는 앱 위치 설정이 꺼져있을 경우에 사용하기
     static let initialCameraPosition: MapCameraPosition = .region(
@@ -39,7 +45,8 @@ struct MapState {
         showLocationUpdateFailedAlert: Bool = false,
         currentLocation: CLLocationCoordinate2D? = nil,
         posts: [PostAnnotation] = PostAnnotation.mockData,
-        selectedPostId: String? = nil
+        selectedPostId: String? = nil,
+        selectedPostIndex: Int? = nil
     ) {
         self.cameraPosition = cameraPosition
         self.currentSpan = currentSpan
@@ -51,5 +58,6 @@ struct MapState {
         self.currentLocation = currentLocation
         self.posts = posts
         self.selectedPostId = selectedPostId
+        self.selectedPostIndex = selectedPostIndex
     }
 }
