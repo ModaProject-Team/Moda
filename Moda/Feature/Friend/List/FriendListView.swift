@@ -29,7 +29,6 @@ struct FriendListView: View {
         statusMessage: "상태 메시지 예시 입니다.",
         profileImageURL: generateDummyProfileImageURL()
     )
-
     // 친구 목록 (더미데이터)
     @State private var friends: [People] = [
         People(id: UUID(), name: "영훈", statusMessage: "주말엔 등산!", profileImageURL: generateDummyProfileImageURL(size: 200)),
@@ -38,12 +37,18 @@ struct FriendListView: View {
         People(id: UUID(), name: "장수지", statusMessage: nil, profileImageURL: generateDummyProfileImageURL(size: 200)),
         People(id: UUID(), name: "금가경", statusMessage: "과제 중", profileImageURL: generateDummyProfileImageURL(size: 200))
     ]
+    // 네비게이션
+    @EnvironmentObject var navigator: AppNavigator
 
     var body: some View {
         List {
             // 내 프로필 섹션
             Section {
                 MyProfileHeader(people: myProfile)
+                    .onTapGesture {
+                        // 내 프로필 상세
+                        navigator.push(.profileDetail)
+                    }
                     .listRowSeparator(.hidden)
                     .listRowBackground(Color.clear)
                     .listRowInsets(.init(top: 8, leading: 16, bottom: 8, trailing: 16))
@@ -52,6 +57,9 @@ struct FriendListView: View {
             Section {
                 ForEach(friends) { person in
                     FriendRow(people: person)
+                        .onTapGesture {
+                            navigator.push(.profileDetail)
+                        }
                 }
             } header: {
                 Text("친구 \(friends.count)")
@@ -66,13 +74,13 @@ struct FriendListView: View {
         .toolbar {
             ToolbarItemGroup(placement: .navigationBarTrailing) {
                 Button {
-                    // TODO: 친구 검색 화면
+                    navigator.push(.friendSearch)
                 } label: {
                     Image(systemName: "magnifyingglass")
                 }
 
                 Button {
-                    // TODO: 친구 추가 화면
+                    navigator.push(.friendAdd)
                 } label: {
                     Image(systemName: "person.badge.plus")
                 }
@@ -170,4 +178,5 @@ private struct ProfileImageView: View {
     NavigationStack {
         FriendListView()
     }
+    .environmentObject(AppNavigator.shared)
 }
