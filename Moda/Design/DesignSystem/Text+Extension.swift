@@ -1,0 +1,37 @@
+//
+//  Text+Extension.swift
+//  Moda
+//
+//  Created by 금가경 on 11/16/25.
+//
+
+import SwiftUI
+
+extension Text {
+    func customStyle(fontName: String, fontSize: CGFloat, kerning: CGFloat = -2) -> some View {
+        self
+            .font(.custom(fontName, size: fontSize))
+            .kerning(fontSize * kerning / 100)
+    }
+
+    func Logo() -> some View {
+        customStyle(fontName: "HancomMalangMalang-Bold", fontSize: 22)
+    }
+
+    func H1() -> some View {
+        customStyle(fontName: "SUIT-Bold", fontSize: 18)
+    }
+
+    func H2() -> some View {
+        customStyle(fontName: "SUIT-Bold", fontSize: 16)
+    }
+
+    func Body1() -> some View {
+        customStyle(fontName: "SUIT-Medium", fontSize: 14)
+    }
+
+    func Body2() -> some View {
+        customStyle(fontName: "SUIT-Medium", fontSize: 13)
+    }
+}
+

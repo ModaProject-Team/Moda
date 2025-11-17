@@ -15,7 +15,7 @@ struct ModaApp: App {
         WindowGroup {
             
             NavigationStack(path: $navigator.path) {
-                HomeView()
+                MainTabView()
                     .navigationDestination(for: NavigationDestination.self) { destination in
                         destination.view()
                     }
