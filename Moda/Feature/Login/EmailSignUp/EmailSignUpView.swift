@@ -81,7 +81,7 @@ struct EmailSignUpView: View {
                 .foregroundColor(.gray2)
 
             TextField("example@email.com", text: $email)
-                .font(.custom("SUIT-Medium", size: 14))
+                .Input()
                 .keyboardType(.emailAddress)
                 .textInputAutocapitalization(.never)
                 .autocorrectionDisabled()
@@ -99,7 +99,7 @@ struct EmailSignUpView: View {
                 .foregroundColor(.gray2)
 
             SecureField("6자 이상 입력해주세요", text: $password)
-                .font(.custom("SUIT-Medium", size: 14))
+                .Input()
                 .padding(.horizontal, 16)
                 .padding(.vertical, 14)
                 .background(Color.gray5)
@@ -114,7 +114,7 @@ struct EmailSignUpView: View {
                 .foregroundColor(.gray2)
 
             SecureField("비밀번호를 다시 입력해주세요", text: $confirmPassword)
-                .font(.custom("SUIT-Medium", size: 14))
+                .Input()
                 .padding(.horizontal, 16)
                 .padding(.vertical, 14)
                 .background(Color.gray5)
@@ -129,7 +129,7 @@ struct EmailSignUpView: View {
                 .foregroundColor(.gray2)
 
             TextField("2~10자 이내로 입력해주세요", text: $nickname)
-                .font(.custom("SUIT-Medium", size: 14))
+                .Input()
                 .padding(.horizontal, 16)
                 .padding(.vertical, 14)
                 .background(Color.gray5)

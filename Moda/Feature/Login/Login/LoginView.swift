@@ -80,7 +80,7 @@ struct LoginView: View {
                     .foregroundColor(.gray2)
 
                 TextField("이메일을 입력해주세요", text: $email)
-                    .font(.custom("SUIT-Medium", size: 14))
+                    .Input()
                     .keyboardType(.emailAddress)
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
@@ -96,7 +96,7 @@ struct LoginView: View {
                     .foregroundColor(.gray2)
 
                 SecureField("비밀번호를 입력해주세요", text: $password)
-                    .font(.custom("SUIT-Medium", size: 14))
+                    .Input()
                     .padding(.horizontal, 16)
                     .padding(.vertical, 14)
                     .background(Color.gray5)

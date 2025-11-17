@@ -35,3 +35,9 @@ extension Text {
     }
 }
 
+extension View {
+    func Input() -> some View {
+        self.font(.custom("SUIT-Medium", size: 14))
+    }
+}
+
