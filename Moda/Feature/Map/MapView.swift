@@ -41,6 +41,17 @@ struct MapView: View {
             .onMapCameraChange { context in
                 store.send(.updateSpan(context.region.span))
             }
+            .simultaneousGesture(
+                TapGesture()
+                    .onEnded { _ in
+                        // 카드가 열려있을 때 지도 배경 탭으로 닫기
+                        if store.state.selectedPostIndex != nil {
+                            withAnimation {
+                                store.send(.selectPost(nil))
+                            }
+                        }
+                    }
+            )
             .ignoresSafeArea()
 
             // 우측 상단 현재 위치 버튼
