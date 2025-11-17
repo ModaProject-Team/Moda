@@ -87,6 +87,11 @@ enum NavigationDestination: Hashable {
 
     /// 프로필 디테일 화면
     case profileDetail
+
+    // MARK: ChatTab
+    /// 채팅방 화면
+    case chatRoom(roomId: String, participantName: String)
+
 }
 
 // MARK: - View Mapping
@@ -121,6 +126,12 @@ extension NavigationDestination {
             FriendAddView()
         case .profileDetail:
             ProfileDetailView()
+
+
+        //MARK: ChatTab
+        case .chatRoom(let roomId, let participantName):
+            ChatRoomView(roomId: roomId, participantName: participantName)
+
         }
 
     }

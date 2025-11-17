@@ -55,7 +55,7 @@ struct MainTabView: View {
         case .friends:
             FriendListView()
         case .chat:
-            PlaceholderView(title: "채팅")
+            ChatListView()
         case .profile:
             PlaceholderView(title: "프로필")
         }
