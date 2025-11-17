@@ -23,9 +23,7 @@ struct MapView: View {
 
                 ForEach(store.state.posts) { post in
                     Annotation(post.title, coordinate: post.coordinate) {
-                        Image(systemName: "mappin.circle.fill")
-                            .foregroundColor(.blue1)
-                            .font(.title)
+                        CustomAnnotationView(post: post)
                     }
                 }
             }
