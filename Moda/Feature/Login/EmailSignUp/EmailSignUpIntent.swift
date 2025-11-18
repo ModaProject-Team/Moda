@@ -8,5 +8,9 @@
 import Foundation
 
 enum EmailSignUpIntent {
-
+    case emailChanged(String)
+    case passwordChanged(String)
+    case confirmPasswordChanged(String)
+    case nicknameChanged(String)
+    case signUpButtonTapped(email: String, password: String, confirmPassword: String, nickname: String)
 }

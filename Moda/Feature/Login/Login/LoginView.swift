@@ -12,6 +12,11 @@ struct LoginView: View {
     @EnvironmentObject var navigator: AppNavigator
     @State private var email: String = ""
     @State private var password: String = ""
+    @State private var showErrorAlert = false
+
+    private var canLogin: Bool {
+        !email.isEmpty && !password.isEmpty && !store.state.isLoading
+    }
 
     var body: some View {
         ZStack {
@@ -52,6 +57,30 @@ struct LoginView: View {
                 }
                 .padding(.horizontal, 24)
             }
+
+            if store.state.isLoading {
+                Color.black.opacity(0.3)
+                    .ignoresSafeArea()
+
+                ProgressView()
+                    .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                    .scaleEffect(1.5)
+            }
+        }
+        .alert("로그인 실패", isPresented: $showErrorAlert) {
+            Button("확인", role: .cancel) { }
+        } message: {
+            Text(store.state.errorMessage ?? "알 수 없는 오류가 발생했습니다")
+        }
+        .onChange(of: store.state.errorMessage) { _, newValue in
+            if newValue != nil {
+                showErrorAlert = true
+            }
+        }
+        .onChange(of: store.state.isLoginSuccessful) { _, isSuccessful in
+            if isSuccessful {
+                navigator.isLoggedIn = true
+            }
         }
     }
 
@@ -74,49 +103,35 @@ struct LoginView: View {
 
     private var inputSection: some View {
         VStack(spacing: 16) {
-            VStack(alignment: .leading, spacing: 8) {
-                Text("이메일")
-                    .Body2()
-                    .foregroundColor(.gray2)
+            AuthTextField(
+                label: "이메일",
+                placeholder: "이메일을 입력해주세요",
+                text: $email,
+                keyboardType: .emailAddress
+            )
 
-                TextField("이메일을 입력해주세요", text: $email)
-                    .Input()
-                    .keyboardType(.emailAddress)
-                    .textInputAutocapitalization(.never)
-                    .autocorrectionDisabled()
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 14)
-                    .background(Color.gray5)
-                    .cornerRadius(8)
-            }
-
-            VStack(alignment: .leading, spacing: 8) {
-                Text("비밀번호")
-                    .Body2()
-                    .foregroundColor(.gray2)
-
-                SecureField("비밀번호를 입력해주세요", text: $password)
-                    .Input()
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 14)
-                    .background(Color.gray5)
-                    .cornerRadius(8)
-            }
+            AuthTextField(
+                label: "비밀번호",
+                placeholder: "비밀번호를 입력해주세요",
+                text: $password,
+                isSecure: true
+            )
         }
     }
 
     private var loginButtonSection: some View {
         Button {
-            navigator.isLoggedIn = true
+            store.send(.loginButtonTapped(email: email, password: password))
         } label: {
             Text("로그인")
                 .H2()
                 .foregroundColor(.white)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 16)
-                .background(Color.blue1)
+                .background(canLogin ? Color.blue1 : Color.gray3)
                 .cornerRadius(12)
         }
+        .disabled(!canLogin)
     }
 
     private var dividerSection: some View {

@@ -14,6 +14,7 @@ struct EmailSignUpView: View {
     @State private var password: String = ""
     @State private var confirmPassword: String = ""
     @State private var nickname: String = ""
+    @State private var showErrorAlert = false
 
     var body: some View {
         ZStack {
@@ -39,6 +40,15 @@ struct EmailSignUpView: View {
                 }
                 .padding(.horizontal, 24)
             }
+
+            if store.state.isLoading {
+                Color.black.opacity(0.3)
+                    .ignoresSafeArea()
+
+                ProgressView()
+                    .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                    .scaleEffect(1.5)
+            }
         }
         .navigationBarBackButtonHidden(true)
         .toolbar {
@@ -49,6 +59,21 @@ struct EmailSignUpView: View {
                     Image(systemName: "chevron.left")
                         .foregroundColor(.gray1)
                 }
+            }
+        }
+        .alert("회원가입 실패", isPresented: $showErrorAlert) {
+            Button("확인", role: .cancel) { }
+        } message: {
+            Text(store.state.errorMessage ?? "알 수 없는 오류가 발생했습니다")
+        }
+        .onChange(of: store.state.errorMessage) { _, newValue in
+            if newValue != nil {
+                showErrorAlert = true
+            }
+        }
+        .onChange(of: store.state.isSignUpSuccessful) { _, isSuccessful in
+            if isSuccessful {
+                navigator.popToRoot()
             }
         }
     }
@@ -75,80 +100,84 @@ struct EmailSignUpView: View {
     }
 
     private var emailInputField: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("이메일")
-                .Body2()
-                .foregroundColor(.gray2)
-
-            TextField("example@email.com", text: $email)
-                .Input()
-                .keyboardType(.emailAddress)
-                .textInputAutocapitalization(.never)
-                .autocorrectionDisabled()
-                .padding(.horizontal, 16)
-                .padding(.vertical, 14)
-                .background(Color.gray5)
-                .cornerRadius(8)
+        AuthTextField(
+            label: "이메일",
+            placeholder: "example@email.com",
+            text: $email,
+            keyboardType: .emailAddress,
+            validationMessage: store.state.emailValidationMessage,
+            isValid: store.state.isEmailValid,
+            showValidation: true
+        )
+        .onChange(of: email) { _, newValue in
+            store.send(.emailChanged(newValue))
         }
     }
 
     private var passwordInputField: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("비밀번호")
-                .Body2()
-                .foregroundColor(.gray2)
-
-            SecureField("6자 이상 입력해주세요", text: $password)
-                .Input()
-                .padding(.horizontal, 16)
-                .padding(.vertical, 14)
-                .background(Color.gray5)
-                .cornerRadius(8)
+        AuthTextField(
+            label: "비밀번호",
+            placeholder: "4자 이상 입력해주세요",
+            text: $password,
+            isSecure: true,
+            validationMessage: store.state.passwordValidationMessage,
+            isValid: store.state.isPasswordValid,
+            showValidation: true
+        )
+        .onChange(of: password) { _, newValue in
+            store.send(.passwordChanged(newValue))
+            store.checkPasswordMatch(password: newValue, confirmPassword: confirmPassword)
         }
     }
 
     private var confirmPasswordInputField: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("비밀번호 확인")
-                .Body2()
-                .foregroundColor(.gray2)
-
-            SecureField("비밀번호를 다시 입력해주세요", text: $confirmPassword)
-                .Input()
-                .padding(.horizontal, 16)
-                .padding(.vertical, 14)
-                .background(Color.gray5)
-                .cornerRadius(8)
+        AuthTextField(
+            label: "비밀번호 확인",
+            placeholder: "비밀번호를 다시 입력해주세요",
+            text: $confirmPassword,
+            isSecure: true,
+            validationMessage: password != confirmPassword ? "비밀번호가 일치하지 않습니다" : nil,
+            isValid: false,
+            showValidation: true
+        )
+        .onChange(of: confirmPassword) { _, newValue in
+            store.send(.confirmPasswordChanged(newValue))
+            store.checkPasswordMatch(password: password, confirmPassword: newValue)
         }
     }
 
     private var nicknameInputField: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("닉네임")
-                .Body2()
-                .foregroundColor(.gray2)
-
-            TextField("2~10자 이내로 입력해주세요", text: $nickname)
-                .Input()
-                .padding(.horizontal, 16)
-                .padding(.vertical, 14)
-                .background(Color.gray5)
-                .cornerRadius(8)
+        AuthTextField(
+            label: "닉네임",
+            placeholder: "2~10자 이내로 입력해주세요",
+            text: $nickname,
+            validationMessage: store.state.nicknameValidationMessage,
+            isValid: store.state.isNicknameValid,
+            showValidation: true
+        )
+        .onChange(of: nickname) { _, newValue in
+            store.send(.nicknameChanged(newValue))
         }
     }
 
     private var signUpButtonSection: some View {
         Button {
-            navigator.popToRoot()
+            store.send(.signUpButtonTapped(
+                email: email,
+                password: password,
+                confirmPassword: confirmPassword,
+                nickname: nickname
+            ))
         } label: {
             Text("가입하기")
                 .H2()
                 .foregroundColor(.white)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 16)
-                .background(Color.blue1)
+                .background(store.state.canSignUp ? Color.blue1 : Color.gray3)
                 .cornerRadius(12)
         }
+        .disabled(!store.state.canSignUp)
         .padding(.bottom, 32)
     }
 }

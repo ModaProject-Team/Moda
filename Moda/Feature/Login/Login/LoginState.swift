@@ -8,5 +8,7 @@
 import Foundation
 
 struct LoginState {
-
+    var isLoading = false
+    var errorMessage: String?
+    var isLoginSuccessful = false
 }
