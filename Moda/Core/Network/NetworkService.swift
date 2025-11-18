@@ -10,7 +10,7 @@ import Foundation
 /// URLSession 기반의 네트워크 통신을 담당하는 서비스
 ///
 /// `NetworkService`는 RESTful API 요청을 수행하고 응답을 처리하는 네트워크 레이어입니다.
-/// 싱글톤 패턴을 사용하며, 모든 HTTP 요청은 이 서비스를 통해 수행됩니다.
+/// 싱글톤 패턴을 사용하며, 프로토콜 기반 DI를 통해 테스트 가능합니다.
 ///
 /// ## Overview
 ///
@@ -73,7 +73,6 @@ import Foundation
 ///
 /// ### 인스턴스 생성
 /// - ``shared``
-/// - ``init(session:)``
 ///
 /// ### API 요청
 /// - ``request(endpoint:responseType:)``
@@ -85,7 +84,6 @@ import Foundation
 /// - Note: 모든 API 요청은 비동기로 수행되며 `async/await`를 사용합니다.
 /// - Important: 네트워크 요청 전에 자동으로 연결 상태를 확인하므로, 별도의 네트워크 체크가 필요하지 않습니다.
 final class NetworkService: NetworkServiceProtocol {
-
     /// 네트워크 서비스의 싱글톤 인스턴스
     ///
     /// 앱 전역에서 사용되는 단일 `NetworkService` 인스턴스입니다.
@@ -118,19 +116,8 @@ final class NetworkService: NetworkServiceProtocol {
     /// - 요청 타임아웃: 30초
     /// - 리소스 타임아웃: 60초
     ///
-    /// - Parameter session: 사용할 URLSession 인스턴스 (테스트용, 기본값: URLSession.shared)
-    ///
-    /// ## Usage
-    ///
-    /// ```swift
-    /// // 기본 초기화 (싱글톤 사용 권장)
-    /// let service = NetworkService.shared
-    ///
-    /// // 테스트용 초기화
-    /// let mockSession = URLSession(configuration: .ephemeral)
-    /// let testService = NetworkService(session: mockSession)
-    /// ```
-    init(session: URLSession = URLSession.shared) {
+    /// - Note: 싱글톤 패턴을 사용하므로 외부에서 직접 초기화할 수 없습니다. `shared` 인스턴스를 사용하세요.
+    private init() {
         let configuration = URLSessionConfiguration.default
         configuration.timeoutIntervalForRequest = 30
         configuration.timeoutIntervalForResource = 60
