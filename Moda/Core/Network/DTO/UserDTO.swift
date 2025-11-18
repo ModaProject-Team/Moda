@@ -21,11 +21,15 @@ struct SignUpResponse: Decodable {
     let userId: String
     let email: String
     let nickname: String
+    let accessToken: String
+    let refreshToken: String
 
     enum CodingKeys: String, CodingKey {
         case userId = "user_id"
         case email
         case nickname = "nick"
+        case accessToken
+        case refreshToken
     }
 
     func toDomain() -> User {
@@ -34,8 +38,8 @@ struct SignUpResponse: Decodable {
             email: email,
             nickname: nickname,
             profileImage: nil,
-            accessToken: nil,
-            refreshToken: nil
+            accessToken: accessToken,
+            refreshToken: refreshToken
         )
     }
 }
