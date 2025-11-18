@@ -10,6 +10,7 @@ import MapKit
 import CoreLocation
 
 struct MapView: View {
+    
     @StateObject private var store = MapStore()
     
     var body: some View {
@@ -20,18 +21,47 @@ struct MapView: View {
             )) {
                 UserAnnotation()
 
-                ForEach(store.state.posts) { post in
-                    Annotation(post.title, coordinate: post.coordinate) {
-                        CustomAnnotationView(
-                            post: post,
-                            isSelected: store.state.selectedPostId == post.id
-                        )
-                        .onTapGesture {
-                            withAnimation {
-                                if store.state.selectedPostId == post.id {
-                                    store.send(.selectPost(nil))
-                                } else {
-                                    store.send(.selectPost(post.id))
+                ForEach(store.state.mapItems) { item in
+                    switch item {
+                    case .single(let post):
+                        Annotation(post.title, coordinate: post.coordinate) {
+                            CustomAnnotationView(
+                                post: post,
+                                isSelected: store.state.selectedPostId == post.id
+                            )
+                            .onTapGesture {
+                                withAnimation {
+                                    if store.state.selectedPostId == post.id {
+                                        store.send(.selectPost(nil))
+                                    } else {
+                                        store.send(.selectPost(post.id))
+                                    }
+                                }
+                            }
+                        }
+
+                    case .cluster(let posts):
+                        let clusterPostIds = Set(posts.map { $0.id })
+                        let isClusterSelected = store.state.selectedClusterPostIds == clusterPostIds
+
+                        Annotation("", coordinate: item.coordinate) {
+                            ClusterAnnotationView(
+                                count: posts.count,
+                                representativeImage: posts.first?.media ?? "",
+                                isSelected: isClusterSelected
+                            )
+                            .onTapGesture {
+                                //TODO: 클러스터 탭 시 List Sheet 띄우기
+                                withAnimation {
+                                    // 클러스터 탭 시 해당 위치로 카메라 이동 (현재 줌 레벨 유지)
+                                    let region = MKCoordinateRegion(
+                                        center: item.coordinate,
+                                        span: store.state.currentSpan
+                                    )
+                                    store.send(.updateCameraPosition(.region(region)))
+
+                                    // 클러스터 선택
+                                    store.send(.selectCluster(clusterPostIds))
                                 }
                             }
                         }
@@ -44,10 +74,11 @@ struct MapView: View {
             .simultaneousGesture(
                 TapGesture()
                     .onEnded { _ in
-                        // 카드가 열려있을 때 지도 배경 탭으로 닫기
-                        if store.state.selectedPostIndex != nil {
+                        // 카드가 열려있거나 클러스터가 선택되어 있을 때 지도 배경 탭으로 닫기
+                        if store.state.selectedPostIndex != nil || store.state.selectedClusterPostIds != nil {
                             withAnimation {
                                 store.send(.selectPost(nil))
+                                store.send(.selectCluster(nil))
                             }
                         }
                     }

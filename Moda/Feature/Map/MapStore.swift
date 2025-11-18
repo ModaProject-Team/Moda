@@ -74,6 +74,11 @@ final class MapStore: NSObject, ObservableObject {
         case .selectPost(let postId):
             state.selectedPostId = postId
 
+            // 개별 게시물 선택 시 클러스터 선택 해제
+            if postId != nil {
+                state.selectedClusterPostIds = nil
+            }
+
             // 경도 기준 정렬된 배열에서 인덱스 찾기
             if let postId = postId {
                 state.selectedPostIndex = state.sortedPosts.firstIndex(where: { $0.id == postId })
@@ -114,6 +119,14 @@ final class MapStore: NSObject, ObservableObject {
 
         case .updateSpan(let span):
             state.currentSpan = span
+
+        case .selectCluster(let postIds):
+            state.selectedClusterPostIds = postIds
+            // 클러스터 선택 시 개별 게시물 선택 해제
+            if postIds != nil {
+                state.selectedPostId = nil
+                state.selectedPostIndex = nil
+            }
         }
     }
 
