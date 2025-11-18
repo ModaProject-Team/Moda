@@ -47,4 +47,13 @@ enum MapIntent {
 
     /// 게시물 인덱스로 선택
     case selectPostByIndex(Int?)
+
+    /// 클러스터 선택
+    case selectCluster(Set<String>?)
+
+    /// 클러스터 시트 표시
+    case showClusterSheet([PostAnnotation])
+
+    /// 클러스터 시트 닫기
+    case dismissClusterSheet
 }

@@ -10,8 +10,9 @@ import MapKit
 import CoreLocation
 
 struct MapView: View {
+
     @StateObject private var store = MapStore()
-    
+
     var body: some View {
         ZStack {
             Map(position: Binding(
@@ -20,19 +21,48 @@ struct MapView: View {
             )) {
                 UserAnnotation()
 
-                ForEach(store.state.posts) { post in
-                    Annotation(post.title, coordinate: post.coordinate) {
-                        CustomAnnotationView(
-                            post: post,
-                            isSelected: store.state.selectedPostId == post.id
-                        )
-                        .onTapGesture {
-                            withAnimation {
-                                if store.state.selectedPostId == post.id {
-                                    store.send(.selectPost(nil))
-                                } else {
-                                    store.send(.selectPost(post.id))
+                ForEach(store.state.mapItems) { item in
+                    switch item {
+                    case .single(let post):
+                        Annotation(post.title, coordinate: post.coordinate) {
+                            CustomAnnotationView(
+                                post: post,
+                                isSelected: store.state.selectedPostId == post.id
+                            )
+                            .onTapGesture {
+                                withAnimation {
+                                    if store.state.selectedPostId == post.id {
+                                        store.send(.selectPost(nil))
+                                    } else {
+                                        store.send(.selectPost(post.id))
+                                    }
                                 }
+                            }
+                        }
+
+                    case .cluster(let posts):
+                        let clusterPostIds = Set(posts.map { $0.id })
+                        let isClusterSelected = store.state.selectedClusterPostIds == clusterPostIds
+
+                        Annotation("", coordinate: item.coordinate) {
+                            ClusterAnnotationView(
+                                count: posts.count,
+                                representativeImage: posts.first?.media ?? "",
+                                isSelected: isClusterSelected
+                            )
+                            .onTapGesture {
+                                withAnimation {
+                                    // 클러스터 탭 시 해당 위치로 카메라 이동 (현재 줌 레벨 유지)
+                                    let region = MKCoordinateRegion(
+                                        center: item.coordinate,
+                                        span: store.state.currentSpan
+                                    )
+                                    store.send(.updateCameraPosition(.region(region)))
+                                    store.send(.selectCluster(clusterPostIds))
+                                }
+                                
+                                store.send(.showClusterSheet(posts))
+                                
                             }
                         }
                     }
@@ -41,14 +71,16 @@ struct MapView: View {
             .onMapCameraChange { context in
                 store.send(.updateSpan(context.region.span))
             }
+            .mapControls { }  // 기본 UI 전부 숨기고 커스텀 모드로 전환
             .simultaneousGesture(
                 TapGesture()
                     .onEnded { _ in
-                        // 카드가 열려있을 때 지도 배경 탭으로 닫기
+                        // 카드가 열려있거나 클러스터 시트가 열려있을 때 지도 배경 탭으로 닫기
                         if store.state.selectedPostIndex != nil {
-                            withAnimation {
-                                store.send(.selectPost(nil))
-                            }
+                            store.send(.selectPost(nil))
+                        }
+                        if store.state.showClusterSheet {
+                            store.send(.dismissClusterSheet)
                         }
                     }
             )
@@ -154,6 +186,17 @@ struct MapView: View {
             }
         } message: {
             Text("현재 위치를 가져오는 중 문제가 발생했습니다. 다시 시도해주세요.")
+        }
+        .sheet(isPresented: Binding(
+            get: { store.state.showClusterSheet },
+            set: { if !$0 { store.send(.dismissClusterSheet) } }
+        )) {
+            ClusterSheetView(
+                posts: store.state.clusterSheetPosts,
+                onDismiss: {
+                    store.send(.dismissClusterSheet)
+                }
+            )
         }
     }
 }
