@@ -22,6 +22,8 @@ struct MapState {
     var selectedPostId: String?
     var selectedPostIndex: Int?
     var selectedClusterPostIds: Set<String>?
+    var showClusterSheet: Bool
+    var clusterSheetPosts: [PostAnnotation]
 
     // 경도 기준으로 정렬된 게시물 배열
     var sortedPosts: [PostAnnotation] {
@@ -91,7 +93,9 @@ struct MapState {
         posts: [PostAnnotation] = PostAnnotation.mockData,
         selectedPostId: String? = nil,
         selectedPostIndex: Int? = nil,
-        selectedClusterPostIds: Set<String>? = nil
+        selectedClusterPostIds: Set<String>? = nil,
+        showClusterSheet: Bool = false,
+        clusterSheetPosts: [PostAnnotation] = []
     ) {
         self.cameraPosition = cameraPosition
         self.currentSpan = currentSpan
@@ -105,5 +109,7 @@ struct MapState {
         self.selectedPostId = selectedPostId
         self.selectedPostIndex = selectedPostIndex
         self.selectedClusterPostIds = selectedClusterPostIds
+        self.showClusterSheet = showClusterSheet
+        self.clusterSheetPosts = clusterSheetPosts
     }
 }

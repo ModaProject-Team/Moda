@@ -10,9 +10,9 @@ import MapKit
 import CoreLocation
 
 struct MapView: View {
-    
+
     @StateObject private var store = MapStore()
-    
+
     var body: some View {
         ZStack {
             Map(position: Binding(
@@ -51,7 +51,6 @@ struct MapView: View {
                                 isSelected: isClusterSelected
                             )
                             .onTapGesture {
-                                //TODO: 클러스터 탭 시 List Sheet 띄우기
                                 withAnimation {
                                     // 클러스터 탭 시 해당 위치로 카메라 이동 (현재 줌 레벨 유지)
                                     let region = MKCoordinateRegion(
@@ -59,10 +58,11 @@ struct MapView: View {
                                         span: store.state.currentSpan
                                     )
                                     store.send(.updateCameraPosition(.region(region)))
-
-                                    // 클러스터 선택
                                     store.send(.selectCluster(clusterPostIds))
                                 }
+                                
+                                store.send(.showClusterSheet(posts))
+                                
                             }
                         }
                     }
@@ -71,15 +71,16 @@ struct MapView: View {
             .onMapCameraChange { context in
                 store.send(.updateSpan(context.region.span))
             }
+            .mapControls { }  // 기본 UI 전부 숨기고 커스텀 모드로 전환
             .simultaneousGesture(
                 TapGesture()
                     .onEnded { _ in
-                        // 카드가 열려있거나 클러스터가 선택되어 있을 때 지도 배경 탭으로 닫기
-                        if store.state.selectedPostIndex != nil || store.state.selectedClusterPostIds != nil {
-                            withAnimation {
-                                store.send(.selectPost(nil))
-                                store.send(.selectCluster(nil))
-                            }
+                        // 카드가 열려있거나 클러스터 시트가 열려있을 때 지도 배경 탭으로 닫기
+                        if store.state.selectedPostIndex != nil {
+                            store.send(.selectPost(nil))
+                        }
+                        if store.state.showClusterSheet {
+                            store.send(.dismissClusterSheet)
                         }
                     }
             )
@@ -185,6 +186,17 @@ struct MapView: View {
             }
         } message: {
             Text("현재 위치를 가져오는 중 문제가 발생했습니다. 다시 시도해주세요.")
+        }
+        .sheet(isPresented: Binding(
+            get: { store.state.showClusterSheet },
+            set: { if !$0 { store.send(.dismissClusterSheet) } }
+        )) {
+            ClusterSheetView(
+                posts: store.state.clusterSheetPosts,
+                onDismiss: {
+                    store.send(.dismissClusterSheet)
+                }
+            )
         }
     }
 }

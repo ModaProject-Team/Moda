@@ -22,17 +22,17 @@ struct ClusterAnnotationView: View {
                 Image(representativeImage)
                     .resizable()
                     .aspectRatio(contentMode: .fill)
-                    .frame(width: 50, height: 50)
+                    .frame(width: 47, height: 47)
                     .clipShape(Circle())
             } else {
                 Circle()
                     .fill(Color.blue1.opacity(0.3))
-                    .frame(width: 50, height: 50)
+                    .frame(width: 47, height: 47)
             }
 
             Circle()
                 .fill(Color.blue1.opacity(0.3))
-                .frame(width: 50, height: 50)
+                .frame(width: 47, height: 47)
 
             Text("\(count)")
                 .font(.system(size: 20, weight: .bold))
