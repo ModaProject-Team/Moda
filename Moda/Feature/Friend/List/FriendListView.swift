@@ -7,36 +7,116 @@
 
 import SwiftUI
 import Kingfisher
+import Observation
 
-// MARK: - Model
-private struct People: Identifiable, Hashable {
-    let id: UUID
+// MARK: - Model (View 전용 표시 모델)
+struct People: Identifiable, Hashable {
+    let id: String
     var name: String
     var statusMessage: String?
     var profileImageURL: URL?
 }
 
-// 프로필 이미지 제너레이터
-private func generateDummyProfileImageURL(size: Int = 180) -> URL? {
-    URL(string: "https://picsum.photos/seed/\(Int.random(in: 1...100))/\(size)")
+// MARK: - State (원본 DTO를 보관)
+struct FriendListState {
+    var myProfile: MyProfileResponse?
+    var friends: [OtherProfileResponse] = []
+    var isLoading: Bool = false
+    var errorMessage: String?
 }
+
+// MARK: - Action (Intent)
+enum FriendListAction {
+    case onAppear
+    case refresh
+    case dismissError
+}
+
+// MARK: - Store
+@MainActor
+@Observable
+final class FriendListStore {
+    private(set) var state = FriendListState()
+    private let userProfileAPI: UserProfileAPIProtocol = UserProfileAPI.shared
+
+    // 파생 상태(표시용)
+    var myPeople: People? {
+        guard let my = state.myProfile else { return nil }
+        return People(
+            id: my.userId,
+            name: my.nick,
+            statusMessage: my.info1,
+            profileImageURL: URL(string: "\(NetworkConfig.baseURL)/v1\(my.profileImage ?? "")")
+        )
+    }
+
+    var friendPeople: [People] {
+        state.friends.map { friend in
+            People(
+                id: friend.userId,
+                name: friend.nick,
+                statusMessage: friend.info1,
+                profileImageURL: URL(string: "\(NetworkConfig.baseURL)/v1\(friend.profileImage ?? "")")
+            )
+        }
+    }
+
+    func send(_ action: FriendListAction) {
+        switch action {
+        case .onAppear, .refresh:
+            Task { await load() }
+        case .dismissError:
+            state.errorMessage = nil
+        }
+    }
+
+    // MARK: - Side Effects
+    private func load() async {
+        guard !state.isLoading else { return }
+        state.isLoading = true
+        defer { state.isLoading = false }
+
+        do {
+            // 1) 내 프로필 조회 (DTO 그대로 사용)
+            let dto = try await userProfileAPI.getMyProfile()
+            state.myProfile = dto
+
+            // 2) 맞팔 계산: followers ∩ following (userId 기준)
+            let followerIDs = Set(dto.followers.map { $0.userId })
+            let followingIDs = Set(dto.following.map { $0.userId })
+            let mutualIDs = Array(followerIDs.intersection(followingIDs))
+
+            // 3) 맞팔 사용자 상세 정보 조회(OtherProfileResponse)
+            var details: [OtherProfileResponse] = []
+            for id in mutualIDs {
+                do {
+                    let profile = try await userProfileAPI.getUserProfile(userId: id)
+                    details.append(profile)
+                } catch {
+                    // 개별 친구 상세 조회 실패는 스킵
+                    continue
+                }
+            }
+
+            // 4) 보기 좋게 닉네임 기준 정렬
+            state.friends = details.sorted {
+                $0.nick.localizedCaseInsensitiveCompare($1.nick) == .orderedAscending
+            }
+
+        } catch {
+            if let netErr = error as? NetworkError {
+                state.errorMessage = netErr.localizedDescription
+            } else {
+                state.errorMessage = error.localizedDescription
+            }
+        }
+    }
+}
+
 
 // MARK: - Mainview
 struct FriendListView: View {
-    @State private var myProfile: People = People(
-        id: UUID(),
-        name: "모건",
-        statusMessage: "상태 메시지 예시 입니다.",
-        profileImageURL: generateDummyProfileImageURL()
-    )
-    // 친구 목록 (더미데이터)
-    @State private var friends: [People] = [
-        People(id: UUID(), name: "영훈", statusMessage: "주말엔 등산!", profileImageURL: generateDummyProfileImageURL(size: 200)),
-        People(id: UUID(), name: "지민", statusMessage: "Swift 즐겨요", profileImageURL: generateDummyProfileImageURL(size: 200)),
-        People(id: UUID(), name: "수빈", statusMessage: "오늘도 화이팅오늘도 화이팅오늘도 화이팅오늘도 화이팅오늘도 화이팅오늘도 화이팅오늘도 화이팅오늘도 화이팅오늘도 화이팅", profileImageURL: generateDummyProfileImageURL(size: 200)),
-        People(id: UUID(), name: "장수지", statusMessage: nil, profileImageURL: generateDummyProfileImageURL(size: 200)),
-        People(id: UUID(), name: "금가경", statusMessage: "과제 중", profileImageURL: generateDummyProfileImageURL(size: 200))
-    ]
+    @State private var store = FriendListStore()
     // 네비게이션
     @EnvironmentObject var navigator: AppNavigator
 
@@ -44,29 +124,43 @@ struct FriendListView: View {
         List {
             // 내 프로필 섹션
             Section {
-                MyProfileHeader(people: myProfile)
-                    .onTapGesture {
-                        // 내 프로필 상세
-                        navigator.push(.profileDetail)
-                    }
-                    .listRowSeparator(.hidden)
-                    .listRowBackground(Color.clear)
-                    .listRowInsets(.init(top: 8, leading: 16, bottom: 8, trailing: 16))
-            }
-            // 친구 섹션
-            Section {
-                ForEach(friends) { person in
-                    FriendRow(people: person)
+                if let my = store.myPeople {
+                    MyProfileHeader(people: my)
                         .onTapGesture {
+                            // 내 프로필 상세
                             navigator.push(.profileDetail)
                         }
+                        .listRowSeparator(.hidden)
+                        .listRowBackground(Color.clear)
+                        .listRowInsets(.init(top: 8, leading: 16, bottom: 8, trailing: 16))
+                } else {
+                    // 로딩 중/미표시 상태용 플레이스홀더
+                    MyProfilePlaceholder()
+                        .listRowSeparator(.hidden)
+                        .listRowBackground(Color.clear)
+                        .listRowInsets(.init(top: 8, leading: 16, bottom: 8, trailing: 16))
+                }
+            }
+
+            // 친구 섹션(맞팔만)
+            Section {
+                let friendPeople = store.friendPeople
+                if friendPeople.isEmpty {
+                    EmptyFriendsView()
+                } else {
+                    ForEach(friendPeople) { person in
+                        FriendRow(people: person)
+                            .onTapGesture {
+                                // 친구 프로필 상세로 이동 시 userId를 넘겨서 OtherProfile 로드 가능
+                                navigator.push(.profileDetail)
+                            }
+                    }
                 }
             } header: {
-                Text("친구 \(friends.count)")
+                Text("친구 \(store.friendPeople.count)")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             }
-
         }
         .listStyle(.plain)
         .navigationTitle("친구")
@@ -86,6 +180,27 @@ struct FriendListView: View {
                 }
             }
         }
+        .task {
+            store.send(.onAppear)
+        }
+        .refreshable {
+            store.send(.refresh)
+        }
+        .alert(
+            "오류",
+            isPresented: Binding(
+                get: { store.state.errorMessage != nil },
+                set: { if !$0 { store.send(.dismissError) } }
+            ),
+            actions: {
+                Button("확인", role: .cancel) {
+                    store.send(.dismissError)
+                }
+            },
+            message: {
+                Text(store.state.errorMessage ?? "")
+            }
+        )
     }
 }
 
@@ -118,6 +233,29 @@ private struct MyProfileHeader: View {
     }
 }
 
+private struct MyProfilePlaceholder: View {
+    var body: some View {
+        HStack(spacing: 14) {
+            Circle()
+                .fill(Color.gray.opacity(0.2))
+                .frame(width: 56, height: 56)
+
+            VStack(alignment: .leading, spacing: 6) {
+                RoundedRectangle(cornerRadius: 4)
+                    .fill(Color.gray.opacity(0.2))
+                    .frame(width: 120, height: 16)
+
+                RoundedRectangle(cornerRadius: 4)
+                    .fill(Color.gray.opacity(0.2))
+                    .frame(width: 180, height: 14)
+            }
+            Spacer()
+        }
+        .padding(.vertical, 6)
+        .redacted(reason: .placeholder)
+    }
+}
+
 private struct FriendRow: View {
     let people: People
 
@@ -146,12 +284,24 @@ private struct FriendRow: View {
     }
 }
 
+private struct EmptyFriendsView: View {
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("아직 친구가 없습니다")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+        }
+        .padding(.vertical, 8)
+    }
+}
+
 private struct ProfileImageView: View {
     let people: People
 
     var body: some View {
         if let url = people.profileImageURL {
             KFImage(url)
+                .requestModifier(KFHeaders.modifier)
                 .placeholder { placeholder }
                 .cacheOriginalImage()
                 .fade(duration: 0.2)
