@@ -37,7 +37,6 @@ final class MapStore: NSObject, ObservableObject {
             )
 
         case .setupLocationManager:
-            //TODO: lazy var의 초기화를 일단 강제로 실행
             _ = locationManager
 
         case .requestLocationPermission:
