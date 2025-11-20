@@ -7,46 +7,37 @@
 
 import SwiftUI
 import Observation
-
-// MARK: - Model
-private struct Friend: Identifiable, Hashable {
-    let id: UUID
-    var name: String
-    var statusMessage: String?
-}
+import Kingfisher
 
 // MARK: - State
 private struct FriendSearchState {
     var query: String = ""
-    var results: [Friend] = []
+    var results: [People] = []
 }
 
-// MARK: - Intent
-private enum FriendSearchIntent {
+// MARK: - Action
+private enum FriendSearchAction {
     case queryChanged(String)
     case clearTapped
 }
 
 // MARK: - Store (@Observable)
+@MainActor
 @Observable
 private final class FriendSearchStore {
+    private(set) var state = FriendSearchState()
+    // 상위에서 주입된 원본 목록
+    private var sourceFriends: [People] = []
 
-    // 관찰 대상 상태
-    var state = FriendSearchState()
+    init(sourceFriends: [People] = []) {
+        self.sourceFriends = sourceFriends
+    }
 
-    // 간단한 더미 데이터
-    private let allFriends: [Friend] = [
-        Friend(id: UUID(), name: "영훈", statusMessage: "주말엔 등산!"),
-        Friend(id: UUID(), name: "지민", statusMessage: "Swift 즐겨요"),
-        Friend(id: UUID(), name: "수빈", statusMessage: "오늘도 화이팅"),
-        Friend(id: UUID(), name: "장수지", statusMessage: nil),
-        Friend(id: UUID(), name: "금가경", statusMessage: "과제 중")
-    ]
-
-    func send(_ intent: FriendSearchIntent) {
-        switch intent {
+    func send(_ action: FriendSearchAction) {
+        switch action {
         case .clearTapped:
             handleClearTapped()
+
         case .queryChanged(let text):
             handleQueryChanged(text)
         }
@@ -64,7 +55,17 @@ private final class FriendSearchStore {
         if trimmed.isEmpty {
             state.results = []
         } else {
-            state.results = allFriends.filter {
+            applyFilter()
+        }
+    }
+
+    // MARK: - Filtering
+    private func applyFilter() {
+        let trimmed = state.query.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmed.isEmpty {
+            state.results = []
+        } else {
+            state.results = sourceFriends.filter {
                 $0.name.localizedCaseInsensitiveContains(trimmed)
             }
         }
@@ -74,9 +75,13 @@ private final class FriendSearchStore {
 // MARK: - View
 struct FriendSearchView: View {
     // @Observable Store는 @State로 보유
-    @State private var store = FriendSearchStore()
+    @State private var store: FriendSearchStore
     @FocusState private var isSearching: Bool
     @Environment(\.dismiss) private var dismiss
+
+    init(friends: [People]) {
+        _store = State(initialValue: FriendSearchStore(sourceFriends: friends))
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -113,8 +118,8 @@ struct FriendSearchView: View {
                                 .listRowSeparator(.hidden)
                                 .listRowBackground(Color.clear)
                         } else {
-                            ForEach(store.state.results) { friend in
-                                FriendRowView(friend: friend)
+                            ForEach(store.state.results) { person in
+                                FriendRowView(people: person)
                             }
                         }
                     } header: {
@@ -173,23 +178,18 @@ private struct FriendSearchBar: View {
 
 // MARK: - Row & Subviews
 private struct FriendRowView: View {
-    let friend: Friend
+    let people: People
 
     var body: some View {
         HStack(spacing: 12) {
-            // 간단한 기본 아바타
-            ZStack {
-                Circle().fill(Color.gray.opacity(0.2))
-                Image(systemName: "person.fill")
-                    .foregroundStyle(.secondary)
-            }
-            .frame(width: 48, height: 48)
+            ProfileImageView(people: people)
+                .frame(width: 48, height: 48)
 
             VStack(alignment: .leading, spacing: 2) {
-                Text(friend.name)
+                Text(people.name)
                     .font(.body.weight(.semibold))
 
-                if let msg = friend.statusMessage, !msg.isEmpty {
+                if let msg = people.statusMessage, !msg.isEmpty {
                     Text(msg)
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
@@ -202,6 +202,35 @@ private struct FriendRowView: View {
         }
         .padding(.vertical, 6)
         .contentShape(Rectangle())
+    }
+}
+
+private struct ProfileImageView: View {
+    let people: People
+
+    var body: some View {
+        if let url = people.profileImageURL {
+            KFImage(url)
+                .requestModifier(KFHeaders.modifier)
+                .placeholder { placeholder }
+                .cacheOriginalImage()
+                .fade(duration: 0.2)
+                .cancelOnDisappear(true)
+                .resizable()
+                .scaledToFill()
+                .clipShape(Circle())
+        } else {
+            // 이미지 불러와지지 않을때 임시 이미지.
+            ZStack {
+                Circle().fill(Color.gray.opacity(0.2))
+                Image(systemName: "person.fill")
+            }
+            .clipShape(Circle())
+        }
+    }
+
+    private var placeholder: some View {
+        Circle().fill(Color.gray.opacity(0.2))
     }
 }
 
@@ -227,7 +256,15 @@ private struct EmptyStateView: View {
 }
 
 #Preview {
+    let sample: [People] = [
+        People(id: "1", name: "영훈", statusMessage: "주말엔 등산!", profileImageURL: nil),
+        People(id: "2", name: "지민", statusMessage: "Swift 즐겨요", profileImageURL: nil),
+        People(id: "3", name: "수빈", statusMessage: "오늘도 화이팅", profileImageURL: nil),
+        People(id: "4", name: "장수지", statusMessage: nil, profileImageURL: nil),
+        People(id: "5", name: "금가경", statusMessage: "과제 중", profileImageURL: nil),
+    ]
+
     NavigationStack {
-        FriendSearchView()
+        FriendSearchView(friends: sample)
     }
 }

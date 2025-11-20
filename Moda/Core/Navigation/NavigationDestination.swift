@@ -80,13 +80,14 @@ enum NavigationDestination: Hashable {
 
     // MARK: FriendTab
     /// 친구 검색 화면
-    case friendSearch
+    case friendSearch(friends: [People])
 
     /// 친구 추가화 면
     case friendAdd
 
     /// 프로필 디테일 화면
     case profileDetail
+
 
     // MARK: ChatTab
     /// 채팅방 화면
@@ -113,30 +114,26 @@ extension NavigationDestination {
         case .home:
             FeedView()
         case .profile:
-            // TODO: ProfileView 구현 후 교체
             Text("Profile View")
         case .settings:
-            // TODO: SettingsView 구현 후 교체
             Text("Settings View")
         case .productUpload:
             ProductUploadView()
 
         //MARK: FriendTab
-        case .friendSearch:
-            FriendSearchView()
+        case .friendSearch(let friends):
+            FriendSearchView(friends: friends)
         case .friendAdd:
             FriendAddView()
         case .profileDetail:
             ProfileDetailView()
 
-
         //MARK: ChatTab
         case .chatRoom(let roomId, let participantName):
             ChatRoomView(roomId: roomId, participantName: participantName)
-            
+
         case .map:
             MapView()
         }
-
     }
 }
