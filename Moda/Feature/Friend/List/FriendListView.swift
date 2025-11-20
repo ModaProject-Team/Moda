@@ -25,7 +25,7 @@ struct FriendListState {
     var errorMessage: String?
 }
 
-// MARK: - Action (Intent)
+// MARK: - Intent
 enum FriendListAction {
     case onAppear
     case refresh
@@ -168,7 +168,7 @@ struct FriendListView: View {
         .toolbar {
             ToolbarItemGroup(placement: .navigationBarTrailing) {
                 Button {
-                    navigator.push(.friendSearch)
+                    navigator.push(.friendSearch(friends: store.friendPeople))
                 } label: {
                     Image(systemName: "magnifyingglass")
                 }
