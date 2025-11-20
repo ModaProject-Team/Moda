@@ -6,52 +6,13 @@
 //
 
 import SwiftUI
-
-struct ProductUploadState {
-    var title: String = ""
-    var description: String = ""
-    var price: String = ""
-    var isSelling: Bool = true
-    var isPriceNegotiable: Bool = false
-    var location: String = ""
-}
-
-enum ProductUploadIntent {
-    case titleChanged(String)
-    case descriptionChanged(String)
-    case priceChanged(String)
-    case sellingTypeChanged(Bool)
-    case priceNegotiableToggled
-    case locationTapped
-    case submitButtonTapped
-}
-
-final class ProductUploadStore: ObservableObject {
-    @Published private(set) var state = ProductUploadState()
-
-    func send(_ intent: ProductUploadIntent) {
-        switch intent {
-        case .titleChanged(let title):
-            state.title = title
-        case .descriptionChanged(let description):
-            state.description = description
-        case .priceChanged(let price):
-            state.price = price
-        case .sellingTypeChanged(let isSelling):
-            state.isSelling = isSelling
-        case .priceNegotiableToggled:
-            state.isPriceNegotiable.toggle()
-        case .locationTapped:
-            break
-        case .submitButtonTapped:
-            break
-        }
-    }
-}
+import PhotosUI
 
 struct ProductUploadView: View {
+    
     @StateObject private var store = ProductUploadStore()
     @EnvironmentObject var navigator: AppNavigator
+    @State private var selectedItems: [PhotosPickerItem] = []
 
     var body: some View {
         ZStack {
@@ -76,6 +37,24 @@ struct ProductUploadView: View {
 
                 submitButtonSection
             }
+            .disabled(store.state.isUploading)
+
+            // 업로드 중 전체 화면 오버레이
+            if store.state.isUploading {
+                Color.black.opacity(0.4)
+                    .ignoresSafeArea()
+                    .onTapGesture { }
+
+                VStack(spacing: 16) {
+                    ProgressView()
+                        .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                        .scaleEffect(1.5)
+
+                    Text("업로드 중...")
+                        .H2()
+                        .foregroundColor(.white)
+                }
+            }
         }
         .navigationBarHidden(true)
     }
@@ -99,7 +78,6 @@ struct ProductUploadView: View {
             Spacer()
 
             Button {
-                // TODO: 임시저장
             } label: {
                 Text("임시저장")
                     .Body2()
@@ -113,25 +91,59 @@ struct ProductUploadView: View {
 
     private var photoSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Button {
-                // TODO: 사진 선택
-            } label: {
-                VStack(spacing: 4) {
-                    Image(systemName: "camera")
-                        .font(.system(size: 24))
-                        .foregroundColor(.gray2)
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 12) {
+                    // 사진 추가 버튼
+                    PhotosPicker(
+                        selection: $selectedItems,
+                        maxSelectionCount: 5 - store.state.selectedImages.count,
+                        matching: .any(of: [.images, .videos])
+                    ) {
+                        VStack(spacing: 4) {
+                            Image(systemName: "camera")
+                                .font(.system(size: 24))
+                                .foregroundColor(.gray2)
 
-                    Text("0/10")
-                        .Body2()
-                        .foregroundColor(.gray2)
+                            Text("\(store.state.selectedImages.count)/5")
+                                .Body2()
+                                .foregroundColor(.gray2)
+                        }
+                        .frame(width: 70, height: 70)
+                        .background(Color.gray5)
+                        .cornerRadius(12)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12)
+                                .stroke(Color.gray3, lineWidth: 1)
+                        )
+                    }
+                    .onChange(of: selectedItems) {
+                        store.send(.imagesSelected(selectedItems))
+                        selectedItems = []
+                    }
+                    .padding(.vertical, 8)
+
+                    // 선택된 이미지들 표시
+                    ForEach(Array(store.state.selectedImages.enumerated()), id: \.offset) { index, image in
+                        ZStack(alignment: .topTrailing) {
+                            Image(uiImage: image)
+                                .resizable()
+                                .scaledToFill()
+                                .frame(width: 70, height: 70)
+                                .cornerRadius(12)
+                                .clipped()
+
+                            Button {
+                                store.send(.imageRemoved(index))
+                            } label: {
+                                Image(systemName: "xmark.circle.fill")
+                                    .font(.system(size: 20))
+                                    .foregroundColor(.white)
+                                    .background(Circle().fill(Color.black.opacity(0.5)))
+                            }
+                            .offset(x: 5, y: -5)
+                        }
+                    }
                 }
-                .frame(width: 70, height: 70)
-                .background(Color.gray5)
-                .cornerRadius(12)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 12)
-                        .stroke(Color.gray3, lineWidth: 1)
-                )
             }
         }
     }
@@ -305,6 +317,15 @@ struct ProductUploadView: View {
 
     private var submitButtonSection: some View {
         VStack(spacing: 0) {
+            // 에러 메시지 표시
+            if let error = store.state.uploadError {
+                Text(error)
+                    .Body2()
+                    .foregroundColor(.red)
+                    .padding(.horizontal, 16)
+                    .padding(.top, 8)
+            }
+
             Divider()
 
             Button {
@@ -315,9 +336,9 @@ struct ProductUploadView: View {
                     .foregroundColor(.white)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 16)
-                    .background(Color.blue1)
-                    .cornerRadius(12)
             }
+            .background(Color.blue1)
+            .cornerRadius(12)
             .padding(.horizontal, 16)
             .padding(.vertical, 12)
         }
