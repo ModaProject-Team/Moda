@@ -47,6 +47,9 @@ final class LoginStore: ObservableObject {
                         accessToken: response.accessToken,
                         refreshToken: response.refreshToken
                     )
+                    
+                    #warning("임의로 넣어둠")
+                    UserDefaults.standard.set(response.userId, forKey: "userId")
                 }
             } catch let error as NetworkError {
                 await MainActor.run {
