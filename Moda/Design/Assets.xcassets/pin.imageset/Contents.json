@@ -1,11 +1,11 @@
 {
   "images" : [
     {
-      "filename" : "beanbag.jpg",
       "idiom" : "universal",
       "scale" : "1x"
     },
     {
+      "filename" : "pin.png",
       "idiom" : "universal",
       "scale" : "2x"
     },

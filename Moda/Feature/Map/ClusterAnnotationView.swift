@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import Kingfisher
 
 struct ClusterAnnotationView: View {
     let count: Int
@@ -19,7 +20,13 @@ struct ClusterAnnotationView: View {
                 .frame(width: 58, height: 58)
 
             if !representativeImage.isEmpty {
-                Image(representativeImage)
+                KFImage(URL(string: "\(NetworkConfig.baseURL)/v1\(representativeImage)"))
+                    .requestModifier(KFHeaders.modifier)
+                    .placeholder {
+                        Circle()
+                            .fill(Color.blue1.opacity(0.3))
+                    }
+                    .cacheOriginalImage()
                     .resizable()
                     .aspectRatio(contentMode: .fill)
                     .frame(width: 47, height: 47)

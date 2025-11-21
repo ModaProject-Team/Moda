@@ -57,6 +57,14 @@ struct ProductUploadView: View {
             }
         }
         .navigationBarHidden(true)
+        .fullScreenCover(isPresented: Binding(
+            get: { store.state.showLocationSelection },
+            set: { if !$0 { store.send(.dismissLocationSelection) } }
+        )) {
+            LocationSelectionView(onLocationSelected: { name, latitude, longitude in
+                store.send(.locationSelected(name, latitude, longitude))
+            })
+        }
     }
 
     private var headerSection: some View {
@@ -299,9 +307,9 @@ struct ProductUploadView: View {
 
                     Spacer()
 
-                    Text("위치 추가")
+                    Text(store.state.locationName.isEmpty ? "위치 추가" : store.state.locationName)
                         .Body2()
-                        .foregroundColor(.gray2)
+                        .foregroundColor(store.state.locationName.isEmpty ? .gray2 : .blue1)
 
                     Image(systemName: "chevron.right")
                         .font(.system(size: 14))
