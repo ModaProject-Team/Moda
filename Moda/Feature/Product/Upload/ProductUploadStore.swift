@@ -103,7 +103,7 @@ final class ProductUploadStore: ObservableObject {
                 title: state.title,
                 price: priceValue,
                 content: state.description.isEmpty ? nil : state.description,
-                content1: state.locationName.isEmpty ? nil : state.locationName,
+                value1: state.locationName.isEmpty ? nil : state.locationName,
                 content2: nil,
                 content3: nil,
                 content4: nil,

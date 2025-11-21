@@ -307,12 +307,10 @@ struct FeedView: View {
     private var productSection: some View {
         VStack(alignment: .leading, spacing: 16) {
             if store.state.products.isEmpty && store.state.isLoading {
-                // 초기 로딩
                 ProgressView()
                     .frame(maxWidth: .infinity)
                     .padding(.top, 50)
             } else if store.state.products.isEmpty {
-                // 데이터 없음
                 Text("게시글이 없습니다.")
                     .Body1()
                     .foregroundColor(.gray2)
@@ -520,7 +518,6 @@ struct PostCardView: View {
                 .fixedSize(horizontal: false, vertical: true)
 
             HStack(spacing: 4) {
-                // 거리 표시
                 if let distance = product.formattedDistance(from: currentLocation.map { ($0.latitude, $0.longitude) }) {
                     Text(distance)
                         .Body2()
@@ -543,7 +540,6 @@ struct PostCardView: View {
                         .foregroundColor(.gray2)
                 }
 
-                // 시간 표시
                 Text(product.formattedDate)
                     .Body2()
                     .foregroundColor(.gray2)

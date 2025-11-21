@@ -89,7 +89,6 @@ struct PostCard: Identifiable {
     }
 
     var formattedLocation: String? {
-        // locationName(content1)이 있으면 사용, 없으면 nil
         if let name = locationName, !name.isEmpty {
             return name
         }
@@ -99,15 +98,16 @@ struct PostCard: Identifiable {
     // 게시글의 좌표와 현재 사용자의 위치를 이용해 구면 거리 계산
     func formattedDistance(from currentLocation: (latitude: Double, longitude: Double)? = nil) -> String? {
 
-        // 현재 위치 또는 게시글 위치가 없을 경우 → 더미 거리 랜덤 반환
+        // 장소명이 없으면 거리도 표시하지 않음
+        guard let locationName = locationName, !locationName.isEmpty else {
+            return nil
+        }
+
+        // 현재 위치 또는 게시글 위치가 없을 경우 nil 반환
         guard let latitude = latitude,
               let longitude = longitude,
               let current = currentLocation else {
-
-            // 피드 테스트용: id 기반으로 300m ~ 2km 사이 랜덤 거리 생성
-            let distances = ["300m", "500m", "800m", "1.2km", "1.5km", "2km"]
-            let index = abs(id.hashValue) % distances.count
-            return distances[index]
+            return nil
         }
 
         // 지구 반지름 (미터 단위)
@@ -155,7 +155,7 @@ extension Post {
             likes: likes,
             latitude: geolocation?.latitude,
             longitude: geolocation?.longitude,
-            locationName: content1
+            locationName: value1
         )
 
         if let currentUserId = currentUserId {

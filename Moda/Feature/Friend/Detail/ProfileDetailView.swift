@@ -185,7 +185,7 @@ struct ProfileDetailView: View {
         let items: [PostCard] = store.state.isCurrentUser
             ? (store.state.selectedTab == .myItems ? store.state.myItems : store.state.likedItems)
             : store.state.myItems
-
+#warning("여기 PostCardView 변경된거 알려주기")
         return VStack(alignment: .leading, spacing: 12) {
             if items.isEmpty {
                 Text(store.state.isCurrentUser && store.state.selectedTab == .likeItems ? "찜한 물건이 없어요" : "등록된 물건이 없어요")
