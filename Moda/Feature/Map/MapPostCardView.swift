@@ -6,13 +6,21 @@
 //
 
 import SwiftUI
+import Kingfisher
 
 struct MapPostCardView: View {
     let post: PostAnnotation
 
     var body: some View {
         HStack(spacing: 12) {
-            Image(post.media)
+            KFImage(URL(string: "\(NetworkConfig.baseURL)/v1\(post.media)"))
+                .requestModifier(KFHeaders.modifier)
+                .placeholder {
+                    Image(systemName: "photo")
+                        .foregroundColor(.gray3)
+                }
+                .cacheOriginalImage()
+                .fade(duration: 0.2)
                 .resizable()
                 .aspectRatio(contentMode: .fill)
                 .frame(width: 70, height: 70)
@@ -29,7 +37,13 @@ struct MapPostCardView: View {
                     .foregroundColor(.blue1)
 
                 HStack(spacing: 4) {
-                    Image(post.profileImage)
+                    KFImage(URL(string: "\(NetworkConfig.baseURL)/v1\(post.profileImage)"))
+                        .requestModifier(KFHeaders.modifier)
+                        .placeholder {
+                            Image(systemName: "person.circle.fill")
+                                .foregroundColor(.gray3)
+                        }
+                        .cacheOriginalImage()
                         .resizable()
                         .aspectRatio(contentMode: .fill)
                         .frame(width: 16, height: 16)

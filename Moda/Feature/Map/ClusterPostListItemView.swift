@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import Kingfisher
 
 struct ClusterPostListItemView: View {
     let post: PostAnnotation
@@ -20,7 +21,14 @@ struct ClusterPostListItemView: View {
         HStack(spacing: 12) {
             
             if !post.media.isEmpty {
-                Image(post.media)
+                KFImage(URL(string: "\(NetworkConfig.baseURL)/v1\(post.media)"))
+                    .requestModifier(KFHeaders.modifier)
+                    .placeholder {
+                        RoundedRectangle(cornerRadius: 8)
+                            .fill(Color.gray.opacity(0.3))
+                    }
+                    .cacheOriginalImage()
+                    .fade(duration: 0.2)
                     .resizable()
                     .aspectRatio(contentMode: .fill)
                     .frame(width: 80, height: 80)
@@ -46,7 +54,13 @@ struct ClusterPostListItemView: View {
                 
                 HStack(spacing: 6) {
                     if !post.profileImage.isEmpty {
-                        Image(post.profileImage)
+                        KFImage(URL(string: "\(NetworkConfig.baseURL)/v1\(post.profileImage)"))
+                            .requestModifier(KFHeaders.modifier)
+                            .placeholder {
+                                Circle()
+                                    .fill(Color.gray.opacity(0.3))
+                            }
+                            .cacheOriginalImage()
                             .resizable()
                             .aspectRatio(contentMode: .fill)
                             .frame(width: 20, height: 20)

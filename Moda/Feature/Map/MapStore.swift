@@ -173,7 +173,7 @@ final class MapStore: NSObject, ObservableObject {
 
         do {
             let response = try await PostAPI.shared.getPostsByGeolocation(
-                category: ["moda_product"],
+                category: ["sell"],
                 longitude: longitude,
                 latitude: latitude,
                 maxDistance: maxDistance
@@ -204,6 +204,7 @@ final class MapStore: NSObject, ObservableObject {
             state.hasLoadedInitialPosts = true
 
             print("위치 기반 게시글 조회 성공: \(posts.count)개")
+            print(TokenManager.shared.accessToken)
 
         } catch {
             state.isLoadingPosts = false
