@@ -8,6 +8,13 @@
 import SwiftUI
 import Observation
 
+//MARK: 검색 결과 모델
+private struct FriendSearchItem: Identifiable, Hashable {
+    let id: String          // userId
+    let nickname: String    // nick
+    let profileImageURL: URL?
+}
+
 // MARK: - State
 private struct FriendAddState {
     var query: String = ""
@@ -26,11 +33,6 @@ private struct FriendAddState {
     var selectedIsFriend: Bool?
 }
 
-//MARK: 검색 결과 모델(목 데이터용 간단 모델 추후 수정필요)
-private struct FriendSearchItem: Identifiable, Hashable {
-    let id: String
-    let nickname: String
-}
 
 // MARK: - Intent
 private enum FriendAddIntent {
@@ -51,6 +53,11 @@ private enum FriendAddIntent {
 @Observable
 private final class FriendAddStore {
     var state = FriendAddState()
+
+    // 의존성
+    private let userAPI = UserAPI.shared
+
+    // 동시 검색 취소용
     private var searchTask: Task<Void, Never>?
 
     func send(_ intent: FriendAddIntent) {
@@ -101,13 +108,35 @@ private final class FriendAddStore {
 
         let query = state.query
 
-        // TODO: 목 네트워크 호출, 네트워크로 추후 대체
-        searchTask = Task {
+        // 실제 네트워크 검색
+        searchTask = Task { [weak self] in
+            guard let self else { return }
             do {
-                let items = try await fetchMockResults(for: query)
+                let response = try await userAPI.searchUsers(query: query)
+                //MARK: Response 안오는 문제 있음
+                print("response\(response)")
+                // 취소되었으면 중단
+                if Task.isCancelled { return }
+
+                // DTO -> 뷰 모델 매핑
+                let items: [FriendSearchItem] = response.data.map { dto in
+                    let url = dto.profileImage.flatMap { URL(string: "\(NetworkConfig.baseURL)/v1\($0)") }
+                    return FriendSearchItem(
+                        id: dto.userId,
+                        nickname: dto.nick,
+                        profileImageURL: url
+                    )
+                }
+
                 state.results = items
+				//MARK: 검색후 results 안뜸
+                print(state.results)
             } catch {
-                state.errorMessage = error.localizedDescription
+                if let netErr = error as? NetworkError {
+                    state.errorMessage = netErr.localizedDescription
+                } else {
+                    state.errorMessage = error.localizedDescription
+                }
             }
             state.isLoading = false
         }
@@ -122,7 +151,7 @@ private final class FriendAddStore {
     }
 
     private func handlefriendAddButtonTapped() {
-        // TODO: 네트워크 통신으로 친구 상태 변경
+
         print("친구 추가 버튼 눌림")
     }
 
@@ -138,25 +167,6 @@ private final class FriendAddStore {
             return String(text.prefix(state.maxLength))
         } else {
             return text
-        }
-    }
-
-    // TODO: 목 데이터 로더, 네트워크로 추후 대체
-    private func fetchMockResults(for query: String) async throws -> [FriendSearchItem] {
-        // 네트워크 지연 흉내
-        try await Task.sleep(for: .milliseconds(700))
-
-        let lower = query.lowercased()
-        // 특정 키워드로 빈/에러 케이스 테스트 가능
-        if lower == "empty" { return [] }
-        if lower == "error" { throw URLError(.badServerResponse) }
-
-        // 간단한 목 결과
-        return (1...8).map { i in
-            FriendSearchItem(
-                id: "\(lower)_\(i)",
-                nickname: "\(query.capitalized) \(i)"
-            )
         }
     }
 }
@@ -220,7 +230,7 @@ struct FriendAddView: View {
                         ContentUnavailableView(
                             "친구를 검색해 보세요",
                             systemImage: "person.crop.circle.badge.magnifyingglass",
-                            description: Text("ID를 입력하고 검색을 눌러보세요.")
+                            description: Text("닉네임을 입력하고 검색을 눌러보세요.")
                         )
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                     } else if store.state.results.isEmpty {
@@ -228,7 +238,7 @@ struct FriendAddView: View {
                         ContentUnavailableView(
                             "검색 결과가 없어요",
                             systemImage: "person.fill.questionmark",
-                            description: Text("다른 ID로 다시 시도해 보세요.")
+                            description: Text("다른 닉네임으로 다시 시도해 보세요.")
                         )
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                     } else {
@@ -245,7 +255,7 @@ struct FriendAddView: View {
                 }
             }
         }
-        .navigationTitle("ID로 추가")
+        .navigationTitle("닉네임으로 추가")
         .toolbarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .topBarLeading) {
@@ -256,7 +266,7 @@ struct FriendAddView: View {
                         .font(.system(size: 18, weight: .semibold))
                 }
             }
-            //MARK: 지금 검색버튼은 프리뷰 시연용, 나중에 어차피 키보드 올라왔을때 submit 버튼 눌렀을때 동작
+            // 키보드 submit 외에도, 상단 버튼으로 검색 가능
             ToolbarItem(placement: .topBarTrailing) {
                 Button("검색") {
                     store.send(.searchSubmitted)
@@ -286,9 +296,8 @@ private struct FriendIDSearchBar: View {
     var body: some View {
         VStack(spacing: 6) {
             HStack(alignment: .firstTextBaseline) {
-                TextField("친구 ID", text: $text)
+                TextField("닉네임", text: $text)
                     .textInputAutocapitalization(.none)
-                    .keyboardType(.asciiCapable) // 영문/숫자 ID라면 권장
                     .disableAutocorrection(true)
                     .focused($isFocused)
                     .submitLabel(.search)
@@ -323,7 +332,7 @@ private struct FriendSelectedCard: View {
             .fill(Color(uiColor: .secondarySystemBackground))
             .overlay(
                 VStack(spacing: 14) {
-                    // 아바타 플레이스홀더
+                    // 아바타 플레이스홀더(이미지 URL 사용 시 교체 가능)
                     ZStack {
                         Circle().fill(Color.gray.opacity(0.15))
                         Image(systemName: "person.fill")
@@ -378,7 +387,7 @@ private struct FriendSelectedCard: View {
     }
 }
 
-// MARK: - Result Row, 나중에 분리, 재활용 고려하기
+// MARK: - Result Row
 private struct FriendRow: View {
     let item: FriendSearchItem
 
