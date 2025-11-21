@@ -6,17 +6,192 @@
 //
 
 import SwiftUI
+import Kingfisher
+import CoreLocation
+import Combine
 
+// MARK: - State
 struct FeedViewState {
-    var products: [PostCard] = PostCard.mockData
+    var products: [PostCard] = []
     var userName = "장수지"
-    var categories = ["전체", "study", "electronics", "fashion", "books", "living", "sports"]
+    var categories = ["전체", "sell"]
+    var selectedCategory: String = "전체"
+
+    // Pagination
+    var nextCursor: String = ""
+    var isLoading: Bool = false
+    var hasMoreData: Bool = true
+
+    // Location
+    var currentLocation: CLLocationCoordinate2D?
+
+    // Error
+    var errorMessage: String?
 }
 
-final class FeedViewStore: ObservableObject {
+// MARK: - Intent
+enum FeedIntent {
+    case onAppear
+    case loadMore
+    case refresh
+    case selectCategory(String)
+    case toggleLike(String)
+    case updateLocation(CLLocationCoordinate2D)
+}
+
+// MARK: - Store
+@MainActor
+final class FeedViewStore: NSObject, ObservableObject {
     @Published private(set) var state = FeedViewState()
+
+    private let postAPI: PostAPIProtocol
+    private var likeDebounceTimers: [String: Timer] = [:]
+    private var pendingLikeStates: [String: Bool] = [:]
+
+    lazy var locationManager: CLLocationManager = {
+        let manager = CLLocationManager()
+        manager.delegate = self
+        manager.desiredAccuracy = kCLLocationAccuracyHundredMeters
+        return manager
+    }()
+
+    init(postAPI: PostAPIProtocol = PostAPI.shared) {
+        self.postAPI = postAPI
+        super.init()
+    }
+
+    func send(_ intent: FeedIntent) {
+        switch intent {
+        case .onAppear:
+            setupLocationManager()
+            if state.products.isEmpty {
+                Task { await loadPosts(refresh: true) }
+            }
+
+        case .loadMore:
+            guard !state.isLoading && state.hasMoreData else { return }
+            Task { await loadPosts(refresh: false) }
+
+        case .refresh:
+            Task { await loadPosts(refresh: true) }
+
+        case .selectCategory(let category):
+            state.selectedCategory = category
+            Task { await loadPosts(refresh: true) }
+
+        case .toggleLike(let postId):
+            toggleLikeWithDebounce(postId: postId)
+
+        case .updateLocation(let coordinate):
+            state.currentLocation = coordinate
+        }
+    }
+
+    // MARK: - API Calls
+    private func loadPosts(refresh: Bool) async {
+        if refresh {
+            state.nextCursor = ""
+            state.hasMoreData = true
+        }
+
+        guard state.hasMoreData else { return }
+
+        state.isLoading = true
+        state.errorMessage = nil
+
+        do {
+            let category: [String]? = state.selectedCategory == "전체" ? ["sell"] : [state.selectedCategory]
+            let cursor = refresh ? nil : (state.nextCursor.isEmpty ? nil : state.nextCursor)
+
+            let response = try await postAPI.getPosts(
+                next: cursor,
+                limit: "20",
+                category: category
+            )
+
+            let currentUserId = UserDefaults.standard.string(forKey: "userId")
+            let newProducts = response.data.map { $0.toDomain().toPostCard(currentUserId: currentUserId) }
+
+            if refresh {
+                state.products = newProducts
+            } else {
+                state.products.append(contentsOf: newProducts)
+            }
+
+            state.nextCursor = response.nextCursor
+            state.hasMoreData = !response.nextCursor.isEmpty && response.nextCursor != "0"
+
+        } catch {
+            state.errorMessage = error.localizedDescription
+            print("피드 로드 실패: \(error.localizedDescription)")
+        }
+
+        state.isLoading = false
+    }
+
+    // MARK: - Like with Debouncing
+    private func toggleLikeWithDebounce(postId: String) {
+        // 즉시 UI 업데이트
+        if let index = state.products.firstIndex(where: { $0.id == postId }) {
+            state.products[index].isLiked.toggle()
+            let newLikeState = state.products[index].isLiked
+            pendingLikeStates[postId] = newLikeState
+
+            // 기존 타이머 취소
+            likeDebounceTimers[postId]?.invalidate()
+
+            // 300ms 디바운싱
+            likeDebounceTimers[postId] = Timer.scheduledTimer(withTimeInterval: 0.3, repeats: false) { [weak self] _ in
+                Task { @MainActor in
+                    await self?.sendLikeRequest(postId: postId)
+                }
+            }
+        }
+    }
+
+    private func sendLikeRequest(postId: String) async {
+        guard let likeStatus = pendingLikeStates[postId] else { return }
+
+        do {
+            _ = try await postAPI.likePost(postId: postId, likeStatus: likeStatus)
+            pendingLikeStates.removeValue(forKey: postId)
+        } catch {
+            // 실패 시 UI 롤백
+            if let index = state.products.firstIndex(where: { $0.id == postId }) {
+                state.products[index].isLiked.toggle()
+            }
+            print("좋아요 요청 실패: \(error.localizedDescription)")
+        }
+    }
+
+    private func setupLocationManager() {
+        _ = locationManager
+    }
 }
 
+// MARK: - CLLocationManagerDelegate
+extension FeedViewStore: CLLocationManagerDelegate {
+    nonisolated func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
+        Task { @MainActor in
+            let status = manager.authorizationStatus
+            if status == .authorizedWhenInUse || status == .authorizedAlways {
+                manager.startUpdatingLocation()
+            } else if status == .notDetermined {
+                manager.requestWhenInUseAuthorization()
+            }
+        }
+    }
+
+    nonisolated func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
+        guard let location = locations.last else { return }
+        Task { @MainActor in
+            send(.updateLocation(location.coordinate))
+            manager.stopUpdatingLocation()
+        }
+    }
+}
+
+// MARK: - View
 struct FeedView: View {
     @StateObject private var store = FeedViewStore()
     @EnvironmentObject var navigator: AppNavigator
@@ -32,12 +207,23 @@ struct FeedView: View {
                     categoryFilterSection
                     userInfoCard
                     productSection
+
+                    if store.state.isLoading && !store.state.products.isEmpty {
+                        ProgressView()
+                            .padding()
+                    }
                 }
                 .padding(.top, 16)
                 .padding(.bottom, 100)
             }
+            .refreshable {
+                store.send(.refresh)
+            }
 
             uploadButton
+        }
+        .onAppear {
+            store.send(.onAppear)
         }
     }
 
@@ -64,14 +250,18 @@ struct FeedView: View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 8) {
                 ForEach(store.state.categories, id: \.self) { category in
-                    CategoryChip(title: category)
+                    CategoryChip(
+                        title: category,
+                        isSelected: store.state.selectedCategory == category
+                    ) {
+                        store.send(.selectCategory(category))
+                    }
                 }
             }
             .padding(.horizontal, 16)
         }
     }
 
-    // TODO: - 프로필 구간으로 옮길 예정입니다.
     private var userInfoCard: some View {
         VStack(spacing: 14) {
             HStack(spacing: 12) {
@@ -116,20 +306,54 @@ struct FeedView: View {
 
     private var productSection: some View {
         VStack(alignment: .leading, spacing: 16) {
-            HStack(alignment: .top, spacing: 12) {
-                LazyVStack(spacing: 12) {
-                    ForEach(Array(store.state.products.enumerated()).filter { $0.offset % 2 == 0 }, id: \.element.id) { _, product in
-                        PostCardView(product: product, store: store)
+            if store.state.products.isEmpty && store.state.isLoading {
+                // 초기 로딩
+                ProgressView()
+                    .frame(maxWidth: .infinity)
+                    .padding(.top, 50)
+            } else if store.state.products.isEmpty {
+                // 데이터 없음
+                Text("게시글이 없습니다.")
+                    .Body1()
+                    .foregroundColor(.gray2)
+                    .frame(maxWidth: .infinity)
+                    .padding(.top, 50)
+            } else {
+                HStack(alignment: .top, spacing: 12) {
+                    // 왼쪽 열
+                    LazyVStack(spacing: 12) {
+                        ForEach(Array(store.state.products.enumerated()).filter { $0.offset % 2 == 0 }, id: \.element.id) { index, product in
+                            PostCardView(
+                                product: product,
+                                currentLocation: store.state.currentLocation,
+                                onLikeTapped: {
+                                    store.send(.toggleLike(product.id))
+                                }
+                            )
+                            .onAppear {
+                                // 마지막 아이템 근처에서 더 로드
+                                if index >= store.state.products.count - 4 {
+                                    store.send(.loadMore)
+                                }
+                            }
+                        }
                     }
-                }
 
-                LazyVStack(spacing: 12) {
-                    ForEach(Array(store.state.products.enumerated()).filter { $0.offset % 2 == 1 }, id: \.element.id) { _, product in
-                        PostCardView(product: product, store: store)
+                    // 오른쪽 열
+                    LazyVStack(spacing: 12) {
+                        ForEach(Array(store.state.products.enumerated()).filter { $0.offset % 2 == 1 }, id: \.element.id) { _, product in
+                            PostCardView(
+                                product: product,
+                                currentLocation: store.state.currentLocation,
+                                onLikeTapped: {
+                                    store.send(.toggleLike(product.id))
+                                }
+                            )
+                        }
                     }
                 }
+                .padding(.horizontal, 16)
             }
-            .padding(.horizontal, 16)
         }
     }
 
@@ -163,6 +387,7 @@ struct FeedView: View {
     }
 }
 
+// MARK: - Supporting Views
 struct QuickActionButton: View {
     let icon: String
     let title: String
@@ -204,7 +429,8 @@ struct QuickActionButton: View {
 
 struct PostCardView: View {
     let product: PostCard
-    @ObservedObject var store: FeedViewStore
+    let currentLocation: CLLocationCoordinate2D?
+    let onLikeTapped: () -> Void
 
     private var imageHeight: CGFloat {
         let heights: [CGFloat] = [100, 115, 130, 140, 120, 110]
@@ -222,9 +448,23 @@ struct PostCardView: View {
 
     private var profileSection: some View {
         HStack(spacing: 8) {
-            Circle()
-                .fill(Color.gray3)
-                .frame(width: 24, height: 24)
+            if let profileImage = product.creator.profileImage, !profileImage.isEmpty {
+                KFImage(URL(string: "\(NetworkConfig.baseURL)/v1\(profileImage)"))
+                    .requestModifier(KFHeaders.modifier)
+                    .placeholder {
+                        Circle()
+                            .fill(Color.gray3)
+                    }
+                    .cacheOriginalImage()
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+                    .frame(width: 24, height: 24)
+                    .clipShape(Circle())
+            } else {
+                Circle()
+                    .fill(Color.gray3)
+                    .frame(width: 24, height: 24)
+            }
 
             Text(product.creator.nickname)
                 .Body1()
@@ -232,8 +472,7 @@ struct PostCardView: View {
 
             Spacer()
 
-            Button {
-            } label: {
+            Button(action: onLikeTapped) {
                 HStack(spacing: 4) {
                     Image(systemName: product.isLiked ? "heart.fill" : "heart")
                         .font(.system(size: 16, weight: .semibold))
@@ -250,9 +489,26 @@ struct PostCardView: View {
     }
 
     private var imageSection: some View {
-        RoundedRectangle(cornerRadius: 12, style: .continuous)
-            .fill(Color.gray5)
-            .frame(height: imageHeight)
+        Group {
+            if let imageURL = product.imageURL, !imageURL.isEmpty {
+                KFImage(URL(string: "\(NetworkConfig.baseURL)/v1\(imageURL)"))
+                    .requestModifier(KFHeaders.modifier)
+                    .placeholder {
+                        RoundedRectangle(cornerRadius: 12, style: .continuous)
+                            .fill(Color.gray5)
+                    }
+                    .cacheOriginalImage()
+                    .fade(duration: 0.2)
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+                    .frame(height: imageHeight)
+                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+            } else {
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .fill(Color.gray5)
+                    .frame(height: imageHeight)
+            }
+        }
     }
 
     private var infoSection: some View {
@@ -264,7 +520,8 @@ struct PostCardView: View {
                 .fixedSize(horizontal: false, vertical: true)
 
             HStack(spacing: 4) {
-                if let distance = product.formattedDistance() {
+                // 거리 표시
+                if let distance = product.formattedDistance(from: currentLocation.map { ($0.latitude, $0.longitude) }) {
                     Text(distance)
                         .Body2()
                         .foregroundColor(.gray2)
@@ -274,16 +531,19 @@ struct PostCardView: View {
                         .foregroundColor(.gray2)
                 }
 
+                // 장소명 표시
                 if let location = product.formattedLocation {
                     Text(location)
                         .Body2()
                         .foregroundColor(.gray2)
+                        .lineLimit(1)
 
                     Text("·")
                         .Body2()
                         .foregroundColor(.gray2)
                 }
 
+                // 시간 표시
                 Text(product.formattedDate)
                     .Body2()
                     .foregroundColor(.gray2)
@@ -300,14 +560,11 @@ struct PostCardView: View {
 
 struct CategoryChip: View {
     let title: String
-
-    private var isSelected: Bool {
-        title == "전체"
-    }
+    let isSelected: Bool
+    let action: () -> Void
 
     var body: some View {
-        Button {
-        } label: {
+        Button(action: action) {
             Text(title)
                 .Body1()
                 .foregroundColor(isSelected ? .white : .gray1)

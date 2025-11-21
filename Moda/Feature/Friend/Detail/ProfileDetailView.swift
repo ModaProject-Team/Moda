@@ -197,12 +197,12 @@ struct ProfileDetailView: View {
                     // 좌/우 컬럼으로 간단한 masonry
                     LazyVStack(spacing: 12) {
                         ForEach(Array(items.enumerated()).filter { $0.offset % 2 == 0 }, id: \.element.id) { _, product in
-                            PostCardView(product: product, store: FeedViewStore())
+                            PostCardView(product: product, currentLocation: nil, onLikeTapped: {})
                         }
                     }
                     LazyVStack(spacing: 12) {
                         ForEach(Array(items.enumerated()).filter { $0.offset % 2 == 1 }, id: \.element.id) { _, product in
-                            PostCardView(product: product, store: FeedViewStore())
+                            PostCardView(product: product, currentLocation: nil, onLikeTapped: {})
                         }
                     }
                 }
