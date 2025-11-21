@@ -24,6 +24,11 @@ struct MapState {
     var selectedClusterPostIds: Set<String>?
     var showClusterSheet: Bool
     var clusterSheetPosts: [PostAnnotation]
+    var isLoadingPosts: Bool
+    var postLoadError: String?
+    var showSearchButton: Bool
+    var mapCenterCoordinate: CLLocationCoordinate2D?
+    var hasLoadedInitialPosts: Bool
 
     // 경도 기준으로 정렬된 게시물 배열
     var sortedPosts: [PostAnnotation] {
@@ -90,12 +95,17 @@ struct MapState {
         showLocationServiceDisabledAlert: Bool = false,
         showLocationUpdateFailedAlert: Bool = false,
         currentLocation: CLLocationCoordinate2D? = nil,
-        posts: [PostAnnotation] = PostAnnotation.mockData,
+        posts: [PostAnnotation] = [],
         selectedPostId: String? = nil,
         selectedPostIndex: Int? = nil,
         selectedClusterPostIds: Set<String>? = nil,
         showClusterSheet: Bool = false,
-        clusterSheetPosts: [PostAnnotation] = []
+        clusterSheetPosts: [PostAnnotation] = [],
+        isLoadingPosts: Bool = false,
+        postLoadError: String? = nil,
+        showSearchButton: Bool = false,
+        mapCenterCoordinate: CLLocationCoordinate2D? = nil,
+        hasLoadedInitialPosts: Bool = false
     ) {
         self.cameraPosition = cameraPosition
         self.currentSpan = currentSpan
@@ -111,5 +121,10 @@ struct MapState {
         self.selectedClusterPostIds = selectedClusterPostIds
         self.showClusterSheet = showClusterSheet
         self.clusterSheetPosts = clusterSheetPosts
+        self.isLoadingPosts = isLoadingPosts
+        self.postLoadError = postLoadError
+        self.showSearchButton = showSearchButton
+        self.mapCenterCoordinate = mapCenterCoordinate
+        self.hasLoadedInitialPosts = hasLoadedInitialPosts
     }
 }

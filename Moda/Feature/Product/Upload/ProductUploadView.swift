@@ -330,6 +330,7 @@ struct ProductUploadView: View {
 
             Button {
                 store.send(.submitButtonTapped)
+                navigator.push(.home)
             } label: {
                 Text("작성 완료")
                     .H2()

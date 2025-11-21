@@ -68,8 +68,9 @@ struct MapView: View {
                     }
                 }
             }
-            .onMapCameraChange { context in
+            .onMapCameraChange(frequency: .onEnd) { context in
                 store.send(.updateSpan(context.region.span))
+                store.send(.mapDidMove(context.region.center))
             }
             .mapControls { }  // 기본 UI 전부 숨기고 커스텀 모드로 전환
             .simultaneousGesture(
@@ -86,30 +87,53 @@ struct MapView: View {
             )
             .ignoresSafeArea()
 
-            // 우측 상단 현재 위치 버튼
+            // 상단 중앙 - 현 지도에서 검색 버튼
+            VStack {
+                if store.state.showSearchButton {
+                    Button {
+                        store.send(.searchInCurrentMap)
+                    } label: {
+                        HStack(spacing: 4) {
+                            Image(systemName: "arrow.clockwise")
+                                .font(.caption)
+                            Text("현 지도에서 검색")
+                                .font(.caption)
+                                .fontWeight(.medium)
+                        }
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 8)
+                        .background(Color.blue1)
+                        .clipShape(Capsule())
+                        .shadow(radius: 3)
+                    }
+                    .padding(.top, 8)
+                }
+
+                Spacer()
+            }
+
+            // 우측 상단 - 현재 위치 버튼 (고정)
             VStack {
                 HStack {
                     Spacer()
-                    VStack {
-                        Button {
-                            withAnimation {
-                                store.send(.moveToUserLocation)
-                            }
-                        } label: {
-                            Image(systemName: "dot.scope")
-                                .font(.title3)
-                                .foregroundColor(.white)
-                                .padding(.all, 8)
-                                .background(Color.blue1)
-                                .clipShape(Circle())
-                                .shadow(radius: 3)
+                    Button {
+                        withAnimation {
+                            store.send(.moveToUserLocation)
                         }
-                        .padding(.top, 8)
-                        .padding(.trailing, 16)
-
-                        Spacer()
+                    } label: {
+                        Image(systemName: "dot.scope")
+                            .font(.title3)
+                            .foregroundColor(.white)
+                            .padding(.all, 8)
+                            .background(Color.blue1)
+                            .clipShape(Circle())
+                            .shadow(radius: 3)
                     }
+                    .padding(.top, 8)
+                    .padding(.trailing, 16)
                 }
+                Spacer()
             }
 
             // 하단 게시물 카드
