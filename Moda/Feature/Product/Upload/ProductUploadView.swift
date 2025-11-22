@@ -346,10 +346,11 @@ struct ProductUploadView: View {
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 16)
             }
-            .background(Color.blue1)
+            .background(store.state.isFormValid ? Color.blue1 : Color.gray3)
             .cornerRadius(12)
             .padding(.horizontal, 16)
             .padding(.vertical, 12)
+            .disabled(!store.state.isFormValid)
         }
         .background(Color.white)
     }

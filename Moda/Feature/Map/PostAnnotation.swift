@@ -11,7 +11,7 @@ import CoreLocation
 struct PostAnnotation: Identifiable {
     let id: String
     let title: String
-    let media: String  // 대표 이미지 URL 또는 이름
+    let media: String  // 대표 이미지 URL
     var like: Bool  // 좋아요 여부
     let profileImage: String  // 작성자 프로필 이미지
     let nickname: String  // 작성자 닉네임
