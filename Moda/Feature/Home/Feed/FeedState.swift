@@ -11,9 +11,14 @@ import CoreLocation
 // MARK: - State
 struct FeedViewState {
     var products: [PostCard] = []
+    var filteredProducts: [PostCard] = []
     var userName = "장수지"
     var categories = ["전체", "중고거래", "나눔"]
     var selectedCategory: String = "전체"
+
+    // Search
+    var searchText: String = ""
+    var isSearching: Bool = false
 
     // Pagination
     var nextCursor: String = ""
@@ -25,4 +30,13 @@ struct FeedViewState {
 
     // Error
     var errorMessage: String?
+
+    // 검색 결과 또는 전체 목록 반환
+    var displayProducts: [PostCard] {
+        if searchText.isEmpty {
+            return products
+        } else {
+            return filteredProducts
+        }
+    }
 }

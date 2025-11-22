@@ -35,7 +35,6 @@ struct FeedView: View {
                                     .padding()
                             }
                         }
-                        .padding(.top, 16)
                         .padding(.bottom, 100)
                     }
                     .refreshable {
@@ -51,22 +50,46 @@ struct FeedView: View {
     }
 
     private var logoSection: some View {
-        HStack {
+        HStack(spacing: 8) {
             Image("AppIcon")
                 .resizable()
                 .scaledToFit()
                 .frame(height: 48)
 
-            Spacer()
-
-            Button {
-            } label: {
-                Image(systemName: "magnifyingglass")
-                    .font(.system(size: 20))
-                    .foregroundColor(.gray1)
-            }
+            searchBar
         }
         .padding(.horizontal, 16)
+    }
+
+    private var searchBar: some View {
+        HStack(spacing: 8) {
+            TextField("게시글 검색", text: Binding(
+                get: { store.state.searchText },
+                set: { store.send(.search($0)) }
+            ))
+            .font(.system(size: 16))
+            .foregroundColor(.gray1)
+
+            if !store.state.searchText.isEmpty {
+                Button {
+                    store.send(.clearSearch)
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.system(size: 18))
+                        .foregroundColor(.gray2)
+                }
+            }
+
+            Image(systemName: "magnifyingglass")
+                .font(.system(size: 18))
+                .foregroundColor(.gray2)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+        .background(
+            RoundedRectangle(cornerRadius: 25, style: .continuous)
+                .fill(Color.gray5)
+        )
     }
 
     private var categoryFilterSection: some View {
@@ -131,12 +154,14 @@ struct FeedView: View {
 
     @ViewBuilder
     private func productSectionView(itemWidth: CGFloat, spacing: CGFloat, horizontalPadding: CGFloat) -> some View {
-        if store.state.products.isEmpty && store.state.isLoading {
+        let products = store.state.displayProducts
+
+        if products.isEmpty && store.state.isLoading {
             ProgressView()
                 .frame(maxWidth: .infinity)
                 .padding(.top, 50)
-        } else if store.state.products.isEmpty {
-            Text("게시글이 없습니다.")
+        } else if products.isEmpty {
+            Text(store.state.isSearching ? "검색 결과가 없습니다." : "게시글이 없습니다.")
                 .Body1()
                 .foregroundColor(.gray2)
                 .frame(maxWidth: .infinity)
@@ -145,7 +170,7 @@ struct FeedView: View {
             HStack(alignment: .top, spacing: spacing) {
                 // 왼쪽 열
                 VStack(spacing: 12) {
-                    ForEach(Array(store.state.products.enumerated().filter { $0.offset % 2 == 0 }), id: \.element.id) { index, product in
+                    ForEach(Array(products.enumerated().filter { $0.offset % 2 == 0 }), id: \.element.id) { index, product in
                         PostCardView(
                             product: product,
                             itemWidth: itemWidth,
@@ -155,7 +180,7 @@ struct FeedView: View {
                             }
                         )
                         .onAppear {
-                            if index >= store.state.products.count - 4 {
+                            if index >= products.count - 4 && !store.state.isSearching {
                                 store.send(.loadMore)
                             }
                         }
@@ -165,7 +190,7 @@ struct FeedView: View {
 
                 // 오른쪽 열
                 VStack(spacing: 12) {
-                    ForEach(Array(store.state.products.enumerated().filter { $0.offset % 2 == 1 }), id: \.element.id) { index, product in
+                    ForEach(Array(products.enumerated().filter { $0.offset % 2 == 1 }), id: \.element.id) { index, product in
                         PostCardView(
                             product: product,
                             itemWidth: itemWidth,
@@ -175,7 +200,7 @@ struct FeedView: View {
                             }
                         )
                         .onAppear {
-                            if index >= store.state.products.count - 4 {
+                            if index >= products.count - 4 && !store.state.isSearching {
                                 store.send(.loadMore)
                             }
                         }

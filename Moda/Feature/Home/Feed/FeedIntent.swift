@@ -16,4 +16,6 @@ enum FeedIntent {
     case selectCategory(String)
     case toggleLike(String)
     case updateLocation(CLLocationCoordinate2D)
+    case search(String)
+    case clearSearch
 }

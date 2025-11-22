@@ -7,6 +7,7 @@
 
 import Foundation
 import CoreLocation
+import Combine
 
 // MARK: - Store
 @MainActor
@@ -14,7 +15,11 @@ final class FeedViewStore: NSObject, ObservableObject {
     @Published private(set) var state = FeedViewState()
 
     private let postAPI: PostAPIProtocol
-    private var likeDebounceTimers: [String: Timer] = [:]
+    private var cancellables = Set<AnyCancellable>()
+
+    // Combine Subjects for debouncing
+    private let searchSubject = PassthroughSubject<String, Never>()
+    private let likeSubject = PassthroughSubject<String, Never>()
     private var pendingLikeStates: [String: Bool] = [:]
 
     lazy var locationManager: CLLocationManager = {
@@ -27,6 +32,27 @@ final class FeedViewStore: NSObject, ObservableObject {
     init(postAPI: PostAPIProtocol = PostAPI.shared) {
         self.postAPI = postAPI
         super.init()
+        setupCombineBindings()
+    }
+
+    private func setupCombineBindings() {
+        // 검색 디바운싱 (300ms)
+        searchSubject
+            .debounce(for: .milliseconds(300), scheduler: RunLoop.main)
+            .sink { [weak self] query in
+                self?.performSearch(query: query)
+            }
+            .store(in: &cancellables)
+
+        // 좋아요 디바운싱 (300ms)
+        likeSubject
+            .debounce(for: .milliseconds(300), scheduler: RunLoop.main)
+            .sink { [weak self] postId in
+                Task { @MainActor in
+                    await self?.sendLikeRequest(postId: postId)
+                }
+            }
+            .store(in: &cancellables)
     }
 
     func send(_ intent: FeedIntent) {
@@ -53,6 +79,35 @@ final class FeedViewStore: NSObject, ObservableObject {
 
         case .updateLocation(let coordinate):
             state.currentLocation = coordinate
+
+        case .search(let query):
+            searchProducts(query: query)
+
+        case .clearSearch:
+            state.searchText = ""
+            state.filteredProducts = []
+            state.isSearching = false
+        }
+    }
+
+    // MARK: - Search
+    private func searchProducts(query: String) {
+        state.searchText = query
+
+        if query.isEmpty {
+            state.filteredProducts = []
+            state.isSearching = false
+            return
+        }
+
+        // Combine Subject로 디바운싱
+        searchSubject.send(query)
+    }
+
+    private func performSearch(query: String) {
+        state.isSearching = true
+        state.filteredProducts = state.products.filter {
+            $0.title.localizedCaseInsensitiveContains(query)
         }
     }
 
@@ -80,6 +135,9 @@ final class FeedViewStore: NSObject, ObservableObject {
             let currentUserId = UserDefaults.standard.string(forKey: "userId")
             var newProducts = response.data.map { $0.toDomain().toPostCard(currentUserId: currentUserId) }
 
+            // 최신순 정렬
+            newProducts.sort { $0.createdAt > $1.createdAt }
+
             switch state.selectedCategory {
             case "중고거래":
                 newProducts = newProducts.filter { ($0.price ?? 0) > 0 }
@@ -92,11 +150,19 @@ final class FeedViewStore: NSObject, ObservableObject {
             if refresh {
                 state.products = newProducts
             } else {
-                state.products.append(contentsOf: newProducts)
+                // 중복 제거
+                let existingIds = Set(state.products.map { $0.id })
+                let uniqueNewProducts = newProducts.filter { !existingIds.contains($0.id) }
+                state.products.append(contentsOf: uniqueNewProducts)
             }
 
             state.nextCursor = response.nextCursor
             state.hasMoreData = !response.nextCursor.isEmpty && response.nextCursor != "0"
+
+            // 검색어가 있으면 검색 결과도 업데이트
+            if !state.searchText.isEmpty {
+                performSearch(query: state.searchText)
+            }
 
         } catch {
             state.errorMessage = error.localizedDescription
@@ -122,15 +188,8 @@ final class FeedViewStore: NSObject, ObservableObject {
 
             pendingLikeStates[postId] = newLikeState
 
-            // 기존 타이머 취소
-            likeDebounceTimers[postId]?.invalidate()
-
-            // 300ms 디바운싱
-            likeDebounceTimers[postId] = Timer.scheduledTimer(withTimeInterval: 0.3, repeats: false) { [weak self] _ in
-                Task { @MainActor in
-                    await self?.sendLikeRequest(postId: postId)
-                }
-            }
+            // Combine Subject로 디바운싱
+            likeSubject.send(postId)
         }
     }
 
