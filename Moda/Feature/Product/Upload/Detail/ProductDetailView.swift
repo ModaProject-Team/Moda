@@ -7,6 +7,7 @@
 
 import SwiftUI
 import Kingfisher
+import MapKit
 
 struct ProductDetailView: View {
 
@@ -95,16 +96,14 @@ struct ProductDetailView: View {
                                 .H1()
                                 .foregroundColor(.gray1)
 
-                            if let price = post.price {
-                                if price == 0 {
-                                    Text("나눔")
-                                        .H2()
-                                        .foregroundColor(.blue1)
-                                } else {
-                                    Text("\(price.formatted())원")
-                                        .H2()
-                                        .foregroundColor(.blue1)
-                                }
+                            if let price = post.price, price > 0 {
+                                Text("\(price.formatted())원")
+                                    .H2()
+                                    .foregroundColor(.black)
+                            } else {
+                                Text("나눔")
+                                    .H2()
+                                    .foregroundColor(.black)
                             }
                             
                             if let content = post.content, !content.isEmpty {
@@ -114,19 +113,40 @@ struct ProductDetailView: View {
                                     .padding(.top, 8)
                             }
 
-                            if let locationName = post.value1, !locationName.isEmpty {
-                                HStack(spacing: 8) {
-                                    Image(systemName: "mappin.circle.fill")
-                                        .foregroundColor(.gray2)
-                                    Text(locationName)
+                            if let locationName = post.value1, !locationName.isEmpty,
+                               let geolocation = post.geolocation {
+                                TradeLocationView(
+                                    title: locationName,
+                                    coordinate: CLLocationCoordinate2D(
+                                        latitude: geolocation.latitude,
+                                        longitude: geolocation.longitude
+                                    ),
+                                    onMapTap: {
+                                        // TODO: 지도 상세 화면으로 이동
+                                    }
+                                )
+                                .padding(.top, 16)
+                            }
+
+                            HStack(spacing: 16) {
+                                HStack(spacing: 4) {
+                                    Image(systemName: "heart.fill")
+                                        .font(.system(size: 14))
+                                        .foregroundColor(.pink1)
+                                    Text("\(post.likes.count)")
                                         .Body2()
                                         .foregroundColor(.gray2)
                                 }
-                                .padding(.top, 8)
+
+                                Text(formattedDate(from: post.createdAt))
+                                    .Body2()
+                                    .foregroundColor(.gray2)
                             }
+                            .padding(.top, 12)
                         }
                         .padding(.horizontal, 16)
                         .padding(.top, 16)
+                        .padding(.bottom, 32)
                     }
                 }
             }
@@ -178,6 +198,47 @@ struct ProductDetailView: View {
         } catch {
             errorMessage = error.localizedDescription
             isLoading = false
+        }
+    }
+
+    private func formattedDate(from createdAt: String) -> String {
+        let isoFormatter = ISO8601DateFormatter()
+        isoFormatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+
+        var parsedDate: Date?
+
+        if let date = isoFormatter.date(from: createdAt) {
+            parsedDate = date
+        } else {
+            let dateFormatter = DateFormatter()
+            dateFormatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSSZ"
+            dateFormatter.locale = Locale(identifier: "en_US_POSIX")
+            parsedDate = dateFormatter.date(from: createdAt)
+        }
+
+        guard let date = parsedDate else {
+            return createdAt
+        }
+
+        let now = Date()
+        let interval = now.timeIntervalSince(date)
+
+        if interval < 60 {
+            return "방금 전"
+        } else if interval < 3600 {
+            let minutes = Int(interval / 60)
+            return "\(minutes)분 전"
+        } else if interval < 86400 {
+            let hours = Int(interval / 3600)
+            return "\(hours)시간 전"
+        } else if interval < 604800 {
+            let days = Int(interval / 86400)
+            return "\(days)일 전"
+        } else {
+            let outputFormatter = DateFormatter()
+            outputFormatter.locale = Locale(identifier: "ko_KR")
+            outputFormatter.dateFormat = "MM.dd"
+            return outputFormatter.string(from: date)
         }
     }
 }
