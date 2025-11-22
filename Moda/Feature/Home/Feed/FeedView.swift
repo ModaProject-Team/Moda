@@ -135,6 +135,14 @@ final class FeedViewStore: NSObject, ObservableObject {
         if let index = state.products.firstIndex(where: { $0.id == postId }) {
             state.products[index].isLiked.toggle()
             let newLikeState = state.products[index].isLiked
+
+            // 좋아요 수 즉시 반영
+            if newLikeState {
+                state.products[index].likeCount += 1
+            } else {
+                state.products[index].likeCount = max(0, state.products[index].likeCount - 1)
+            }
+
             pendingLikeStates[postId] = newLikeState
 
             // 기존 타이머 취소
@@ -159,6 +167,12 @@ final class FeedViewStore: NSObject, ObservableObject {
             // 실패 시 UI 롤백
             if let index = state.products.firstIndex(where: { $0.id == postId }) {
                 state.products[index].isLiked.toggle()
+                
+                if state.products[index].isLiked {
+                    state.products[index].likeCount += 1
+                } else {
+                    state.products[index].likeCount = max(0, state.products[index].likeCount - 1)
+                }
             }
             print("좋아요 요청 실패: \(error.localizedDescription)")
         }

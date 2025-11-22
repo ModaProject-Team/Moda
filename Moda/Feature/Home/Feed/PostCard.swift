@@ -27,10 +27,7 @@ struct PostCard: Identifiable {
     }
 
     var isLiked: Bool = false
-
-    var likeCount: Int {
-        likes.count
-    }
+    var likeCount: Int
 
     var formattedPrice: String {
         guard let price = price else { return "가격 미정" }
@@ -155,7 +152,8 @@ extension Post {
             likes: likes,
             latitude: geolocation?.latitude,
             longitude: geolocation?.longitude,
-            locationName: value1
+            locationName: value1,
+            likeCount: likes.count
         )
 
         if let currentUserId = currentUserId {
@@ -196,7 +194,8 @@ extension PostCard {
                 likes: ["user2", "user3"],
                 latitude: 37.517682,
                 longitude: 126.886417,
-                locationName: "문래역 1번 출구"
+                locationName: "문래역 1번 출구",
+                likeCount: 2
             ),
             PostCard(
                 id: "2",
@@ -214,7 +213,8 @@ extension PostCard {
                 latitude: 37.517682,
                 longitude: 126.886417,
                 locationName: "강남역 2번 출구",
-                isLiked: true
+                isLiked: true,
+                likeCount: 3
             ),
             PostCard(
                 id: "3",
@@ -231,7 +231,8 @@ extension PostCard {
                 likes: ["user2", "user5"],
                 latitude: 37.517682,
                 longitude: 126.886417,
-                locationName: nil
+                locationName: nil,
+                likeCount: 2
             ),
             PostCard(
                 id: "4",
@@ -248,7 +249,8 @@ extension PostCard {
                 likes: ["user1"],
                 latitude: 37.517682,
                 longitude: 126.886417,
-                locationName: "신촌역 앞"
+                locationName: "신촌역 앞",
+                likeCount: 1
             ),
             PostCard(
                 id: "5",
@@ -266,7 +268,8 @@ extension PostCard {
                 latitude: 37.517682,
                 longitude: 126.886417,
                 locationName: "홍대입구역",
-                isLiked: true
+                isLiked: true,
+                likeCount: 5
             ),
             PostCard(
                 id: "6",
@@ -283,7 +286,8 @@ extension PostCard {
                 likes: ["user2", "user3", "user6"],
                 latitude: 37.517682,
                 longitude: 126.886417,
-                locationName: "여의도역 3번 출구"
+                locationName: "여의도역 3번 출구",
+                likeCount: 3
             )
         ]
     }
