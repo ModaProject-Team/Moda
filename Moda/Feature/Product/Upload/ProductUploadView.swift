@@ -248,6 +248,8 @@ struct ProductUploadView: View {
                         .background(!store.state.isSelling ? Color.gray1 : Color.gray5)
                         .clipShape(Capsule())
                 }
+
+                Spacer()
             }
 
             if store.state.isSelling {
