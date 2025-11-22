@@ -164,6 +164,24 @@ final class MapStore: NSObject, ObservableObject {
                 latitude: center.latitude,
                 maxDistance: maxDistance
             ))
+
+        case .toggleLike(let postId, let isLiked):
+            Task {
+                await toggleLike(postId: postId, isLiked: isLiked)
+            }
+        }
+    }
+
+    private func toggleLike(postId: String, isLiked: Bool) async {
+        do {
+            _ = try await PostAPI.shared.likePost(postId: postId, likeStatus: isLiked)
+
+            // 로컬 상태 업데이트
+            if let index = state.posts.firstIndex(where: { $0.id == postId }) {
+                state.posts[index].like = isLiked
+            }
+        } catch {
+            print("좋아요 요청 실패: \(error.localizedDescription)")
         }
     }
 

@@ -10,6 +10,14 @@ import Kingfisher
 
 struct MapPostCardView: View {
     let post: PostAnnotation
+    let onLikeTapped: (String, Bool) -> Void
+    @State private var isLiked: Bool
+
+    init(post: PostAnnotation, onLikeTapped: @escaping (String, Bool) -> Void = { _, _ in }) {
+        self.post = post
+        self.onLikeTapped = onLikeTapped
+        self._isLiked = State(initialValue: post.like)
+    }
 
     var body: some View {
         HStack(spacing: 12) {
@@ -57,9 +65,12 @@ struct MapPostCardView: View {
 
             Spacer()
 
-            Button(action: {}) {
-                Image(systemName: post.like ? "heart.fill" : "heart")
-                    .foregroundColor(post.like ? .pink1 : .gray3)
+            Button {
+                isLiked.toggle()
+                onLikeTapped(post.id, isLiked)
+            } label: {
+                Image(systemName: isLiked ? "heart.fill" : "heart")
+                    .foregroundColor(isLiked ? .pink1 : .gray3)
                     .font(.system(size: 20))
             }
         }

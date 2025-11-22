@@ -10,13 +10,20 @@ import SwiftUI
 struct ClusterSheetView: View {
     let posts: [PostAnnotation]
     let onDismiss: () -> Void
+    let onLikeTapped: (String, Bool) -> Void
+
+    init(posts: [PostAnnotation], onDismiss: @escaping () -> Void, onLikeTapped: @escaping (String, Bool) -> Void = { _, _ in }) {
+        self.posts = posts
+        self.onDismiss = onDismiss
+        self.onLikeTapped = onLikeTapped
+    }
 
     var body: some View {
         NavigationView {
             ScrollView {
                 LazyVStack(spacing: 0) {
                     ForEach(posts) { post in
-                        ClusterPostListItemView(post: post)
+                        ClusterPostListItemView(post: post, onLikeTapped: onLikeTapped)
 
                         if post.id != posts.last?.id {
                             Divider()

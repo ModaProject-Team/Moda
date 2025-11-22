@@ -10,10 +10,12 @@ import Kingfisher
 
 struct ClusterPostListItemView: View {
     let post: PostAnnotation
+    let onLikeTapped: (String, Bool) -> Void
     @State private var isLiked: Bool
 
-    init(post: PostAnnotation) {
+    init(post: PostAnnotation, onLikeTapped: @escaping (String, Bool) -> Void = { _, _ in }) {
         self.post = post
+        self.onLikeTapped = onLikeTapped
         self._isLiked = State(initialValue: post.like)
     }
 
@@ -80,6 +82,7 @@ struct ClusterPostListItemView: View {
             
             Button {
                 isLiked.toggle()
+                onLikeTapped(post.id, isLiked)
             } label: {
                 Image(systemName: isLiked ? "heart.fill" : "heart")
                     .font(.system(size: 20))
