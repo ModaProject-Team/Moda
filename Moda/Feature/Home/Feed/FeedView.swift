@@ -7,71 +7,108 @@
 
 import SwiftUI
 
-struct FeedViewState {
-    var products: [PostCard] = PostCard.mockData
-    var userName = "장수지"
-    var categories = ["전체", "study", "electronics", "fashion", "books", "living", "sports"]
-}
-
-final class FeedViewStore: ObservableObject {
-    @Published private(set) var state = FeedViewState()
-}
-
+// MARK: - View
 struct FeedView: View {
     @StateObject private var store = FeedViewStore()
     @EnvironmentObject var navigator: AppNavigator
 
     var body: some View {
-        ZStack {
-            Color.white
-                .ignoresSafeArea()
+        GeometryReader { geometry in
+            let spacing: CGFloat = 16
+            let horizontalPadding: CGFloat = 16
+            let itemWidth = (geometry.size.width - horizontalPadding * 2 - spacing) / 2
 
-            ScrollView(showsIndicators: false) {
-                VStack(spacing: 20) {
+            ZStack {
+                Color.white
+                    .ignoresSafeArea()
+
+                VStack(spacing: 16) {
                     logoSection
                     categoryFilterSection
-                    userInfoCard
-                    productSection
+//                    userInfoCard
+                    ScrollView(showsIndicators: false) {
+                        VStack(spacing: 20) {
+                            productSectionView(itemWidth: itemWidth, spacing: spacing, horizontalPadding: horizontalPadding)
+                            
+                            if store.state.isLoading && !store.state.products.isEmpty {
+                                ProgressView()
+                                    .padding()
+                            }
+                        }
+                        .padding(.bottom, 100)
+                    }
+                    .refreshable {
+                        store.send(.refresh)
+                    }
                 }
-                .padding(.top, 16)
-                .padding(.bottom, 100)
+                uploadButton
             }
-
-            uploadButton
+        }
+        .onAppear {
+            store.send(.onAppear)
         }
     }
 
     private var logoSection: some View {
-        HStack {
+        HStack(spacing: 8) {
             Image("AppIcon")
                 .resizable()
                 .scaledToFit()
                 .frame(height: 48)
 
-            Spacer()
-
-            Button {
-            } label: {
-                Image(systemName: "magnifyingglass")
-                    .font(.system(size: 20))
-                    .foregroundColor(.gray1)
-            }
+            searchBar
         }
         .padding(.horizontal, 16)
+    }
+
+    private var searchBar: some View {
+        HStack(spacing: 8) {
+            TextField("게시글 검색", text: Binding(
+                get: { store.state.searchText },
+                set: { store.send(.search($0)) }
+            ))
+            .font(.system(size: 16))
+            .foregroundColor(.gray1)
+
+            if !store.state.searchText.isEmpty {
+                Button {
+                    store.send(.clearSearch)
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.system(size: 18))
+                        .foregroundColor(.gray2)
+                }
+            }
+
+            Image(systemName: "magnifyingglass")
+                .font(.system(size: 18))
+                .foregroundColor(.gray2)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+        .background(
+            RoundedRectangle(cornerRadius: 25, style: .continuous)
+                .fill(Color.gray5)
+        )
     }
 
     private var categoryFilterSection: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 8) {
                 ForEach(store.state.categories, id: \.self) { category in
-                    CategoryChip(title: category)
+                    CategoryChip(
+                        title: category,
+                        isSelected: store.state.selectedCategory == category
+                    ) {
+                        store.send(.selectCategory(category))
+                    }
                 }
             }
             .padding(.horizontal, 16)
         }
     }
 
-    // TODO: - 프로필 구간으로 옮길 예정입니다.
+    /*
     private var userInfoCard: some View {
         VStack(spacing: 14) {
             HStack(spacing: 12) {
@@ -113,23 +150,65 @@ struct FeedView: View {
         )
         .padding(.horizontal, 16)
     }
+     */
 
-    private var productSection: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            HStack(alignment: .top, spacing: 12) {
-                LazyVStack(spacing: 12) {
-                    ForEach(Array(store.state.products.enumerated()).filter { $0.offset % 2 == 0 }, id: \.element.id) { _, product in
-                        PostCardView(product: product, store: store)
+    @ViewBuilder
+    private func productSectionView(itemWidth: CGFloat, spacing: CGFloat, horizontalPadding: CGFloat) -> some View {
+        let products = store.state.displayProducts
+
+        if products.isEmpty && store.state.isLoading {
+            ProgressView()
+                .frame(maxWidth: .infinity)
+                .padding(.top, 50)
+        } else if products.isEmpty {
+            Text(store.state.isSearching ? "검색 결과가 없습니다." : "게시글이 없습니다.")
+                .Body1()
+                .foregroundColor(.gray2)
+                .frame(maxWidth: .infinity)
+                .padding(.top, 50)
+        } else {
+            HStack(alignment: .top, spacing: spacing) {
+                // 왼쪽 열
+                VStack(spacing: 12) {
+                    ForEach(Array(products.enumerated().filter { $0.offset % 2 == 0 }), id: \.element.id) { index, product in
+                        PostCardView(
+                            product: product,
+                            itemWidth: itemWidth,
+                            currentLocation: store.state.currentLocation,
+                            onLikeTapped: {
+                                store.send(.toggleLike(product.id))
+                            }
+                        )
+                        .onAppear {
+                            if index >= products.count - 4 && !store.state.isSearching {
+                                store.send(.loadMore)
+                            }
+                        }
                     }
                 }
+                .frame(width: itemWidth)
 
-                LazyVStack(spacing: 12) {
-                    ForEach(Array(store.state.products.enumerated()).filter { $0.offset % 2 == 1 }, id: \.element.id) { _, product in
-                        PostCardView(product: product, store: store)
+                // 오른쪽 열
+                VStack(spacing: 12) {
+                    ForEach(Array(products.enumerated().filter { $0.offset % 2 == 1 }), id: \.element.id) { index, product in
+                        PostCardView(
+                            product: product,
+                            itemWidth: itemWidth,
+                            currentLocation: store.state.currentLocation,
+                            onLikeTapped: {
+                                store.send(.toggleLike(product.id))
+                            }
+                        )
+                        .onAppear {
+                            if index >= products.count - 4 && !store.state.isSearching {
+                                store.send(.loadMore)
+                            }
+                        }
                     }
                 }
+                .frame(width: itemWidth)
             }
-            .padding(.horizontal, 16)
+            .padding(.horizontal, horizontalPadding)
         }
     }
 
@@ -156,165 +235,9 @@ struct FeedView: View {
                             .fill(Color.blue1)
                     )
                 }
-                .padding(.trailing, 20)
-                .padding(.bottom, 80)
+                .padding(.trailing, 16)
+                .padding(.bottom, 70)
             }
-        }
-    }
-}
-
-struct QuickActionButton: View {
-    let icon: String
-    let title: String
-    let action: () -> Void
-
-    private var iconColor: Color {
-        switch icon {
-        case "arrow.up.circle.fill":
-            return Color.green1
-        case "heart.fill":
-            return Color.pink1
-        case "clock.fill":
-            return Color.blue1
-        default:
-            return Color.gray1
-        }
-    }
-
-    var body: some View {
-        Button(action: action) {
-            VStack(spacing: 4) {
-                Image(systemName: icon)
-                    .font(.system(size: 20))
-                    .foregroundColor(iconColor)
-
-                Text(title)
-                    .Body2()
-                    .foregroundColor(.gray1)
-            }
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 10)
-            .background(
-                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .fill(Color.white.opacity(0.6))
-            )
-        }
-    }
-}
-
-struct PostCardView: View {
-    let product: PostCard
-    @ObservedObject var store: FeedViewStore
-
-    private var imageHeight: CGFloat {
-        let heights: [CGFloat] = [100, 115, 130, 140, 120, 110]
-        let index = abs(product.id.hashValue) % heights.count
-        return heights[index]
-    }
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            imageSection
-            profileSection
-            infoSection
-        }
-    }
-
-    private var profileSection: some View {
-        HStack(spacing: 8) {
-            Circle()
-                .fill(Color.gray3)
-                .frame(width: 24, height: 24)
-
-            Text(product.creator.nickname)
-                .Body1()
-                .foregroundColor(.gray1)
-
-            Spacer()
-
-            Button {
-            } label: {
-                HStack(spacing: 4) {
-                    Image(systemName: product.isLiked ? "heart.fill" : "heart")
-                        .font(.system(size: 16, weight: .semibold))
-                        .foregroundColor(product.isLiked ? Color.pink1 : Color.gray1)
-
-                    Text("\(product.likeCount)")
-                        .Body1()
-                        .foregroundColor(.gray1)
-                }
-            }
-        }
-        .padding(.top, 8)
-        .padding(.bottom, 4)
-    }
-
-    private var imageSection: some View {
-        RoundedRectangle(cornerRadius: 12, style: .continuous)
-            .fill(Color.gray5)
-            .frame(height: imageHeight)
-    }
-
-    private var infoSection: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(product.title)
-                .Body1()
-                .foregroundColor(.gray1)
-                .lineLimit(2)
-                .fixedSize(horizontal: false, vertical: true)
-
-            HStack(spacing: 4) {
-                if let distance = product.formattedDistance() {
-                    Text(distance)
-                        .Body2()
-                        .foregroundColor(.gray2)
-
-                    Text("·")
-                        .Body2()
-                        .foregroundColor(.gray2)
-                }
-
-                if let location = product.formattedLocation {
-                    Text(location)
-                        .Body2()
-                        .foregroundColor(.gray2)
-
-                    Text("·")
-                        .Body2()
-                        .foregroundColor(.gray2)
-                }
-
-                Text(product.formattedDate)
-                    .Body2()
-                    .foregroundColor(.gray2)
-            }
-
-            Text(product.formattedPrice)
-                .H2()
-                .foregroundColor(.gray1)
-        }
-        .padding(.top, 6)
-        .padding(.bottom, 8)
-    }
-}
-
-struct CategoryChip: View {
-    let title: String
-
-    private var isSelected: Bool {
-        title == "전체"
-    }
-
-    var body: some View {
-        Button {
-        } label: {
-            Text(title)
-                .Body1()
-                .foregroundColor(isSelected ? .white : .gray1)
-                .padding(.horizontal, 16)
-                .padding(.vertical, 10)
-                .background(isSelected ? Color.gray1 : Color.gray5)
-                .clipShape(Capsule())
         }
     }
 }

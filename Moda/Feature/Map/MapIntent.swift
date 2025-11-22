@@ -69,4 +69,7 @@ enum MapIntent {
 
     /// 현 지도에서 검색 버튼 탭
     case searchInCurrentMap
+
+    /// 좋아요 토글
+    case toggleLike(postId: String, isLiked: Bool)
 }

@@ -185,7 +185,7 @@ struct ProfileDetailView: View {
         let items: [PostCard] = store.state.isCurrentUser
             ? (store.state.selectedTab == .myItems ? store.state.myItems : store.state.likedItems)
             : store.state.myItems
-
+        
         return VStack(alignment: .leading, spacing: 12) {
             if items.isEmpty {
                 Text(store.state.isCurrentUser && store.state.selectedTab == .likeItems ? "찜한 물건이 없어요" : "등록된 물건이 없어요")
@@ -193,16 +193,17 @@ struct ProfileDetailView: View {
                     .frame(maxWidth: .infinity, alignment: .center)
                     .padding(.vertical, 40)
             } else {
+                #warning("임의의 PostCardView")
                 HStack(alignment: .top, spacing: 12) {
                     // 좌/우 컬럼으로 간단한 masonry
                     LazyVStack(spacing: 12) {
                         ForEach(Array(items.enumerated()).filter { $0.offset % 2 == 0 }, id: \.element.id) { _, product in
-                            PostCardView(product: product, store: FeedViewStore())
+                            PostCardView(product: product, itemWidth: 50, currentLocation: nil, onLikeTapped: {})
                         }
                     }
                     LazyVStack(spacing: 12) {
                         ForEach(Array(items.enumerated()).filter { $0.offset % 2 == 1 }, id: \.element.id) { _, product in
-                            PostCardView(product: product, store: FeedViewStore())
+                            PostCardView(product: product, itemWidth: 50, currentLocation: nil, onLikeTapped: {})
                         }
                     }
                 }

@@ -150,7 +150,9 @@ struct MapView: View {
                         }
                     )) {
                         ForEach(Array(store.state.sortedPosts.enumerated()), id: \.element.id) { index, post in
-                            MapPostCardView(post: post)
+                            MapPostCardView(post: post) { postId, isLiked in
+                                store.send(.toggleLike(postId: postId, isLiked: isLiked))
+                            }
                                 .tag(index)
                                 .padding(.top, 10)
                         }
@@ -219,6 +221,9 @@ struct MapView: View {
                 posts: store.state.clusterSheetPosts,
                 onDismiss: {
                     store.send(.dismissClusterSheet)
+                },
+                onLikeTapped: { postId, isLiked in
+                    store.send(.toggleLike(postId: postId, isLiked: isLiked))
                 }
             )
         }
