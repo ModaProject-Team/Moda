@@ -22,25 +22,26 @@ struct FeedView: View {
                 Color.white
                     .ignoresSafeArea()
 
-                ScrollView(showsIndicators: false) {
-                    VStack(spacing: 20) {
-                        logoSection
-                        categoryFilterSection
-                        userInfoCard
-                        productSectionView(itemWidth: itemWidth, spacing: spacing, horizontalPadding: horizontalPadding)
-
-                        if store.state.isLoading && !store.state.products.isEmpty {
-                            ProgressView()
-                                .padding()
+                VStack(spacing: 16) {
+                    logoSection
+                    categoryFilterSection
+//                    userInfoCard
+                    ScrollView(showsIndicators: false) {
+                        VStack(spacing: 20) {
+                            productSectionView(itemWidth: itemWidth, spacing: spacing, horizontalPadding: horizontalPadding)
+                            
+                            if store.state.isLoading && !store.state.products.isEmpty {
+                                ProgressView()
+                                    .padding()
+                            }
                         }
+                        .padding(.top, 16)
+                        .padding(.bottom, 100)
                     }
-                    .padding(.top, 16)
-                    .padding(.bottom, 100)
+                    .refreshable {
+                        store.send(.refresh)
+                    }
                 }
-                .refreshable {
-                    store.send(.refresh)
-                }
-
                 uploadButton
             }
         }
@@ -84,6 +85,7 @@ struct FeedView: View {
         }
     }
 
+    /*
     private var userInfoCard: some View {
         VStack(spacing: 14) {
             HStack(spacing: 12) {
@@ -125,6 +127,7 @@ struct FeedView: View {
         )
         .padding(.horizontal, 16)
     }
+     */
 
     @ViewBuilder
     private func productSectionView(itemWidth: CGFloat, spacing: CGFloat, horizontalPadding: CGFloat) -> some View {
@@ -207,8 +210,8 @@ struct FeedView: View {
                             .fill(Color.blue1)
                     )
                 }
-                .padding(.trailing, 20)
-                .padding(.bottom, 80)
+                .padding(.trailing, 16)
+                .padding(.bottom, 60)
             }
         }
     }

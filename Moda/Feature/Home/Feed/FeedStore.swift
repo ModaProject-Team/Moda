@@ -69,7 +69,7 @@ final class FeedViewStore: NSObject, ObservableObject {
         state.errorMessage = nil
 
         do {
-            let category: [String]? = state.selectedCategory == "전체" ? ["sell"] : [state.selectedCategory]
+            let category: [String]? = state.selectedCategory == "전체" ? ["중고거래", "나눔"] : [state.selectedCategory]
             let cursor = refresh ? nil : (state.nextCursor.isEmpty ? nil : state.nextCursor)
 
             let response = try await postAPI.getPosts(
