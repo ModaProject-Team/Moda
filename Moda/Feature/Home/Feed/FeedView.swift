@@ -211,7 +211,7 @@ struct FeedView: View {
                     )
                 }
                 .padding(.trailing, 16)
-                .padding(.bottom, 60)
+                .padding(.bottom, 70)
             }
         }
     }

@@ -69,17 +69,25 @@ final class FeedViewStore: NSObject, ObservableObject {
         state.errorMessage = nil
 
         do {
-            let category: [String]? = state.selectedCategory == "전체" ? ["중고거래", "나눔"] : [state.selectedCategory]
             let cursor = refresh ? nil : (state.nextCursor.isEmpty ? nil : state.nextCursor)
 
             let response = try await postAPI.getPosts(
                 next: cursor,
                 limit: "20",
-                category: category
+                category: nil
             )
 
             let currentUserId = UserDefaults.standard.string(forKey: "userId")
-            let newProducts = response.data.map { $0.toDomain().toPostCard(currentUserId: currentUserId) }
+            var newProducts = response.data.map { $0.toDomain().toPostCard(currentUserId: currentUserId) }
+
+            switch state.selectedCategory {
+            case "중고거래":
+                newProducts = newProducts.filter { ($0.price ?? 0) > 0 }
+            case "나눔":
+                newProducts = newProducts.filter { ($0.price ?? 0) == 0 }
+            default:
+                break // 전체는 필터링 없음
+            }
 
             if refresh {
                 state.products = newProducts
