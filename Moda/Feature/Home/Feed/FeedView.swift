@@ -177,6 +177,9 @@ struct FeedView: View {
                             currentLocation: store.state.currentLocation,
                             onLikeTapped: {
                                 store.send(.toggleLike(product.id))
+                            },
+                            onTapped: {
+                                navigator.push(.productDetail(postId: product.id))
                             }
                         )
                         .onAppear {
@@ -197,6 +200,9 @@ struct FeedView: View {
                             currentLocation: store.state.currentLocation,
                             onLikeTapped: {
                                 store.send(.toggleLike(product.id))
+                            },
+                            onTapped: {
+                                navigator.push(.productDetail(postId: product.id))
                             }
                         )
                         .onAppear {

@@ -11,11 +11,13 @@ import Kingfisher
 struct MapPostCardView: View {
     let post: PostAnnotation
     let onLikeTapped: (String, Bool) -> Void
+    let onTapped: () -> Void
     @State private var isLiked: Bool
 
-    init(post: PostAnnotation, onLikeTapped: @escaping (String, Bool) -> Void = { _, _ in }) {
+    init(post: PostAnnotation, onLikeTapped: @escaping (String, Bool) -> Void = { _, _ in }, onTapped: @escaping () -> Void = {}) {
         self.post = post
         self.onLikeTapped = onLikeTapped
+        self.onTapped = onTapped
         self._isLiked = State(initialValue: post.like)
     }
 
@@ -81,5 +83,9 @@ struct MapPostCardView: View {
         .shadow(color: .black.opacity(0.15), radius: 10, x: 0, y: -2)
         .padding(.horizontal, 16)
         .padding(.bottom, 60)
+        .contentShape(Rectangle())
+        .onTapGesture {
+            onTapped()
+        }
     }
 }

@@ -54,6 +54,15 @@ struct PostCardView: View {
     let itemWidth: CGFloat
     let currentLocation: CLLocationCoordinate2D?
     let onLikeTapped: () -> Void
+    let onTapped: () -> Void
+
+    init(product: PostCard, itemWidth: CGFloat, currentLocation: CLLocationCoordinate2D?, onLikeTapped: @escaping () -> Void, onTapped: @escaping () -> Void = {}) {
+        self.product = product
+        self.itemWidth = itemWidth
+        self.currentLocation = currentLocation
+        self.onLikeTapped = onLikeTapped
+        self.onTapped = onTapped
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -62,6 +71,10 @@ struct PostCardView: View {
             infoSection
         }
         .frame(width: itemWidth, alignment: .leading)
+        .contentShape(Rectangle())
+        .onTapGesture {
+            onTapped()
+        }
     }
 
     private var profileSection: some View {

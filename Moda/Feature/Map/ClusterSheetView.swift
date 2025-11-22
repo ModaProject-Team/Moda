@@ -11,11 +11,13 @@ struct ClusterSheetView: View {
     let posts: [PostAnnotation]
     let onDismiss: () -> Void
     let onLikeTapped: (String, Bool) -> Void
+    let onPostTapped: (String) -> Void
 
-    init(posts: [PostAnnotation], onDismiss: @escaping () -> Void, onLikeTapped: @escaping (String, Bool) -> Void = { _, _ in }) {
+    init(posts: [PostAnnotation], onDismiss: @escaping () -> Void, onLikeTapped: @escaping (String, Bool) -> Void = { _, _ in }, onPostTapped: @escaping (String) -> Void = { _ in }) {
         self.posts = posts
         self.onDismiss = onDismiss
         self.onLikeTapped = onLikeTapped
+        self.onPostTapped = onPostTapped
     }
 
     var body: some View {
@@ -23,7 +25,13 @@ struct ClusterSheetView: View {
             ScrollView {
                 LazyVStack(spacing: 0) {
                     ForEach(posts) { post in
-                        ClusterPostListItemView(post: post, onLikeTapped: onLikeTapped)
+                        ClusterPostListItemView(
+                            post: post,
+                            onLikeTapped: onLikeTapped,
+                            onTapped: {
+                                onPostTapped(post.id)
+                            }
+                        )
 
                         if post.id != posts.last?.id {
                             Divider()
