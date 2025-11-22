@@ -65,6 +65,12 @@ struct ProductUploadView: View {
                 store.send(.locationSelected(name, latitude, longitude))
             })
         }
+        .onChange(of: store.state.uploadedPostId) { _, postId in
+            if let postId = postId {
+                navigator.pop()
+                navigator.push(.productDetail(postId: postId))
+            }
+        }
     }
 
     private var headerSection: some View {
@@ -248,6 +254,8 @@ struct ProductUploadView: View {
                         .background(!store.state.isSelling ? Color.gray1 : Color.gray5)
                         .clipShape(Capsule())
                 }
+
+                Spacer()
             }
 
             if store.state.isSelling {
@@ -338,7 +346,6 @@ struct ProductUploadView: View {
 
             Button {
                 store.send(.submitButtonTapped)
-                navigator.push(.home)
             } label: {
                 Text("작성 완료")
                     .H2()
@@ -346,10 +353,11 @@ struct ProductUploadView: View {
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 16)
             }
-            .background(Color.blue1)
+            .background(store.state.isFormValid ? Color.blue1 : Color.gray3)
             .cornerRadius(12)
             .padding(.horizontal, 16)
             .padding(.vertical, 12)
+            .disabled(!store.state.isFormValid)
         }
         .background(Color.white)
     }

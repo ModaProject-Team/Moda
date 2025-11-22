@@ -30,7 +30,7 @@ struct PostCard: Identifiable {
     var likeCount: Int
 
     var formattedPrice: String {
-        guard let price = price else { return "가격 미정" }
+        guard let price = price else { return "나눔" }
         if price == 0 {
             return "나눔"
         }
