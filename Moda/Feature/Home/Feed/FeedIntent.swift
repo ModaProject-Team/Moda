@@ -8,13 +8,13 @@
 import Foundation
 import CoreLocation
 
-// MARK: - Intent
 enum FeedIntent {
     case onAppear
     case loadMore
     case refresh
     case selectCategory(String)
     case toggleLike(String)
+    case updateLikeFromExternal(postId: String, isLiked: Bool, likeCount: Int)
     case updateLocation(CLLocationCoordinate2D)
     case search(String)
     case clearSearch

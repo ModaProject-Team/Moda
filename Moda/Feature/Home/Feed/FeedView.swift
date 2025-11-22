@@ -7,7 +7,6 @@
 
 import SwiftUI
 
-// MARK: - View
 struct FeedView: View {
     @StateObject private var store = FeedViewStore()
     @EnvironmentObject var navigator: AppNavigator
@@ -49,6 +48,14 @@ struct FeedView: View {
         }
         .onReceive(NotificationCenter.default.publisher(for: .postDeleted)) { _ in
             store.send(.refresh)
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .postLikeUpdated)) { notification in
+            if let userInfo = notification.userInfo,
+               let postId = userInfo["postId"] as? String,
+               let isLiked = userInfo["isLiked"] as? Bool,
+               let likeCount = userInfo["likeCount"] as? Int {
+                store.send(.updateLikeFromExternal(postId: postId, isLiked: isLiked, likeCount: likeCount))
+            }
         }
     }
 

@@ -11,6 +11,7 @@ import MapKit
 
 extension Notification.Name {
     static let postDeleted = Notification.Name("postDeleted")
+    static let postLikeUpdated = Notification.Name("postLikeUpdated")
 }
 
 struct ProductDetailView: View {
@@ -23,6 +24,8 @@ struct ProductDetailView: View {
     @State private var showDeleteAlert = false
     @State private var isDeleting = false
     @State private var showActionSheet = false
+    @State private var isLiked = false
+    @State private var likeCount = 0
 
     private var isMyPost: Bool {
         guard let post = post else { return false }
@@ -146,7 +149,7 @@ struct ProductDetailView: View {
                                     Image(systemName: "heart.fill")
                                         .font(.system(size: 14))
                                         .foregroundColor(.pink1)
-                                    Text("\(post.likes.count)")
+                                    Text("\(likeCount)")
                                         .Body2()
                                         .foregroundColor(.gray2)
                                 }
@@ -162,20 +165,37 @@ struct ProductDetailView: View {
                                 // 내 게시글인 경우
                             } else {
                                 // 다른 사람 게시글인 경우
-                                Button {
-                                    // TODO: 채팅방으로 이동
-                                } label: {
-                                    HStack(spacing: 8) {
-                                        Image(systemName: "message.fill")
-                                            .font(.system(size: 16))
-                                        Text("채팅하기")
-                                            .H2()
+                                HStack(spacing: 12) {
+                                    // 좋아요 버튼
+                                    Button {
+                                        Task {
+                                            await toggleLike()
+                                        }
+                                    } label: {
+                                        Image(systemName: isLiked ? "heart.fill" : "heart")
+                                            .font(.system(size: 20))
+                                            .foregroundColor(isLiked ? .pink1 : .gray2)
+                                            .frame(width: 56, height: 56)
+                                            .background(Color.gray5)
+                                            .cornerRadius(12)
                                     }
-                                    .foregroundColor(.white)
-                                    .frame(maxWidth: .infinity)
-                                    .padding(.vertical, 16)
-                                    .background(Color.blue1)
-                                    .cornerRadius(12)
+
+                                    // 채팅하기 버튼
+                                    Button {
+                                        // TODO: 채팅방으로 이동
+                                    } label: {
+                                        HStack(spacing: 8) {
+                                            Image(systemName: "message.fill")
+                                                .font(.system(size: 16))
+                                            Text("채팅하기")
+                                                .H2()
+                                        }
+                                        .foregroundColor(.white)
+                                        .frame(maxWidth: .infinity)
+                                        .padding(.vertical, 16)
+                                        .background(Color.blue1)
+                                        .cornerRadius(12)
+                                    }
                                 }
                                 .padding(.top, 24)
                             }
@@ -264,6 +284,12 @@ struct ProductDetailView: View {
         do {
             let response = try await PostAPI.shared.getPost(postId: postId)
             post = response
+
+            // 좋아요 상태 초기화
+            let currentUserId = UserDefaults.standard.string(forKey: "userId") ?? ""
+            isLiked = response.likes.contains(currentUserId)
+            likeCount = response.likes.count
+
             isLoading = false
         } catch {
             errorMessage = error.localizedDescription
@@ -282,6 +308,28 @@ struct ProductDetailView: View {
         } catch {
             isDeleting = false
             print("게시글 삭제 실패: \(error.localizedDescription)")
+        }
+    }
+
+    private func toggleLike() async {
+        let newLikeStatus = !isLiked
+
+        isLiked = newLikeStatus
+        likeCount += newLikeStatus ? 1 : -1
+
+        do {
+            _ = try await PostAPI.shared.likePost(postId: postId, likeStatus: newLikeStatus)
+            // 성공 시 알림 발송
+            NotificationCenter.default.post(
+                name: .postLikeUpdated,
+                object: nil,
+                userInfo: ["postId": postId, "isLiked": newLikeStatus, "likeCount": likeCount]
+            )
+        } catch {
+            // 실패 시 롤백
+            isLiked = !newLikeStatus
+            likeCount += newLikeStatus ? -1 : 1
+            print("좋아요 요청 실패: \(error.localizedDescription)")
         }
     }
 

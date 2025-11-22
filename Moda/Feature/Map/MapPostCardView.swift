@@ -87,5 +87,8 @@ struct MapPostCardView: View {
         .onTapGesture {
             onTapped()
         }
+        .onChange(of: post.like) { _, newValue in
+            isLiked = newValue
+        }
     }
 }

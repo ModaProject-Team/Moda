@@ -169,6 +169,14 @@ final class MapStore: NSObject, ObservableObject {
             Task {
                 await toggleLike(postId: postId, isLiked: isLiked)
             }
+
+        case .updateLikeFromExternal(let postId, let isLiked):
+            if let index = state.posts.firstIndex(where: { $0.id == postId }) {
+                state.posts[index].like = isLiked
+            }
+            if let index = state.clusterSheetPosts.firstIndex(where: { $0.id == postId }) {
+                state.clusterSheetPosts[index].like = isLiked
+            }
         }
     }
 
@@ -222,7 +230,6 @@ final class MapStore: NSObject, ObservableObject {
             state.hasLoadedInitialPosts = true
 
             print("위치 기반 게시글 조회 성공: \(posts.count)개")
-//            print(TokenManager.shared.accessToken)
 
         } catch {
             state.isLoadingPosts = false

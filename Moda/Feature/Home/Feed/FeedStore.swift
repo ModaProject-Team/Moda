@@ -17,7 +17,6 @@ final class FeedViewStore: NSObject, ObservableObject {
     private let postAPI: PostAPIProtocol
     private var cancellables = Set<AnyCancellable>()
 
-    // Combine Subjects for debouncing
     private let searchSubject = PassthroughSubject<String, Never>()
     private let likeSubject = PassthroughSubject<String, Never>()
     private var pendingLikeStates: [String: Bool] = [:]
@@ -36,7 +35,7 @@ final class FeedViewStore: NSObject, ObservableObject {
     }
 
     private func setupCombineBindings() {
-        // 검색 디바운싱 (300ms)
+        // 디바운싱 (300ms)
         searchSubject
             .debounce(for: .milliseconds(300), scheduler: RunLoop.main)
             .sink { [weak self] query in
@@ -44,7 +43,6 @@ final class FeedViewStore: NSObject, ObservableObject {
             }
             .store(in: &cancellables)
 
-        // 좋아요 디바운싱 (300ms)
         likeSubject
             .debounce(for: .milliseconds(300), scheduler: RunLoop.main)
             .sink { [weak self] postId in
@@ -77,6 +75,12 @@ final class FeedViewStore: NSObject, ObservableObject {
         case .toggleLike(let postId):
             toggleLikeWithDebounce(postId: postId)
 
+        case .updateLikeFromExternal(let postId, let isLiked, let likeCount):
+            if let index = state.products.firstIndex(where: { $0.id == postId }) {
+                state.products[index].isLiked = isLiked
+                state.products[index].likeCount = likeCount
+            }
+
         case .updateLocation(let coordinate):
             state.currentLocation = coordinate
 
@@ -100,7 +104,6 @@ final class FeedViewStore: NSObject, ObservableObject {
             return
         }
 
-        // Combine Subject로 디바운싱
         searchSubject.send(query)
     }
 
@@ -172,14 +175,11 @@ final class FeedViewStore: NSObject, ObservableObject {
         state.isLoading = false
     }
 
-    // MARK: - Like with Debouncing
     private func toggleLikeWithDebounce(postId: String) {
-        // 즉시 UI 업데이트
         if let index = state.products.firstIndex(where: { $0.id == postId }) {
             state.products[index].isLiked.toggle()
             let newLikeState = state.products[index].isLiked
 
-            // 좋아요 수 즉시 반영
             if newLikeState {
                 state.products[index].likeCount += 1
             } else {
@@ -188,7 +188,6 @@ final class FeedViewStore: NSObject, ObservableObject {
 
             pendingLikeStates[postId] = newLikeState
 
-            // Combine Subject로 디바운싱
             likeSubject.send(postId)
         }
     }
