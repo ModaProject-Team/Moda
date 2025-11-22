@@ -47,6 +47,9 @@ struct FeedView: View {
         .onAppear {
             store.send(.onAppear)
         }
+        .onReceive(NotificationCenter.default.publisher(for: .postDeleted)) { _ in
+            store.send(.refresh)
+        }
     }
 
     private var logoSection: some View {

@@ -9,6 +9,10 @@ import SwiftUI
 import Kingfisher
 import MapKit
 
+extension Notification.Name {
+    static let postDeleted = Notification.Name("postDeleted")
+}
+
 struct ProductDetailView: View {
 
     let postId: String
@@ -16,6 +20,15 @@ struct ProductDetailView: View {
     @State private var post: PostResponse?
     @State private var isLoading = true
     @State private var errorMessage: String?
+    @State private var showDeleteAlert = false
+    @State private var isDeleting = false
+    @State private var showActionSheet = false
+
+    private var isMyPost: Bool {
+        guard let post = post else { return false }
+        let currentUserId = UserDefaults.standard.string(forKey: "userId") ?? ""
+        return post.creator.userId == currentUserId
+    }
 
     var body: some View {
         ZStack {
@@ -143,6 +156,29 @@ struct ProductDetailView: View {
                                     .foregroundColor(.gray2)
                             }
                             .padding(.top, 12)
+
+                            // 하단 액션 버튼
+                            if isMyPost {
+                                // 내 게시글인 경우
+                            } else {
+                                // 다른 사람 게시글인 경우
+                                Button {
+                                    // TODO: 채팅방으로 이동
+                                } label: {
+                                    HStack(spacing: 8) {
+                                        Image(systemName: "message.fill")
+                                            .font(.system(size: 16))
+                                        Text("채팅하기")
+                                            .H2()
+                                    }
+                                    .foregroundColor(.white)
+                                    .frame(maxWidth: .infinity)
+                                    .padding(.vertical, 16)
+                                    .background(Color.blue1)
+                                    .cornerRadius(12)
+                                }
+                                .padding(.top, 24)
+                            }
                         }
                         .padding(.horizontal, 16)
                         .padding(.top, 16)
@@ -170,12 +206,18 @@ struct ProductDetailView: View {
 
                 Spacer()
 
-                Button {
-                    // TODO: 더보기 메뉴
-                } label: {
+                if isMyPost {
+                    Button {
+                        showActionSheet = true
+                    } label: {
+                        Image(systemName: "ellipsis")
+                            .font(.system(size: 18))
+                            .foregroundColor(.gray1)
+                    }
+                } else {
                     Image(systemName: "ellipsis")
                         .font(.system(size: 18))
-                        .foregroundColor(.gray1)
+                        .foregroundColor(.clear)
                 }
             }
             .padding(.horizontal, 16)
@@ -184,6 +226,34 @@ struct ProductDetailView: View {
         }
         .task {
             await loadPost()
+        }
+        .confirmationDialog("", isPresented: $showActionSheet, titleVisibility: .hidden) {
+            Button("게시글 수정") {
+                // TODO: 수정 화면으로 이동
+            }
+            Button("삭제", role: .destructive) {
+                showDeleteAlert = true
+            }
+            Button("취소", role: .cancel) { }
+        }
+        .alert("게시글 삭제", isPresented: $showDeleteAlert) {
+            Button("취소", role: .cancel) { }
+            Button("삭제", role: .destructive) {
+                Task {
+                    await deletePost()
+                }
+            }
+        } message: {
+            Text("이 게시글을 삭제하시겠습니까?\n삭제된 게시글은 복구할 수 없습니다.")
+        }
+        .disabled(isDeleting)
+        .overlay {
+            if isDeleting {
+                Color.black.opacity(0.4)
+                    .ignoresSafeArea()
+                ProgressView()
+                    .tint(.white)
+            }
         }
     }
 
@@ -198,6 +268,20 @@ struct ProductDetailView: View {
         } catch {
             errorMessage = error.localizedDescription
             isLoading = false
+        }
+    }
+
+    private func deletePost() async {
+        isDeleting = true
+
+        do {
+            try await PostAPI.shared.deletePost(postId: postId)
+            isDeleting = false
+            NotificationCenter.default.post(name: .postDeleted, object: nil)
+            navigator.popToRoot()
+        } catch {
+            isDeleting = false
+            print("게시글 삭제 실패: \(error.localizedDescription)")
         }
     }
 
