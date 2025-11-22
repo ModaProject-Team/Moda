@@ -17,6 +17,7 @@ struct ProductUploadState {
     var selectedImages: [UIImage] = []
     var isUploading: Bool = false
     var uploadError: String?
+    var uploadedPostId: String?
 
     // Location data
     var locationName: String = ""

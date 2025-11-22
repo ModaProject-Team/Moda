@@ -114,9 +114,7 @@ final class ProductUploadStore: ObservableObject {
             )
 
             state.isUploading = false
-
-            //TODO: 성공 처리 (게시글 상세 화면으로 이동하거나 뒤로가기)
-            print("게시글 등록 성공: \(response.postId)")
+            state.uploadedPostId = response.postId
 
         } catch {
             state.isUploading = false

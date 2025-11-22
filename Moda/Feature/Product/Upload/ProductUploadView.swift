@@ -65,6 +65,12 @@ struct ProductUploadView: View {
                 store.send(.locationSelected(name, latitude, longitude))
             })
         }
+        .onChange(of: store.state.uploadedPostId) { _, postId in
+            if let postId = postId {
+                navigator.pop()
+                navigator.push(.productDetail(postId: postId))
+            }
+        }
     }
 
     private var headerSection: some View {
@@ -340,7 +346,6 @@ struct ProductUploadView: View {
 
             Button {
                 store.send(.submitButtonTapped)
-                navigator.push(.home)
             } label: {
                 Text("작성 완료")
                     .H2()
