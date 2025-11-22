@@ -197,30 +197,36 @@ struct FeedView: View {
     @EnvironmentObject var navigator: AppNavigator
 
     var body: some View {
-        ZStack {
-            Color.white
-                .ignoresSafeArea()
+        GeometryReader { geometry in
+            let spacing: CGFloat = 16
+            let horizontalPadding: CGFloat = 16
+            let itemWidth = (geometry.size.width - horizontalPadding * 2 - spacing) / 2
 
-            ScrollView(showsIndicators: false) {
-                VStack(spacing: 20) {
-                    logoSection
-                    categoryFilterSection
-                    userInfoCard
-                    productSection
+            ZStack {
+                Color.white
+                    .ignoresSafeArea()
 
-                    if store.state.isLoading && !store.state.products.isEmpty {
-                        ProgressView()
-                            .padding()
+                ScrollView(showsIndicators: false) {
+                    VStack(spacing: 20) {
+                        logoSection
+                        categoryFilterSection
+                        userInfoCard
+                        productSectionView(itemWidth: itemWidth, spacing: spacing, horizontalPadding: horizontalPadding)
+
+                        if store.state.isLoading && !store.state.products.isEmpty {
+                            ProgressView()
+                                .padding()
+                        }
                     }
+                    .padding(.top, 16)
+                    .padding(.bottom, 100)
                 }
-                .padding(.top, 16)
-                .padding(.bottom, 100)
-            }
-            .refreshable {
-                store.send(.refresh)
-            }
+                .refreshable {
+                    store.send(.refresh)
+                }
 
-            uploadButton
+                uploadButton
+            }
         }
         .onAppear {
             store.send(.onAppear)
@@ -304,54 +310,61 @@ struct FeedView: View {
         .padding(.horizontal, 16)
     }
 
-    private var productSection: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            if store.state.products.isEmpty && store.state.isLoading {
-                ProgressView()
-                    .frame(maxWidth: .infinity)
-                    .padding(.top, 50)
-            } else if store.state.products.isEmpty {
-                Text("게시글이 없습니다.")
-                    .Body1()
-                    .foregroundColor(.gray2)
-                    .frame(maxWidth: .infinity)
-                    .padding(.top, 50)
-            } else {
-                HStack(alignment: .top, spacing: 12) {
-                    // 왼쪽 열
-                    LazyVStack(spacing: 12) {
-                        ForEach(Array(store.state.products.enumerated()).filter { $0.offset % 2 == 0 }, id: \.element.id) { index, product in
-                            PostCardView(
-                                product: product,
-                                currentLocation: store.state.currentLocation,
-                                onLikeTapped: {
-                                    store.send(.toggleLike(product.id))
-                                }
-                            )
-                            .onAppear {
-                                // 마지막 아이템 근처에서 더 로드
-                                if index >= store.state.products.count - 4 {
-                                    store.send(.loadMore)
-                                }
+    @ViewBuilder
+    private func productSectionView(itemWidth: CGFloat, spacing: CGFloat, horizontalPadding: CGFloat) -> some View {
+        if store.state.products.isEmpty && store.state.isLoading {
+            ProgressView()
+                .frame(maxWidth: .infinity)
+                .padding(.top, 50)
+        } else if store.state.products.isEmpty {
+            Text("게시글이 없습니다.")
+                .Body1()
+                .foregroundColor(.gray2)
+                .frame(maxWidth: .infinity)
+                .padding(.top, 50)
+        } else {
+            HStack(alignment: .top, spacing: spacing) {
+                // 왼쪽 열
+                VStack(spacing: 12) {
+                    ForEach(Array(store.state.products.enumerated().filter { $0.offset % 2 == 0 }), id: \.element.id) { index, product in
+                        PostCardView(
+                            product: product,
+                            itemWidth: itemWidth,
+                            currentLocation: store.state.currentLocation,
+                            onLikeTapped: {
+                                store.send(.toggleLike(product.id))
+                            }
+                        )
+                        .onAppear {
+                            if index >= store.state.products.count - 4 {
+                                store.send(.loadMore)
                             }
                         }
                     }
+                }
+                .frame(width: itemWidth)
 
-                    // 오른쪽 열
-                    LazyVStack(spacing: 12) {
-                        ForEach(Array(store.state.products.enumerated()).filter { $0.offset % 2 == 1 }, id: \.element.id) { _, product in
-                            PostCardView(
-                                product: product,
-                                currentLocation: store.state.currentLocation,
-                                onLikeTapped: {
-                                    store.send(.toggleLike(product.id))
-                                }
-                            )
+                // 오른쪽 열
+                VStack(spacing: 12) {
+                    ForEach(Array(store.state.products.enumerated().filter { $0.offset % 2 == 1 }), id: \.element.id) { index, product in
+                        PostCardView(
+                            product: product,
+                            itemWidth: itemWidth,
+                            currentLocation: store.state.currentLocation,
+                            onLikeTapped: {
+                                store.send(.toggleLike(product.id))
+                            }
+                        )
+                        .onAppear {
+                            if index >= store.state.products.count - 4 {
+                                store.send(.loadMore)
+                            }
                         }
                     }
                 }
-                .padding(.horizontal, 16)
+                .frame(width: itemWidth)
             }
+            .padding(.horizontal, horizontalPadding)
         }
     }
 
@@ -427,14 +440,9 @@ struct QuickActionButton: View {
 
 struct PostCardView: View {
     let product: PostCard
+    let itemWidth: CGFloat
     let currentLocation: CLLocationCoordinate2D?
     let onLikeTapped: () -> Void
-
-    private var imageHeight: CGFloat {
-        let heights: [CGFloat] = [100, 115, 130, 140, 120, 110]
-        let index = abs(product.id.hashValue) % heights.count
-        return heights[index]
-    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -442,6 +450,7 @@ struct PostCardView: View {
             profileSection
             infoSection
         }
+        .frame(width: itemWidth, alignment: .leading)
     }
 
     private var profileSection: some View {
@@ -494,17 +503,18 @@ struct PostCardView: View {
                     .placeholder {
                         RoundedRectangle(cornerRadius: 12, style: .continuous)
                             .fill(Color.gray5)
+                            .frame(width: itemWidth, height: itemWidth)
                     }
                     .cacheOriginalImage()
                     .fade(duration: 0.2)
                     .resizable()
-                    .aspectRatio(contentMode: .fill)
-                    .frame(height: imageHeight)
+                    .aspectRatio(contentMode: .fit)
+                    .frame(width: itemWidth)
                     .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
             } else {
                 RoundedRectangle(cornerRadius: 12, style: .continuous)
                     .fill(Color.gray5)
-                    .frame(height: imageHeight)
+                    .frame(width: itemWidth, height: itemWidth)
             }
         }
     }
@@ -528,7 +538,6 @@ struct PostCardView: View {
                         .foregroundColor(.gray2)
                 }
 
-                // 장소명 표시
                 if let location = product.formattedLocation {
                     Text(location)
                         .Body2()
