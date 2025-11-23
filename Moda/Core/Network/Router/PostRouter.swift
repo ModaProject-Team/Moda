@@ -18,7 +18,7 @@ enum PostRouter {
         title: String,
         price: Int?,
         content: String?,
-        content1: String?,
+        value1: String?,
         content2: String?,
         content3: String?,
         content4: String?,
@@ -41,7 +41,7 @@ enum PostRouter {
         title: String?,
         price: Int?,
         content: String?,
-        content1: String?,
+        value1: String?,
         content2: String?,
         content3: String?,
         content4: String?,
@@ -153,7 +153,7 @@ extension PostRouter: Endpoint {
 
     var parameters: [String: Any]? {
         switch self {
-        case .createPost(let category, let title, let price, let content, let content1, let content2, let content3, let content4, let content5, let files, let longitude, let latitude):
+        case .createPost(let category, let title, let price, let content, let value1, let content2, let content3, let content4, let content5, let files, let longitude, let latitude):
             var params: [String: Any] = [
                 "category": category,
                 "title": title,
@@ -161,7 +161,7 @@ extension PostRouter: Endpoint {
             ]
             if let price = price { params["price"] = price }
             if let content = content { params["content"] = content }
-            if let content1 = content1 { params["content1"] = content1 }
+            if let value1 = value1 { params["value1"] = value1 }
             if let content2 = content2 { params["content2"] = content2 }
             if let content3 = content3 { params["content3"] = content3 }
             if let content4 = content4 { params["content4"] = content4 }
@@ -171,13 +171,13 @@ extension PostRouter: Endpoint {
 
             return params
 
-        case .updatePost(_, let category, let title, let price, let content, let content1, let content2, let content3, let content4, let content5, let files, let longitude, let latitude):
+        case .updatePost(_, let category, let title, let price, let content, let value1, let content2, let content3, let content4, let content5, let files, let longitude, let latitude):
             var params: [String: Any] = [:]
             if let category = category { params["category"] = category }
             if let title = title { params["title"] = title }
             if let price = price { params["price"] = price }
             if let content = content { params["content"] = content }
-            if let content1 = content1 { params["content1"] = content1 }
+            if let value1 = value1 { params["value1"] = value1 }
             if let content2 = content2 { params["content2"] = content2 }
             if let content3 = content3 { params["content3"] = content3 }
             if let content4 = content4 { params["content4"] = content4 }

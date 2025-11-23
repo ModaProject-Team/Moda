@@ -21,7 +21,7 @@ struct PostResponse: Decodable {
     let title: String
     let price: Int?
     let content: String?
-    let content1: String?
+    let value1: String?
     let content2: String?
     let content3: String?
     let content4: String?
@@ -42,7 +42,7 @@ struct PostResponse: Decodable {
         case title
         case price
         case content
-        case content1
+        case value1
         case content2
         case content3
         case content4
@@ -65,7 +65,7 @@ struct PostResponse: Decodable {
             title: title,
             price: price,
             content: content,
-            content1: content1,
+            value1: value1,
             content2: content2,
             content3: content3,
             content4: content4,

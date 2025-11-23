@@ -138,6 +138,96 @@ final class MapStore: NSObject, ObservableObject {
             state.clusterSheetPosts = []
             // 시트 닫을 때 클러스터 선택도 함께 해제
             state.selectedClusterPostIds = nil
+
+        case .fetchPostsByLocation(let longitude, let latitude, let maxDistance):
+            Task {
+                await fetchPostsByLocation(longitude: longitude, latitude: latitude, maxDistance: maxDistance)
+            }
+
+        case .dismissPostLoadError:
+            state.postLoadError = nil
+
+        case .mapDidMove(let coordinate):
+            state.mapCenterCoordinate = coordinate
+            // 초기 로딩 완료 후 지도가 이동한 경우에만 검색 버튼 표시
+            if state.hasLoadedInitialPosts {
+                state.showSearchButton = true
+            }
+
+        case .searchInCurrentMap:
+            guard let center = state.mapCenterCoordinate else { return }
+            state.showSearchButton = false
+            // span 기반으로 maxDistance 계산 (latitudeDelta * 111km ≈ 위도 1도 거리)
+            let maxDistance = state.currentSpan.latitudeDelta * 111000 / 2
+            send(.fetchPostsByLocation(
+                longitude: center.longitude,
+                latitude: center.latitude,
+                maxDistance: maxDistance
+            ))
+
+        case .toggleLike(let postId, let isLiked):
+            Task {
+                await toggleLike(postId: postId, isLiked: isLiked)
+            }
+        }
+    }
+
+    private func toggleLike(postId: String, isLiked: Bool) async {
+        do {
+            _ = try await PostAPI.shared.likePost(postId: postId, likeStatus: isLiked)
+
+            // 로컬 상태 업데이트
+            if let index = state.posts.firstIndex(where: { $0.id == postId }) {
+                state.posts[index].like = isLiked
+            }
+        } catch {
+            print("좋아요 요청 실패: \(error.localizedDescription)")
+        }
+    }
+
+    private func fetchPostsByLocation(longitude: Double, latitude: Double, maxDistance: Double) async {
+        state.isLoadingPosts = true
+        state.postLoadError = nil
+
+        do {
+            let response = try await PostAPI.shared.getPostsByGeolocation(
+                category: ["sell"],
+                longitude: longitude,
+                latitude: latitude,
+                maxDistance: maxDistance
+            )
+
+            let posts = response.data.compactMap { postResponse -> PostAnnotation? in
+                guard let geolocation = postResponse.geolocation else { return nil }
+
+                // 현재 사용자가 좋아요 했는지 확인
+                let currentUserId = UserDefaults.standard.string(forKey: "userId") ?? ""
+                let isLiked = postResponse.likes.contains(currentUserId)
+
+                return PostAnnotation(
+                    id: postResponse.postId,
+                    title: postResponse.title,
+                    media: postResponse.files.first ?? "",
+                    like: isLiked,
+                    profileImage: postResponse.creator.profileImage ?? "",
+                    nickname: postResponse.creator.nick,
+                    latitude: geolocation.latitude,
+                    longitude: geolocation.longitude,
+                    price: postResponse.price ?? 0
+                )
+            }
+
+            state.posts = posts
+            state.isLoadingPosts = false
+            state.hasLoadedInitialPosts = true
+
+            print("위치 기반 게시글 조회 성공: \(posts.count)개")
+//            print(TokenManager.shared.accessToken)
+
+        } catch {
+            state.isLoadingPosts = false
+            state.postLoadError = error.localizedDescription
+            print("위치 기반 게시글 조회 실패: \(error.localizedDescription)")
         }
     }
 
@@ -216,8 +306,13 @@ extension MapStore: CLLocationManagerDelegate {
                 // 계속 들어오는 GPS 업데이트를 중단
                 locationManager.stopUpdatingLocation()
 
-                // TODO: 위치 기반 데이터 로드
+                // 위치 기반 게시글 조회 (5km 반경)
                 print("현재 위치: \(coordinate.latitude), \(coordinate.longitude)")
+                send(.fetchPostsByLocation(
+                    longitude: coordinate.longitude,
+                    latitude: coordinate.latitude,
+                    maxDistance: 5000
+                ))
             }
         }
     }

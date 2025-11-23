@@ -6,13 +6,29 @@
 //
 
 import SwiftUI
+import Kingfisher
 
 struct MapPostCardView: View {
     let post: PostAnnotation
+    let onLikeTapped: (String, Bool) -> Void
+    @State private var isLiked: Bool
+
+    init(post: PostAnnotation, onLikeTapped: @escaping (String, Bool) -> Void = { _, _ in }) {
+        self.post = post
+        self.onLikeTapped = onLikeTapped
+        self._isLiked = State(initialValue: post.like)
+    }
 
     var body: some View {
         HStack(spacing: 12) {
-            Image(post.media)
+            KFImage(URL(string: "\(NetworkConfig.baseURL)/v1\(post.media)"))
+                .requestModifier(KFHeaders.modifier)
+                .placeholder {
+                    Image(systemName: "photo")
+                        .foregroundColor(.gray3)
+                }
+                .cacheOriginalImage()
+                .fade(duration: 0.2)
                 .resizable()
                 .aspectRatio(contentMode: .fill)
                 .frame(width: 70, height: 70)
@@ -29,7 +45,13 @@ struct MapPostCardView: View {
                     .foregroundColor(.blue1)
 
                 HStack(spacing: 4) {
-                    Image(post.profileImage)
+                    KFImage(URL(string: "\(NetworkConfig.baseURL)/v1\(post.profileImage)"))
+                        .requestModifier(KFHeaders.modifier)
+                        .placeholder {
+                            Image(systemName: "person.circle.fill")
+                                .foregroundColor(.gray3)
+                        }
+                        .cacheOriginalImage()
                         .resizable()
                         .aspectRatio(contentMode: .fill)
                         .frame(width: 16, height: 16)
@@ -43,9 +65,12 @@ struct MapPostCardView: View {
 
             Spacer()
 
-            Button(action: {}) {
-                Image(systemName: post.like ? "heart.fill" : "heart")
-                    .foregroundColor(post.like ? .pink1 : .gray3)
+            Button {
+                isLiked.toggle()
+                onLikeTapped(post.id, isLiked)
+            } label: {
+                Image(systemName: isLiked ? "heart.fill" : "heart")
+                    .foregroundColor(isLiked ? .pink1 : .gray3)
                     .font(.system(size: 20))
             }
         }

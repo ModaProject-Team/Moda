@@ -7,6 +7,7 @@
 
 import SwiftUI
 import MapKit
+import CoreLocation
 
 enum MapIntent {
     /// 사용자가 지도 위치를 스크롤하거나 제스처로 변경할 때 발생
@@ -56,4 +57,19 @@ enum MapIntent {
 
     /// 클러스터 시트 닫기
     case dismissClusterSheet
+
+    /// 위치 기반 게시글 조회
+    case fetchPostsByLocation(longitude: Double, latitude: Double, maxDistance: Double)
+
+    /// 게시글 로딩 에러 알림 닫기
+    case dismissPostLoadError
+
+    /// 지도 이동 시 중심 좌표 업데이트 및 검색 버튼 표시
+    case mapDidMove(CLLocationCoordinate2D)
+
+    /// 현 지도에서 검색 버튼 탭
+    case searchInCurrentMap
+
+    /// 좋아요 토글
+    case toggleLike(postId: String, isLiked: Bool)
 }

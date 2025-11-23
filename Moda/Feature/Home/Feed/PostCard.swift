@@ -18,6 +18,7 @@ struct PostCard: Identifiable {
     let likes: [String]
     let latitude: Double?
     let longitude: Double?
+    let locationName: String?
 
     struct Creator {
         let userId: String
@@ -26,13 +27,10 @@ struct PostCard: Identifiable {
     }
 
     var isLiked: Bool = false
-
-    var likeCount: Int {
-        likes.count
-    }
+    var likeCount: Int
 
     var formattedPrice: String {
-        guard let price = price else { return "가격 미정" }
+        guard let price = price else { return "나눔" }
         if price == 0 {
             return "나눔"
         }
@@ -62,21 +60,24 @@ struct PostCard: Identifiable {
         }
 
         let now = Date()
-        let calendar = Calendar.current
-        let components = calendar.dateComponents([.day], from: date, to: now)
+        let interval = now.timeIntervalSince(date)
 
-        guard let daysDifference = components.day else {
-            let outputFormatter = DateFormatter()
-            outputFormatter.locale = Locale(identifier: "ko_KR")
-            outputFormatter.dateFormat = "MM.dd"
-            return outputFormatter.string(from: date)
+        if interval < 60 {
+            return "방금 전"
         }
-
-        if daysDifference == 0 {
-            return "오늘"
-        } else if daysDifference > 0 && daysDifference <= 7 {
-            return "\(daysDifference)일 전"
-        } else {
+        else if interval < 3600 {
+            let minutes = Int(interval / 60)
+            return "\(minutes)분 전"
+        }
+        else if interval < 86400 {
+            let hours = Int(interval / 3600)
+            return "\(hours)시간 전"
+        }
+        else if interval < 604800 {
+            let days = Int(interval / 86400)
+            return "\(days)일 전"
+        }
+        else {
             let outputFormatter = DateFormatter()
             outputFormatter.locale = Locale(identifier: "ko_KR")
             outputFormatter.dateFormat = "MM.dd"
@@ -85,30 +86,45 @@ struct PostCard: Identifiable {
     }
 
     var formattedLocation: String? {
-        guard let _ = latitude, let _ = longitude else { return nil }
-        return "서울시 강남구"
+        if let name = locationName, !name.isEmpty {
+            return name
+        }
+        return nil
     }
 
+    // 게시글의 좌표와 현재 사용자의 위치를 이용해 구면 거리 계산
     func formattedDistance(from currentLocation: (latitude: Double, longitude: Double)? = nil) -> String? {
+
+        // 장소명이 없으면 거리도 표시하지 않음
+        guard let locationName = locationName, !locationName.isEmpty else {
+            return nil
+        }
+
+        // 현재 위치 또는 게시글 위치가 없을 경우 nil 반환
         guard let latitude = latitude,
               let longitude = longitude,
               let current = currentLocation else {
-            let distances = ["300m", "500m", "800m", "1.2km", "1.5km", "2km"]
-            let index = abs(id.hashValue) % distances.count
-            return distances[index]
+            return nil
         }
 
+        // 지구 반지름 (미터 단위)
         let earthRadius = 6371000.0
 
+        // 위도·경도를 라디안(radian)으로 변환
         let lat1Rad = current.latitude * .pi / 180
         let lat2Rad = latitude * .pi / 180
         let deltaLat = (latitude - current.latitude) * .pi / 180
         let deltaLon = (longitude - current.longitude) * .pi / 180
 
+        // 하버사인 공식(Haversine Formula)
+        // 두 위경도 좌표 간 구면 거리 계산에 사용되는 공식
         let a = sin(deltaLat / 2) * sin(deltaLat / 2) +
                 cos(lat1Rad) * cos(lat2Rad) *
                 sin(deltaLon / 2) * sin(deltaLon / 2)
+
         let c = 2 * atan2(sqrt(a), sqrt(1 - a))
+
+        // 최종 거리 (미터)
         let distance = earthRadius * c
 
         if distance < 1000 {
@@ -135,7 +151,9 @@ extension Post {
             imageURL: files.first,
             likes: likes,
             latitude: geolocation?.latitude,
-            longitude: geolocation?.longitude
+            longitude: geolocation?.longitude,
+            locationName: value1,
+            likeCount: likes.count
         )
 
         if let currentUserId = currentUserId {
@@ -175,7 +193,9 @@ extension PostCard {
                 imageURL: nil,
                 likes: ["user2", "user3"],
                 latitude: 37.517682,
-                longitude: 126.886417
+                longitude: 126.886417,
+                locationName: "문래역 1번 출구",
+                likeCount: 2
             ),
             PostCard(
                 id: "2",
@@ -192,7 +212,9 @@ extension PostCard {
                 likes: ["user1", "user3", "user4"],
                 latitude: 37.517682,
                 longitude: 126.886417,
-                isLiked: true
+                locationName: "강남역 2번 출구",
+                isLiked: true,
+                likeCount: 3
             ),
             PostCard(
                 id: "3",
@@ -208,7 +230,9 @@ extension PostCard {
                 imageURL: nil,
                 likes: ["user2", "user5"],
                 latitude: 37.517682,
-                longitude: 126.886417
+                longitude: 126.886417,
+                locationName: nil,
+                likeCount: 2
             ),
             PostCard(
                 id: "4",
@@ -224,7 +248,9 @@ extension PostCard {
                 imageURL: nil,
                 likes: ["user1"],
                 latitude: 37.517682,
-                longitude: 126.886417
+                longitude: 126.886417,
+                locationName: "신촌역 앞",
+                likeCount: 1
             ),
             PostCard(
                 id: "5",
@@ -241,7 +267,9 @@ extension PostCard {
                 likes: ["user1", "user2", "user3", "user4", "user5"],
                 latitude: 37.517682,
                 longitude: 126.886417,
-                isLiked: true
+                locationName: "홍대입구역",
+                isLiked: true,
+                likeCount: 5
             ),
             PostCard(
                 id: "6",
@@ -257,7 +285,9 @@ extension PostCard {
                 imageURL: nil,
                 likes: ["user2", "user3", "user6"],
                 latitude: 37.517682,
-                longitude: 126.886417
+                longitude: 126.886417,
+                locationName: "여의도역 3번 출구",
+                likeCount: 3
             )
         ]
     }

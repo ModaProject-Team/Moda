@@ -30,7 +30,14 @@ final class ProductUploadStore: ObservableObject {
         case .priceNegotiableToggled:
             state.isPriceNegotiable.toggle()
         case .locationTapped:
-            break
+            state.showLocationSelection = true
+        case .locationSelected(let name, let latitude, let longitude):
+            state.locationName = name
+            state.latitude = latitude
+            state.longitude = longitude
+            state.showLocationSelection = false
+        case .dismissLocationSelection:
+            state.showLocationSelection = false
         case .imagesSelected(let items):
             Task {
                 await loadImages(from: items)
@@ -96,21 +103,18 @@ final class ProductUploadStore: ObservableObject {
                 title: state.title,
                 price: priceValue,
                 content: state.description.isEmpty ? nil : state.description,
-                content1: nil,
+                value1: state.locationName.isEmpty ? nil : state.locationName,
                 content2: nil,
                 content3: nil,
                 content4: nil,
                 content5: nil,
                 files: uploadedFileURLs,
-                longitude: nil, // TODO: 위치 정보 추가 기능 구현 후 사용
-                latitude: nil
+                longitude: state.longitude,
+                latitude: state.latitude
             )
 
             state.isUploading = false
-
-            //TODO: 성공 처리 (게시글 상세 화면으로 이동하거나 뒤로가기)
-            print("게시글 등록 성공: \(response.postId)")
-//            print(TokenManager.shared.refreshToken)
+            state.uploadedPostId = response.postId
 
         } catch {
             state.isUploading = false

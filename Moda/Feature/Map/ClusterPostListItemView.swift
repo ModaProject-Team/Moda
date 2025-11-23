@@ -6,13 +6,16 @@
 //
 
 import SwiftUI
+import Kingfisher
 
 struct ClusterPostListItemView: View {
     let post: PostAnnotation
+    let onLikeTapped: (String, Bool) -> Void
     @State private var isLiked: Bool
 
-    init(post: PostAnnotation) {
+    init(post: PostAnnotation, onLikeTapped: @escaping (String, Bool) -> Void = { _, _ in }) {
         self.post = post
+        self.onLikeTapped = onLikeTapped
         self._isLiked = State(initialValue: post.like)
     }
 
@@ -20,7 +23,14 @@ struct ClusterPostListItemView: View {
         HStack(spacing: 12) {
             
             if !post.media.isEmpty {
-                Image(post.media)
+                KFImage(URL(string: "\(NetworkConfig.baseURL)/v1\(post.media)"))
+                    .requestModifier(KFHeaders.modifier)
+                    .placeholder {
+                        RoundedRectangle(cornerRadius: 8)
+                            .fill(Color.gray.opacity(0.3))
+                    }
+                    .cacheOriginalImage()
+                    .fade(duration: 0.2)
                     .resizable()
                     .aspectRatio(contentMode: .fill)
                     .frame(width: 80, height: 80)
@@ -46,7 +56,13 @@ struct ClusterPostListItemView: View {
                 
                 HStack(spacing: 6) {
                     if !post.profileImage.isEmpty {
-                        Image(post.profileImage)
+                        KFImage(URL(string: "\(NetworkConfig.baseURL)/v1\(post.profileImage)"))
+                            .requestModifier(KFHeaders.modifier)
+                            .placeholder {
+                                Circle()
+                                    .fill(Color.gray.opacity(0.3))
+                            }
+                            .cacheOriginalImage()
                             .resizable()
                             .aspectRatio(contentMode: .fill)
                             .frame(width: 20, height: 20)
@@ -66,6 +82,7 @@ struct ClusterPostListItemView: View {
             
             Button {
                 isLiked.toggle()
+                onLikeTapped(post.id, isLiked)
             } label: {
                 Image(systemName: isLiked ? "heart.fill" : "heart")
                     .font(.system(size: 20))

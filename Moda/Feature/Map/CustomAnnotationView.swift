@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import Kingfisher
 
 struct CustomAnnotationView: View {
     let post: PostAnnotation
@@ -25,7 +26,14 @@ struct CustomAnnotationView: View {
                     .frame(width: 54, height: 54)
                     .shadow(color: .black.opacity(0.15), radius: 4, x: 0, y: 2)
 
-                Image(post.media)
+                KFImage(URL(string: "\(NetworkConfig.baseURL)/v1\(post.media)"))
+                    .requestModifier(KFHeaders.modifier)
+                    .placeholder {
+                        Image(systemName: "photo")
+                            .foregroundColor(.gray3)
+                    }
+                    .cacheOriginalImage()
+                    .fade(duration: 0.2)
                     .resizable()
                     .aspectRatio(contentMode: .fill)
                     .frame(width: 44, height: 44)
