@@ -111,7 +111,7 @@ extension UserRouter: Endpoint {
     var queryItems: [URLQueryItem]? {
         switch self {
         case .searchUsers(let query):
-            return [URLQueryItem(name: "query", value: query)]
+            return [URLQueryItem(name: "nick", value: query)]
         default:
             return nil
         }

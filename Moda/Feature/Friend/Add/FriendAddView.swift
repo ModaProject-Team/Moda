@@ -7,6 +7,14 @@
 
 import SwiftUI
 import Observation
+import Kingfisher
+
+//MARK: 검색 결과 모델
+private struct FriendSearchItem: Identifiable, Hashable {
+    let id: String          // userId
+    let nickname: String    // nick
+    let profileImageURL: URL?
+}
 
 // MARK: - State
 private struct FriendAddState {
@@ -22,24 +30,25 @@ private struct FriendAddState {
     // 선택된 셀(선택 시 목록 숨기고 카드만 노출)
     var selectedItem: FriendSearchItem?
 
-    // 선택된 항목의 "친구 여부"(추후 네트워크로 설정, 초기 nil이면 '친구 추가'로 노출)
+    // 선택된 항목의 "친구 여부"
+    // true: 이미 내가 팔로우 중 → 버튼은 "친구 취소"
+    // false 또는 nil: 팔로우 아님(또는 미확정) → 버튼은 "친구 추가"
     var selectedIsFriend: Bool?
+
+    // 팔로우/언팔로우 진행 상태
+    var isFollowUpdating: Bool = false
 }
 
-//MARK: 검색 결과 모델(목 데이터용 간단 모델 추후 수정필요)
-private struct FriendSearchItem: Identifiable, Hashable {
-    let id: String
-    let nickname: String
-}
 
 // MARK: - Intent
 private enum FriendAddIntent {
+    case onAppear
     case queryChanged(String)
     case clearTapped
     case searchSubmitted
     case rowTapped(FriendSearchItem)
 
-    // 카드 친구 추가 버튼 탭
+    // 카드 친구 추가/취소 버튼 탭
     case friendAddButtonTapped
 
     // 카드 닫기(X) 버튼 탭
@@ -51,10 +60,22 @@ private enum FriendAddIntent {
 @Observable
 private final class FriendAddStore {
     var state = FriendAddState()
+
+    // 의존성
+    private let userAPI = UserAPI.shared
+    private let userProfileAPI: UserProfileAPIProtocol = UserProfileAPI.shared
+    private let followAPI = FollowAPI.shared
+
+    // 동시 검색 취소용
     private var searchTask: Task<Void, Never>?
+
+    // 내 사용자 ID
+    private var myUserId: String?
 
     func send(_ intent: FriendAddIntent) {
         switch intent {
+        case .onAppear:
+            handleOnAppear()
         case .queryChanged(let text):
             handleQueryChanged(text)
         case .clearTapped:
@@ -71,6 +92,21 @@ private final class FriendAddStore {
     }
 
     // MARK: - Handlers
+    private func handleOnAppear() {
+        // 최초 1회 내 프로필 로드(내 userId 확보)
+        guard myUserId == nil else { return }
+        Task { [weak self] in
+            guard let self else { return }
+            do {
+                let me = try await userProfileAPI.getMyProfile()
+                self.myUserId = me.userId
+            } catch {
+                // 내 ID 로드 실패는 치명적이지 않으므로 로그만
+                print("친구 추가 뷰, 내 프로필 불러오지 못함:", error.localizedDescription)
+            }
+        }
+    }
+
     private func handleQueryChanged(_ text: String) {
         // 입력 중 최대길이 도달시 입력 방지
         state.query = clampToMaxLength(text)
@@ -101,13 +137,36 @@ private final class FriendAddStore {
 
         let query = state.query
 
-        // TODO: 목 네트워크 호출, 네트워크로 추후 대체
-        searchTask = Task {
+        // 실제 네트워크 검색
+        searchTask = Task { [weak self] in
+            guard let self else { return }
             do {
-                let items = try await fetchMockResults(for: query)
+                let response = try await userAPI.searchUsers(query: query)
+
+                // 취소되었으면 중단
+                if Task.isCancelled { return }
+
+                // FriendListView 방식으로 단순 URL 생성
+                var items: [FriendSearchItem] = response.data.map { dto in
+                    FriendSearchItem(
+                        id: dto.userId,
+                        nickname: dto.nick,
+                        profileImageURL: URL(string: "\(NetworkConfig.baseURL)/v1\(dto.profileImage ?? "")")
+                    )
+                }
+
+                // 내 아이디 제외
+                if let myId = self.myUserId {
+                    items.removeAll { $0.id == myId }
+                }
+
                 state.results = items
             } catch {
-                state.errorMessage = error.localizedDescription
+                if let netErr = error as? NetworkError {
+                    state.errorMessage = netErr.localizedDescription
+                } else {
+                    state.errorMessage = error.localizedDescription
+                }
             }
             state.isLoading = false
         }
@@ -116,20 +175,59 @@ private final class FriendAddStore {
     private func handleRowTapped(_ item: FriendSearchItem) {
         // 선택된 셀로 카드 표시
         state.selectedItem = item
-
-        // TODO: 여기서 서버에 해당 유저의 친구 여부 조회 요청
         state.selectedIsFriend = nil // 아직 모르는 상태(nil) → 버튼은 "친구 추가"로 노출
+
+        // 선택한 유저의 상세 프로필 조회하여 followers에 내 ID가 있는지 확인
+        Task { [weak self] in
+            guard let self else { return }
+            do {
+                let profile = try await userProfileAPI.getUserProfile(userId: item.id)
+                if let myId = self.myUserId {
+                    let isFriend = profile.followers.contains { $0.userId == myId }
+                    state.selectedIsFriend = isFriend
+                } else {
+                    // 내 ID를 모르면 판단 불가 → 기본 false
+                    state.selectedIsFriend = false
+                }
+            } catch {
+                if let netErr = error as? NetworkError {
+                    state.errorMessage = netErr.localizedDescription
+                } else {
+                    state.errorMessage = error.localizedDescription
+                }
+                // 판단 실패 시 기본값 유지
+            }
+        }
     }
 
     private func handlefriendAddButtonTapped() {
-        // TODO: 네트워크 통신으로 친구 상태 변경
-        print("친구 추가 버튼 눌림")
+        guard let selected = state.selectedItem, state.isFollowUpdating == false else { return }
+
+        // 현재 상태 반대로 요청
+        let shouldFollow = !(state.selectedIsFriend ?? false)
+        state.isFollowUpdating = true
+
+        Task { [weak self] in
+            guard let self else { return }
+            do {
+                _ = try await followAPI.follow(userId: selected.id, followStatus: shouldFollow)
+                state.selectedIsFriend = shouldFollow
+            } catch {
+                if let netErr = error as? NetworkError {
+                    state.errorMessage = netErr.localizedDescription
+                } else {
+                    state.errorMessage = error.localizedDescription
+                }
+            }
+            state.isFollowUpdating = false
+        }
     }
 
     private func handleCardCloseTapped() {
         // 카드 닫기: 선택 해제 → 기존 검색 결과 리스트 노출
         state.selectedItem = nil
         state.selectedIsFriend = nil
+        state.isFollowUpdating = false
     }
 
     // MARK: - Helpers
@@ -138,25 +236,6 @@ private final class FriendAddStore {
             return String(text.prefix(state.maxLength))
         } else {
             return text
-        }
-    }
-
-    // TODO: 목 데이터 로더, 네트워크로 추후 대체
-    private func fetchMockResults(for query: String) async throws -> [FriendSearchItem] {
-        // 네트워크 지연 흉내
-        try await Task.sleep(for: .milliseconds(700))
-
-        let lower = query.lowercased()
-        // 특정 키워드로 빈/에러 케이스 테스트 가능
-        if lower == "empty" { return [] }
-        if lower == "error" { throw URLError(.badServerResponse) }
-
-        // 간단한 목 결과
-        return (1...8).map { i in
-            FriendSearchItem(
-                id: "\(lower)_\(i)",
-                nickname: "\(query.capitalized) \(i)"
-            )
         }
     }
 }
@@ -189,6 +268,7 @@ struct FriendAddView: View {
             if let selected = store.state.selectedItem {
                 FriendSelectedCard(
                     item: selected,
+                    isLoading: store.state.isFollowUpdating,
                     buttonTitle: (store.state.selectedIsFriend == true) ? "친구 취소" : "친구 추가",
                     onButtonTap: {
                         store.send(.friendAddButtonTapped)
@@ -220,7 +300,7 @@ struct FriendAddView: View {
                         ContentUnavailableView(
                             "친구를 검색해 보세요",
                             systemImage: "person.crop.circle.badge.magnifyingglass",
-                            description: Text("ID를 입력하고 검색을 눌러보세요.")
+                            description: Text("닉네임을 입력하고 검색을 눌러보세요.")
                         )
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                     } else if store.state.results.isEmpty {
@@ -228,7 +308,7 @@ struct FriendAddView: View {
                         ContentUnavailableView(
                             "검색 결과가 없어요",
                             systemImage: "person.fill.questionmark",
-                            description: Text("다른 ID로 다시 시도해 보세요.")
+                            description: Text("다른 닉네임으로 다시 시도해 보세요.")
                         )
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                     } else {
@@ -245,28 +325,11 @@ struct FriendAddView: View {
                 }
             }
         }
-        .navigationTitle("ID로 추가")
+        .navigationTitle("닉네임으로 추가")
         .toolbarTitleDisplayMode(.inline)
-        .toolbar {
-            ToolbarItem(placement: .topBarLeading) {
-                Button {
-                    dismiss()
-                } label: {
-                    Image(systemName: "xmark")
-                        .font(.system(size: 18, weight: .semibold))
-                }
-            }
-            //MARK: 지금 검색버튼은 프리뷰 시연용, 나중에 어차피 키보드 올라왔을때 submit 버튼 눌렀을때 동작
-            ToolbarItem(placement: .topBarTrailing) {
-                Button("검색") {
-                    store.send(.searchSubmitted)
-                    isSearching = false
-                }
-                .disabled(store.state.query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || store.state.isLoading)
-            }
-        }
         .task {
-            // 진입 시 키보드 살짝 지연 후 포커스
+            // 진입 시 내 ID 로드 + 키보드 포커스
+            store.send(.onAppear)
             try? await Task.sleep(for: .milliseconds(250))
             await MainActor.run {
                 isSearching = true
@@ -286,9 +349,8 @@ private struct FriendIDSearchBar: View {
     var body: some View {
         VStack(spacing: 6) {
             HStack(alignment: .firstTextBaseline) {
-                TextField("친구 ID", text: $text)
+                TextField("닉네임", text: $text)
                     .textInputAutocapitalization(.none)
-                    .keyboardType(.asciiCapable) // 영문/숫자 ID라면 권장
                     .disableAutocorrection(true)
                     .focused($isFocused)
                     .submitLabel(.search)
@@ -314,6 +376,7 @@ private struct FriendIDSearchBar: View {
 // MARK: - 친구 선택 카드
 private struct FriendSelectedCard: View {
     let item: FriendSearchItem
+    let isLoading: Bool
     let buttonTitle: String
     let onButtonTap: () -> Void
     let onCloseTap: () -> Void
@@ -323,14 +386,9 @@ private struct FriendSelectedCard: View {
             .fill(Color(uiColor: .secondarySystemBackground))
             .overlay(
                 VStack(spacing: 14) {
-                    // 아바타 플레이스홀더
-                    ZStack {
-                        Circle().fill(Color.gray.opacity(0.15))
-                        Image(systemName: "person.fill")
-                            .font(.system(size: 28))
-                            .foregroundStyle(.secondary)
-                    }
-                    .frame(width: 72, height: 72)
+                    // 프로필 이미지
+                    ProfileImageView(url: item.profileImageURL)
+                        .frame(width: 72, height: 72)
 
                     VStack(spacing: 4) {
                         Text(item.nickname)
@@ -341,20 +399,27 @@ private struct FriendSelectedCard: View {
                     }
 
                     Button {
-                        // View는 로직을 갖지 않고 Intent만 보냄
                         onButtonTap()
                     } label: {
-                        Text(buttonTitle)
-                            .font(.headline.weight(.semibold))
-                            .foregroundStyle(.white)
-                            .frame(maxWidth: 140)
-                            .frame(height: 48)
-                            .background(
-                                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                    .fill(Color.orange)
-                            )
+                        ZStack {
+                            if isLoading {
+                                ProgressView()
+                                    .tint(.white)
+                            } else {
+                                Text(buttonTitle)
+                                    .font(.headline.weight(.semibold))
+                            }
+                        }
+                        .foregroundStyle(.white)
+                        .frame(maxWidth: 140)
+                        .frame(height: 48)
+                        .background(
+                            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                .fill(Color.orange)
+                        )
                     }
                     .buttonStyle(.plain)
+                    .disabled(isLoading)
                 }
                 .padding(.vertical, 16)
                 .padding(.horizontal, 12)
@@ -378,15 +443,14 @@ private struct FriendSelectedCard: View {
     }
 }
 
-// MARK: - Result Row, 나중에 분리, 재활용 고려하기
+// MARK: - Result Row
 private struct FriendRow: View {
     let item: FriendSearchItem
 
     var body: some View {
         HStack(spacing: 12) {
-            Image(systemName: "person.circle.fill")
-                .font(.system(size: 36))
-                .foregroundStyle(.secondary)
+            ProfileImageView(url: item.profileImageURL)
+                .frame(width: 48, height: 48)
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(item.nickname)
@@ -399,6 +463,35 @@ private struct FriendRow: View {
             Spacer()
         }
         .padding(.vertical, 6)
+    }
+}
+
+// MARK: - Image View (Kingfisher + KFHeaders)
+private struct ProfileImageView: View {
+    let url: URL?
+
+    var body: some View {
+        if let url {
+            KFImage(url)
+                .requestModifier(KFHeaders.modifier) // 인증/공통 헤더
+                .placeholder { placeholder }
+                .cacheOriginalImage()
+                .fade(duration: 0.2)
+                .cancelOnDisappear(true)
+                .resizable()
+                .scaledToFill()
+                .clipShape(Circle())
+        } else {
+            placeholder
+        }
+    }
+
+    private var placeholder: some View {
+        ZStack {
+            Circle().fill(Color.gray.opacity(0.2))
+            Image(systemName: "person.fill")
+                .foregroundStyle(.secondary)
+        }
     }
 }
 
