@@ -7,6 +7,7 @@
 
 import SwiftUI
 import Observation
+import Kingfisher
 
 //MARK: 검색 결과 모델
 private struct FriendSearchItem: Identifiable, Hashable {
@@ -113,24 +114,20 @@ private final class FriendAddStore {
             guard let self else { return }
             do {
                 let response = try await userAPI.searchUsers(query: query)
-                //MARK: Response 안오는 문제 있음
-                print("response\(response)")
+
                 // 취소되었으면 중단
                 if Task.isCancelled { return }
 
-                // DTO -> 뷰 모델 매핑
+                // FriendListView 방식으로 단순 URL 생성
                 let items: [FriendSearchItem] = response.data.map { dto in
-                    let url = dto.profileImage.flatMap { URL(string: "\(NetworkConfig.baseURL)/v1\($0)") }
-                    return FriendSearchItem(
+                    FriendSearchItem(
                         id: dto.userId,
                         nickname: dto.nick,
-                        profileImageURL: url
+                        profileImageURL: URL(string: "\(NetworkConfig.baseURL)/v1\(dto.profileImage ?? "")")
                     )
                 }
 
                 state.results = items
-				//MARK: 검색후 results 안뜸
-                print(state.results)
             } catch {
                 if let netErr = error as? NetworkError {
                     state.errorMessage = netErr.localizedDescription
@@ -151,7 +148,6 @@ private final class FriendAddStore {
     }
 
     private func handlefriendAddButtonTapped() {
-
         print("친구 추가 버튼 눌림")
     }
 
@@ -332,14 +328,9 @@ private struct FriendSelectedCard: View {
             .fill(Color(uiColor: .secondarySystemBackground))
             .overlay(
                 VStack(spacing: 14) {
-                    // 아바타 플레이스홀더(이미지 URL 사용 시 교체 가능)
-                    ZStack {
-                        Circle().fill(Color.gray.opacity(0.15))
-                        Image(systemName: "person.fill")
-                            .font(.system(size: 28))
-                            .foregroundStyle(.secondary)
-                    }
-                    .frame(width: 72, height: 72)
+                    // 프로필 이미지
+                    ProfileImageView(url: item.profileImageURL)
+                        .frame(width: 72, height: 72)
 
                     VStack(spacing: 4) {
                         Text(item.nickname)
@@ -393,9 +384,8 @@ private struct FriendRow: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            Image(systemName: "person.circle.fill")
-                .font(.system(size: 36))
-                .foregroundStyle(.secondary)
+            ProfileImageView(url: item.profileImageURL)
+                .frame(width: 48, height: 48)
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(item.nickname)
@@ -408,6 +398,35 @@ private struct FriendRow: View {
             Spacer()
         }
         .padding(.vertical, 6)
+    }
+}
+
+// MARK: - Image View (Kingfisher + KFHeaders)
+private struct ProfileImageView: View {
+    let url: URL?
+
+    var body: some View {
+        if let url {
+            KFImage(url)
+                .requestModifier(KFHeaders.modifier) // 인증/공통 헤더
+                .placeholder { placeholder }
+                .cacheOriginalImage()
+                .fade(duration: 0.2)
+                .cancelOnDisappear(true)
+                .resizable()
+                .scaledToFill()
+                .clipShape(Circle())
+        } else {
+            placeholder
+        }
+    }
+
+    private var placeholder: some View {
+        ZStack {
+            Circle().fill(Color.gray.opacity(0.2))
+            Image(systemName: "person.fill")
+                .foregroundStyle(.secondary)
+        }
     }
 }
 
