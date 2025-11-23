@@ -37,6 +37,7 @@ private struct FriendAddState {
 
 // MARK: - Intent
 private enum FriendAddIntent {
+    case onAppear
     case queryChanged(String)
     case clearTapped
     case searchSubmitted
@@ -57,12 +58,18 @@ private final class FriendAddStore {
 
     // 의존성
     private let userAPI = UserAPI.shared
+    private let userProfileAPI: UserProfileAPIProtocol = UserProfileAPI.shared
 
     // 동시 검색 취소용
     private var searchTask: Task<Void, Never>?
 
+    // 내 사용자 ID
+    private var myUserId: String?
+
     func send(_ intent: FriendAddIntent) {
         switch intent {
+        case .onAppear:
+            handleOnAppear()
         case .queryChanged(let text):
             handleQueryChanged(text)
         case .clearTapped:
@@ -79,6 +86,20 @@ private final class FriendAddStore {
     }
 
     // MARK: - Handlers
+    private func handleOnAppear() {
+        // 최초 1회 내 프로필 로드
+        guard myUserId == nil else { return }
+        Task { [weak self] in
+            guard let self else { return }
+            do {
+                let me = try await userProfileAPI.getMyProfile()
+                self.myUserId = me.userId
+            } catch {
+                print("친구 추가 뷰,내 프로필 불러오지 못함", error.localizedDescription)
+            }
+        }
+    }
+
     private func handleQueryChanged(_ text: String) {
         // 입력 중 최대길이 도달시 입력 방지
         state.query = clampToMaxLength(text)
@@ -118,13 +139,17 @@ private final class FriendAddStore {
                 // 취소되었으면 중단
                 if Task.isCancelled { return }
 
-                // FriendListView 방식으로 단순 URL 생성
-                let items: [FriendSearchItem] = response.data.map { dto in
+                var items: [FriendSearchItem] = response.data.map { dto in
                     FriendSearchItem(
                         id: dto.userId,
                         nickname: dto.nick,
                         profileImageURL: URL(string: "\(NetworkConfig.baseURL)/v1\(dto.profileImage ?? "")")
                     )
+                }
+
+                // 내 아이디 제외
+                if let myId = self.myUserId {
+                    items.removeAll { $0.id == myId }
                 }
 
                 state.results = items
@@ -253,26 +278,9 @@ struct FriendAddView: View {
         }
         .navigationTitle("닉네임으로 추가")
         .toolbarTitleDisplayMode(.inline)
-        .toolbar {
-            ToolbarItem(placement: .topBarLeading) {
-                Button {
-                    dismiss()
-                } label: {
-                    Image(systemName: "xmark")
-                        .font(.system(size: 18, weight: .semibold))
-                }
-            }
-            // 키보드 submit 외에도, 상단 버튼으로 검색 가능
-            ToolbarItem(placement: .topBarTrailing) {
-                Button("검색") {
-                    store.send(.searchSubmitted)
-                    isSearching = false
-                }
-                .disabled(store.state.query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || store.state.isLoading)
-            }
-        }
         .task {
-            // 진입 시 키보드 살짝 지연 후 포커스
+            // 진입 시 내 ID 로드 + 키보드 포커스
+            store.send(.onAppear)
             try? await Task.sleep(for: .milliseconds(250))
             await MainActor.run {
                 isSearching = true
