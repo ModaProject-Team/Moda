@@ -128,7 +128,7 @@ struct FriendListView: View {
                     MyProfileHeader(people: my)
                         .onTapGesture {
                             // 내 프로필 상세
-                            navigator.push(.profileDetail)
+                            navigator.push(.profileDetail(people: my, isCurrentUser: true))
                         }
                         .listRowSeparator(.hidden)
                         .listRowBackground(Color.clear)
@@ -151,8 +151,8 @@ struct FriendListView: View {
                     ForEach(friendPeople) { person in
                         FriendRow(people: person)
                             .onTapGesture {
-                                // 친구 프로필 상세로 이동 시 userId를 넘겨서 OtherProfile 로드 가능
-                                navigator.push(.profileDetail)
+                                // 친구 프로필 상세 (친구 정보 전달)
+                                navigator.push(.profileDetail(people: person, isCurrentUser: false))
                             }
                     }
                 }

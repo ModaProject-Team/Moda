@@ -7,6 +7,7 @@
 
 import SwiftUI
 import Observation
+import Kingfisher
 
 // MARK: - Model
 private enum ProfileTab: String, CaseIterable, Identifiable {
@@ -30,6 +31,7 @@ private struct ProfileDetailState {
 
     // 화면 상태
     var nickname: String = "나의 닉네임"
+    var profileImageURL: URL? = nil
     var selectedTab: ProfileTab = .myItems
 
     // 데이터
@@ -40,6 +42,22 @@ private struct ProfileDetailState {
     // 편의
     var currentList: [PostCard] {
         selectedTab == .myItems ? myItems : likedItems
+    }
+
+    init(
+        isCurrentUser: Bool = true,
+        nickname: String = "닉네임",
+        profileImageURL: URL? = nil,
+        selectedTab: ProfileTab = .myItems,
+        myItems: [PostCard] = PostCard.mockData,
+        likedItems: [PostCard] = Array(PostCard.mockData.prefix(3))
+    ) {
+        self.isCurrentUser = isCurrentUser
+        self.nickname = nickname
+        self.profileImageURL = profileImageURL
+        self.selectedTab = selectedTab
+        self.myItems = myItems
+        self.likedItems = likedItems
     }
 }
 
@@ -56,7 +74,11 @@ private enum ProfileDetailIntent {
 @Observable
 private final class ProfileDetailStore {
 
-    var state = ProfileDetailState()
+    var state: ProfileDetailState
+
+    init(initial: ProfileDetailState = .init()) {
+        self.state = initial
+    }
 
     func send(_ intent: ProfileDetailIntent) {
         switch intent {
@@ -73,11 +95,7 @@ private final class ProfileDetailStore {
 
     // MARK: - Handlers
     private func handleOnAppear() {
-        if state.isCurrentUser == false {
-            state.nickname = "친구 닉네임"
-        } else {
-            state.nickname = "나의 닉네임"
-        }
+        // 현재는 외부에서 주입받은 값 그대로 사용
     }
 
     private func handleSelectTab(_ tab: ProfileTab) {
@@ -95,8 +113,18 @@ private final class ProfileDetailStore {
 
 // MARK: - View
 struct ProfileDetailView: View {
-    @State private var store = ProfileDetailStore()
+    @State private var store: ProfileDetailStore
     @Environment(\.dismiss) private var dismiss
+
+    // FriendListView에서 전달받아 초기 상태 구성
+    init(people: People, isCurrentUser: Bool) {
+        let initial = ProfileDetailState(
+            isCurrentUser: isCurrentUser,
+            nickname: people.name,
+            profileImageURL: people.profileImageURL
+        )
+        _store = State(initialValue: ProfileDetailStore(initial: initial))
+    }
 
     var body: some View {
         ZStack {
@@ -104,14 +132,6 @@ struct ProfileDetailView: View {
         }
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            ToolbarItem(placement: .topBarLeading) {
-                Button {
-                    dismiss()
-                } label: {
-                    Image(systemName: "xmark")
-                        .font(.system(size: 18, weight: .semibold))
-                }
-            }
             if store.state.isCurrentUser {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("수정") {
@@ -153,13 +173,29 @@ struct ProfileDetailView: View {
 
     private var header: some View {
         VStack(spacing: 10) {
-            // 아바타 플레이스홀더
-            ZStack {
-                Circle().fill(Color.gray.opacity(0.2))
-                Image(systemName: "person.fill")
-                    .foregroundStyle(.secondary)
+            // 프로필 이미지
+            Group {
+                if let url = store.state.profileImageURL {
+                    KFImage(url)
+                        .requestModifier(KFHeaders.modifier)
+                        .placeholder {
+                            Circle().fill(Color.gray.opacity(0.2))
+                        }
+                        .cacheOriginalImage()
+                        .fade(duration: 0.2)
+                        .resizable()
+                        .scaledToFill()
+                        .frame(width: 72, height: 72)
+                        .clipShape(Circle())
+                } else {
+                    ZStack {
+                        Circle().fill(Color.gray.opacity(0.2))
+                        Image(systemName: "person.fill")
+                            .foregroundStyle(.secondary)
+                    }
+                    .frame(width: 72, height: 72)
+                }
             }
-            .frame(width: 72, height: 72)
 
             Text(store.state.nickname)
                 .font(.headline.weight(.semibold))
@@ -185,7 +221,7 @@ struct ProfileDetailView: View {
         let items: [PostCard] = store.state.isCurrentUser
             ? (store.state.selectedTab == .myItems ? store.state.myItems : store.state.likedItems)
             : store.state.myItems
-        
+
         return VStack(alignment: .leading, spacing: 12) {
             if items.isEmpty {
                 Text(store.state.isCurrentUser && store.state.selectedTab == .likeItems ? "찜한 물건이 없어요" : "등록된 물건이 없어요")
@@ -237,8 +273,11 @@ private struct FloatingUploadButton: View {
 #Preview {
     NavigationStack {
         VStack(spacing: 12) {
-            ProfileDetailView()
-                .navigationTitle("프로필")
+            ProfileDetailView(
+                people: People(id: "me", name: "나의 닉네임", statusMessage: "상태메시지", profileImageURL: nil),
+                isCurrentUser: true
+            )
+            .navigationTitle("프로필")
         }
     }
 }
