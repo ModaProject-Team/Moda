@@ -36,6 +36,7 @@ struct ProductDetailView: View {
                 errorView(error: error)
             } else if let post = store.state.post {
                 contentView(post: post)
+                    .ignoresSafeArea(edges: .top)
             }
         }
         .navigationBarHidden(true)
@@ -106,7 +107,6 @@ struct ProductDetailView: View {
     private func contentView(post: PostResponse) -> some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
-                // 이미지 섹션
                 if !post.files.isEmpty {
                     TabView {
                         ForEach(post.files, id: \.self) { imageURL in
@@ -121,24 +121,20 @@ struct ProductDetailView: View {
                         }
                     }
                     .tabViewStyle(PageTabViewStyle())
-                    .frame(height: 300)
+                    .frame(height: 400)
                 }
 
                 VStack(alignment: .leading, spacing: 16) {
-                    // 작성자 정보
                     authorSection(post: post)
 
                     Divider()
 
-                    // 제목
                     Text(post.title)
                         .H1()
                         .foregroundColor(.gray1)
 
-                    // 가격
                     priceSection(post: post)
 
-                    // 내용
                     if let content = post.content, !content.isEmpty {
                         Text(content)
                             .Body1()
@@ -146,7 +142,6 @@ struct ProductDetailView: View {
                             .padding(.top, 8)
                     }
 
-                    // 거래 희망 장소
                     if let locationName = post.value1, !locationName.isEmpty,
                        let geolocation = post.geolocation {
                         TradeLocationView(
@@ -162,7 +157,6 @@ struct ProductDetailView: View {
                         .padding(.top, 16)
                     }
 
-                    // 좋아요 수 및 게시일
                     HStack(spacing: 16) {
                         HStack(spacing: 4) {
                             Image(systemName: "heart.fill")
@@ -179,7 +173,6 @@ struct ProductDetailView: View {
                     }
                     .padding(.top, 12)
 
-                    // 하단 액션 버튼
                     actionButtons
                 }
                 .padding(.horizontal, 16)
@@ -242,7 +235,6 @@ struct ProductDetailView: View {
         } else {
             // 다른 사람 게시글인 경우
             HStack(spacing: 12) {
-                // 좋아요 버튼
                 Button {
                     store.send(.toggleLike)
                 } label: {
@@ -254,7 +246,6 @@ struct ProductDetailView: View {
                         .cornerRadius(12)
                 }
 
-                // 채팅하기 버튼
                 Button {
                     // TODO: 채팅방으로 이동
                 } label: {
@@ -283,14 +274,11 @@ struct ProductDetailView: View {
             } label: {
                 Image(systemName: "chevron.left")
                     .font(.system(size: 18))
-                    .foregroundColor(.gray1)
+                    .foregroundColor(.white)
+                    .shadow(color: .black.opacity(0.5), radius: 2)
+                    .frame(width: 44, height: 44)
+                    .contentShape(Rectangle())
             }
-
-            Spacer()
-
-            Text("상품 상세")
-                .H1()
-                .foregroundColor(.gray1)
 
             Spacer()
 
@@ -300,17 +288,17 @@ struct ProductDetailView: View {
                 } label: {
                     Image(systemName: "ellipsis")
                         .font(.system(size: 18))
-                        .foregroundColor(.gray1)
+                        .foregroundColor(.white)
+                        .shadow(color: .black.opacity(0.5), radius: 2)
+                        .frame(width: 44, height: 44)
+                        .contentShape(Rectangle())
                 }
             } else {
-                Image(systemName: "ellipsis")
-                    .font(.system(size: 18))
-                    .foregroundColor(.clear)
+                Color.clear
+                    .frame(width: 44, height: 44)
             }
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 12)
-        .background(Color.white)
+        .padding(.horizontal, 8)
     }
 }
 
