@@ -89,8 +89,7 @@ enum NavigationDestination: Hashable {
     case friendAdd
 
     /// 프로필 디테일 화면
-    case profileDetail
-
+    case profileDetail(people: People, isCurrentUser: Bool)
 
     // MARK: ChatTab
     /// 채팅방 화면
@@ -130,8 +129,8 @@ extension NavigationDestination {
             FriendSearchView(friends: friends)
         case .friendAdd:
             FriendAddView()
-        case .profileDetail:
-            ProfileDetailView()
+        case .profileDetail(let people, let isCurrentUser):
+            ProfileDetailView(people: people, isCurrentUser: isCurrentUser)
 
         //MARK: ChatTab
         case .chatRoom(let roomId, let participantName):
