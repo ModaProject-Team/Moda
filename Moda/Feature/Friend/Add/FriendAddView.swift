@@ -30,8 +30,13 @@ private struct FriendAddState {
     // 선택된 셀(선택 시 목록 숨기고 카드만 노출)
     var selectedItem: FriendSearchItem?
 
-    // 선택된 항목의 "친구 여부"(추후 네트워크로 설정, 초기 nil이면 '친구 추가'로 노출)
+    // 선택된 항목의 "친구 여부"
+    // true: 이미 내가 팔로우 중 → 버튼은 "친구 취소"
+    // false 또는 nil: 팔로우 아님(또는 미확정) → 버튼은 "친구 추가"
     var selectedIsFriend: Bool?
+
+    // 팔로우/언팔로우 진행 상태
+    var isFollowUpdating: Bool = false
 }
 
 
@@ -43,7 +48,7 @@ private enum FriendAddIntent {
     case searchSubmitted
     case rowTapped(FriendSearchItem)
 
-    // 카드 친구 추가 버튼 탭
+    // 카드 친구 추가/취소 버튼 탭
     case friendAddButtonTapped
 
     // 카드 닫기(X) 버튼 탭
@@ -59,6 +64,7 @@ private final class FriendAddStore {
     // 의존성
     private let userAPI = UserAPI.shared
     private let userProfileAPI: UserProfileAPIProtocol = UserProfileAPI.shared
+    private let followAPI = FollowAPI.shared
 
     // 동시 검색 취소용
     private var searchTask: Task<Void, Never>?
@@ -87,7 +93,7 @@ private final class FriendAddStore {
 
     // MARK: - Handlers
     private func handleOnAppear() {
-        // 최초 1회 내 프로필 로드
+        // 최초 1회 내 프로필 로드(내 userId 확보)
         guard myUserId == nil else { return }
         Task { [weak self] in
             guard let self else { return }
@@ -95,7 +101,8 @@ private final class FriendAddStore {
                 let me = try await userProfileAPI.getMyProfile()
                 self.myUserId = me.userId
             } catch {
-                print("친구 추가 뷰,내 프로필 불러오지 못함", error.localizedDescription)
+                // 내 ID 로드 실패는 치명적이지 않으므로 로그만
+                print("친구 추가 뷰, 내 프로필 불러오지 못함:", error.localizedDescription)
             }
         }
     }
@@ -139,6 +146,7 @@ private final class FriendAddStore {
                 // 취소되었으면 중단
                 if Task.isCancelled { return }
 
+                // FriendListView 방식으로 단순 URL 생성
                 var items: [FriendSearchItem] = response.data.map { dto in
                     FriendSearchItem(
                         id: dto.userId,
@@ -167,19 +175,59 @@ private final class FriendAddStore {
     private func handleRowTapped(_ item: FriendSearchItem) {
         // 선택된 셀로 카드 표시
         state.selectedItem = item
-
-        // TODO: 여기서 서버에 해당 유저의 친구 여부 조회 요청
         state.selectedIsFriend = nil // 아직 모르는 상태(nil) → 버튼은 "친구 추가"로 노출
+
+        // 선택한 유저의 상세 프로필 조회하여 followers에 내 ID가 있는지 확인
+        Task { [weak self] in
+            guard let self else { return }
+            do {
+                let profile = try await userProfileAPI.getUserProfile(userId: item.id)
+                if let myId = self.myUserId {
+                    let isFriend = profile.followers.contains { $0.userId == myId }
+                    state.selectedIsFriend = isFriend
+                } else {
+                    // 내 ID를 모르면 판단 불가 → 기본 false
+                    state.selectedIsFriend = false
+                }
+            } catch {
+                if let netErr = error as? NetworkError {
+                    state.errorMessage = netErr.localizedDescription
+                } else {
+                    state.errorMessage = error.localizedDescription
+                }
+                // 판단 실패 시 기본값 유지
+            }
+        }
     }
 
     private func handlefriendAddButtonTapped() {
-        print("친구 추가 버튼 눌림")
+        guard let selected = state.selectedItem, state.isFollowUpdating == false else { return }
+
+        // 현재 상태 반대로 요청
+        let shouldFollow = !(state.selectedIsFriend ?? false)
+        state.isFollowUpdating = true
+
+        Task { [weak self] in
+            guard let self else { return }
+            do {
+                _ = try await followAPI.follow(userId: selected.id, followStatus: shouldFollow)
+                state.selectedIsFriend = shouldFollow
+            } catch {
+                if let netErr = error as? NetworkError {
+                    state.errorMessage = netErr.localizedDescription
+                } else {
+                    state.errorMessage = error.localizedDescription
+                }
+            }
+            state.isFollowUpdating = false
+        }
     }
 
     private func handleCardCloseTapped() {
         // 카드 닫기: 선택 해제 → 기존 검색 결과 리스트 노출
         state.selectedItem = nil
         state.selectedIsFriend = nil
+        state.isFollowUpdating = false
     }
 
     // MARK: - Helpers
@@ -220,6 +268,7 @@ struct FriendAddView: View {
             if let selected = store.state.selectedItem {
                 FriendSelectedCard(
                     item: selected,
+                    isLoading: store.state.isFollowUpdating,
                     buttonTitle: (store.state.selectedIsFriend == true) ? "친구 취소" : "친구 추가",
                     onButtonTap: {
                         store.send(.friendAddButtonTapped)
@@ -327,6 +376,7 @@ private struct FriendIDSearchBar: View {
 // MARK: - 친구 선택 카드
 private struct FriendSelectedCard: View {
     let item: FriendSearchItem
+    let isLoading: Bool
     let buttonTitle: String
     let onButtonTap: () -> Void
     let onCloseTap: () -> Void
@@ -349,20 +399,27 @@ private struct FriendSelectedCard: View {
                     }
 
                     Button {
-                        // View는 로직을 갖지 않고 Intent만 보냄
                         onButtonTap()
                     } label: {
-                        Text(buttonTitle)
-                            .font(.headline.weight(.semibold))
-                            .foregroundStyle(.white)
-                            .frame(maxWidth: 140)
-                            .frame(height: 48)
-                            .background(
-                                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                    .fill(Color.orange)
-                            )
+                        ZStack {
+                            if isLoading {
+                                ProgressView()
+                                    .tint(.white)
+                            } else {
+                                Text(buttonTitle)
+                                    .font(.headline.weight(.semibold))
+                            }
+                        }
+                        .foregroundStyle(.white)
+                        .frame(maxWidth: 140)
+                        .frame(height: 48)
+                        .background(
+                            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                .fill(Color.orange)
+                        )
                     }
                     .buttonStyle(.plain)
+                    .disabled(isLoading)
                 }
                 .padding(.vertical, 16)
                 .padding(.horizontal, 12)
