@@ -72,4 +72,7 @@ enum MapIntent {
 
     /// 좋아요 토글
     case toggleLike(postId: String, isLiked: Bool)
+
+    /// 외부에서 좋아요 상태 업데이트
+    case updateLikeFromExternal(postId: String, isLiked: Bool)
 }

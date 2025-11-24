@@ -7,7 +7,6 @@
 
 import SwiftUI
 
-// MARK: - View
 struct FeedView: View {
     @StateObject private var store = FeedViewStore()
     @EnvironmentObject var navigator: AppNavigator
@@ -46,6 +45,17 @@ struct FeedView: View {
         }
         .onAppear {
             store.send(.onAppear)
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .postDeleted)) { _ in
+            store.send(.refresh)
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .postLikeUpdated)) { notification in
+            if let userInfo = notification.userInfo,
+               let postId = userInfo["postId"] as? String,
+               let isLiked = userInfo["isLiked"] as? Bool,
+               let likeCount = userInfo["likeCount"] as? Int {
+                store.send(.updateLikeFromExternal(postId: postId, isLiked: isLiked, likeCount: likeCount))
+            }
         }
     }
 
@@ -177,6 +187,9 @@ struct FeedView: View {
                             currentLocation: store.state.currentLocation,
                             onLikeTapped: {
                                 store.send(.toggleLike(product.id))
+                            },
+                            onTapped: {
+                                navigator.push(.productDetail(postId: product.id))
                             }
                         )
                         .onAppear {
@@ -197,6 +210,9 @@ struct FeedView: View {
                             currentLocation: store.state.currentLocation,
                             onLikeTapped: {
                                 store.send(.toggleLike(product.id))
+                            },
+                            onTapped: {
+                                navigator.push(.productDetail(postId: product.id))
                             }
                         )
                         .onAppear {

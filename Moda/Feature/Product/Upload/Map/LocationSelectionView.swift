@@ -2,7 +2,7 @@
 //  LocationSelectionView.swift
 //  Moda
 //
-//  Created by Claude on 11/22/24.
+//  Created by Suji Jang on 11/22/24.
 //
 
 import SwiftUI

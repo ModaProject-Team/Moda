@@ -11,11 +11,13 @@ import Kingfisher
 struct ClusterPostListItemView: View {
     let post: PostAnnotation
     let onLikeTapped: (String, Bool) -> Void
+    let onTapped: () -> Void
     @State private var isLiked: Bool
 
-    init(post: PostAnnotation, onLikeTapped: @escaping (String, Bool) -> Void = { _, _ in }) {
+    init(post: PostAnnotation, onLikeTapped: @escaping (String, Bool) -> Void = { _, _ in }, onTapped: @escaping () -> Void = {}) {
         self.post = post
         self.onLikeTapped = onLikeTapped
+        self.onTapped = onTapped
         self._isLiked = State(initialValue: post.like)
     }
 
@@ -93,6 +95,13 @@ struct ClusterPostListItemView: View {
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
         .background(Color.white)
+        .contentShape(Rectangle())
+        .onTapGesture {
+            onTapped()
+        }
+        .onChange(of: post.like) { _, newValue in
+            isLiked = newValue
+        }
     }
 }
 
