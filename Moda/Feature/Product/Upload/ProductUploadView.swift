@@ -67,8 +67,10 @@ struct ProductUploadView: View {
         }
         .onChange(of: store.state.uploadedPostId) { _, postId in
             if let postId = postId {
-                navigator.pop()
-                navigator.push(.productDetail(postId: postId))
+                navigator.popToRoot()
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                    navigator.push(.productDetail(postId: postId))
+                }
             }
         }
     }
