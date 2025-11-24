@@ -28,3 +28,30 @@ protocol UserProfileAPIProtocol {
         info5: String?
     ) async throws -> MyProfileResponse
 }
+
+// MARK: - Default Parameters
+extension UserProfileAPIProtocol {
+    func updateMyProfile(
+        nick: String? = nil,
+        phoneNum: String? = nil,
+        birthDay: String? = nil,
+        profileImage: Data? = nil,
+        info1: String? = nil,
+        info2: String? = nil,
+        info3: String? = nil,
+        info4: String? = nil,
+        info5: String? = nil
+    ) async throws -> MyProfileResponse {
+        try await updateMyProfile(
+            nick: nick,
+            phoneNum: phoneNum,
+            birthDay: birthDay,
+            profileImage: profileImage,
+            info1: info1,
+            info2: info2,
+            info3: info3,
+            info4: info4,
+            info5: info5
+        )
+    }
+}

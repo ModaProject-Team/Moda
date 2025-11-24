@@ -12,7 +12,7 @@ enum TabItem: Int, CaseIterable {
     case map
     case friends
     case chat
-    case profile
+    case setting
 
     var icon: String {
         switch self {
@@ -24,8 +24,8 @@ enum TabItem: Int, CaseIterable {
             return "person.2"
         case .chat:
             return "message"
-        case .profile:
-            return "person.crop.circle"
+        case .setting:
+            return "gearshape"
         }
     }
 
@@ -39,8 +39,8 @@ enum TabItem: Int, CaseIterable {
             return "person.2.fill"
         case .chat:
             return "message.fill"
-        case .profile:
-            return "person.crop.circle.fill"
+        case .setting:
+            return "gearshape.fill"
         }
     }
 }

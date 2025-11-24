@@ -56,8 +56,8 @@ struct MainTabView: View {
             FriendListView()
         case .chat:
             ChatListView()
-        case .profile:
-            PlaceholderView(title: "프로필")
+        case .setting:
+            ProfileEditView()
         }
     }
 }
