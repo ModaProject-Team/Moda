@@ -22,7 +22,7 @@ struct FeedViewState {
 
     // Pagination
     var nextCursor: String = ""
-    var isLoading: Bool = false
+    var isLoading: Bool = true
     var hasMoreData: Bool = true
 
     // Location
@@ -31,12 +31,20 @@ struct FeedViewState {
     // Error
     var errorMessage: String?
 
-    // 검색 결과 또는 전체 목록 반환
+    // 검색 결과 또는 카테고리 필터링된 목록 반환
     var displayProducts: [PostCard] {
-        if searchText.isEmpty {
-            return products
-        } else {
+        if !searchText.isEmpty {
             return filteredProducts
+        }
+
+        // 카테고리 필터링
+        switch selectedCategory {
+        case "중고거래":
+            return products.filter { ($0.price ?? 0) > 0 }
+        case "나눔":
+            return products.filter { ($0.price ?? 0) == 0 }
+        default: // "전체"
+            return products
         }
     }
 }
