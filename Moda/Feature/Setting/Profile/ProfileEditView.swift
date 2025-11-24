@@ -60,12 +60,10 @@ struct ProfileEditView: View {
                         .background(RoundedRectangle(cornerRadius: 10).fill(Color.white))
                 }
             }
-            .alert("완료", isPresented: $store.state.showSuccessAlert) {
-                Button("확인") {
+            .onChange(of: store.state.shouldDismiss) { _, shouldDismiss in
+                if shouldDismiss {
                     dismiss()
                 }
-            } message: {
-                Text("프로필이 저장되었습니다.")
             }
             .alert("오류", isPresented: Binding(
                 get: { store.state.errorMessage != nil },

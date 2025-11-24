@@ -17,5 +17,5 @@ struct ProfileEditState {
     var isLoading: Bool = false
     var isSaving: Bool = false
     var errorMessage: String? = nil
-    var showSuccessAlert: Bool = false
+    var shouldDismiss: Bool = false
 }

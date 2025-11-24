@@ -90,7 +90,7 @@ final class ProfileEditStore {
                     profileImage: imageData
                 )
 
-                state.showSuccessAlert = true
+                state.shouldDismiss = true
             } catch {
                 state.errorMessage = "프로필 저장에 실패했습니다."
                 print("프로필 저장 실패: \(error)")
