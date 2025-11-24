@@ -70,7 +70,6 @@ final class FeedViewStore: NSObject, ObservableObject {
 
         case .selectCategory(let category):
             state.selectedCategory = category
-            Task { await loadPosts(refresh: true) }
 
         case .toggleLike(let postId):
             toggleLikeWithDebounce(postId: postId)
@@ -140,15 +139,6 @@ final class FeedViewStore: NSObject, ObservableObject {
 
             // 최신순 정렬
             newProducts.sort { $0.createdAt > $1.createdAt }
-
-            switch state.selectedCategory {
-            case "중고거래":
-                newProducts = newProducts.filter { ($0.price ?? 0) > 0 }
-            case "나눔":
-                newProducts = newProducts.filter { ($0.price ?? 0) == 0 }
-            default:
-                break // 전체는 필터링 없음
-            }
 
             if refresh {
                 state.products = newProducts
