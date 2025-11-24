@@ -37,7 +37,6 @@ struct LikedPostsView: View {
                                         .padding(.leading, 108)
                                 }
 
-                                // 페이지네이션
                                 if index >= store.state.posts.count - 4 {
                                     Color.clear
                                         .onAppear {
@@ -71,7 +70,6 @@ struct LikedPostsView: View {
     }
 }
 
-// MARK: - Item View
 private struct LikedPostItemView: View {
     let post: LikedPost
     let onLikeTapped: () -> Void
@@ -79,7 +77,6 @@ private struct LikedPostItemView: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            // 이미지
             if let url = post.mediaURL {
                 KFImage(url)
                     .requestModifier(KFHeaders.modifier)
@@ -99,7 +96,6 @@ private struct LikedPostItemView: View {
                     .frame(width: 80, height: 80)
             }
 
-            // 정보
             VStack(alignment: .leading, spacing: 6) {
                 Text(post.title)
                     .font(.system(size: 16, weight: .semibold))
@@ -112,7 +108,6 @@ private struct LikedPostItemView: View {
 
                 Spacer()
 
-                // 프로필
                 HStack(spacing: 6) {
                     if let url = post.profileImageURL {
                         KFImage(url)

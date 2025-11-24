@@ -9,6 +9,7 @@ import SwiftUI
 import PhotosUI
 import Kingfisher
 
+@MainActor
 struct ProfileEditView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var store = ProfileEditStore()
@@ -82,22 +83,55 @@ struct ProfileEditView: View {
     }
 
     private var profileImageSection: some View {
-        PhotosPicker(
+        let selectedImage = store.state.selectedImage
+        let profileImageURL = store.state.profileImageURL
+
+        return PhotosPicker(
             selection: Binding(
-                get: { store.state.selectedItem },
-                set: { store.send(.imageSelected($0)) }
+                get: { MainActor.assumeIsolated { store.state.selectedItem } },
+                set: { newValue in MainActor.assumeIsolated { store.send(.imageSelected(newValue)) } }
             ),
             matching: .images,
             photoLibrary: .shared()
         ) {
-            ZStack {
-                if let selectedImage = store.state.selectedImage {
+            ProfileImageContent(
+                selectedImage: selectedImage,
+                profileImageURL: profileImageURL
+            )
+        }
+    }
+
+    private var nicknameSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("닉네임")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+
+            TextField("닉네임을 입력하세요", text: Binding(
+                get: { MainActor.assumeIsolated { store.state.nickname } },
+                set: { newValue in MainActor.assumeIsolated { store.send(.nicknameChanged(newValue)) } }
+            ))
+            .textFieldStyle(.roundedBorder)
+            .autocorrectionDisabled()
+        }
+    }
+}
+
+// MARK: - Profile Image Content
+private struct ProfileImageContent: View {
+    let selectedImage: UIImage?
+    let profileImageURL: URL?
+
+    var body: some View {
+        ZStack {
+            Group {
+                if let selectedImage = selectedImage {
                     Image(uiImage: selectedImage)
                         .resizable()
                         .scaledToFill()
                         .frame(width: 100, height: 100)
                         .clipShape(Circle())
-                } else if let url = store.state.profileImageURL {
+                } else if let url = profileImageURL {
                     KFImage(url)
                         .requestModifier(KFHeaders.modifier)
                         .placeholder {
@@ -117,35 +151,20 @@ struct ProfileEditView: View {
                     }
                     .frame(width: 100, height: 100)
                 }
-
-                VStack {
-                    Spacer()
-                    HStack {
-                        Spacer()
-                        Image(systemName: "camera.fill")
-                            .font(.system(size: 12))
-                            .foregroundColor(.white)
-                            .padding(6)
-                            .background(Circle().fill(Color.blue1))
-                    }
-                }
-                .frame(width: 100, height: 100)
             }
-        }
-    }
 
-    private var nicknameSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("닉네임")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-
-            TextField("닉네임을 입력하세요", text: Binding(
-                get: { store.state.nickname },
-                set: { store.send(.nicknameChanged($0)) }
-            ))
-            .textFieldStyle(.roundedBorder)
-            .autocorrectionDisabled()
+            VStack {
+                Spacer()
+                HStack {
+                    Spacer()
+                    Image(systemName: "camera.fill")
+                        .font(.system(size: 12))
+                        .foregroundColor(.white)
+                        .padding(6)
+                        .background(Circle().fill(Color.blue1))
+                }
+            }
+            .frame(width: 100, height: 100)
         }
     }
 }
