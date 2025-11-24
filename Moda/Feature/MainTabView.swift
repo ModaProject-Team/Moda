@@ -57,7 +57,7 @@ struct MainTabView: View {
         case .chat:
             ChatListView()
         case .setting:
-            ProfileEditView()
+            SettingView()
         }
     }
 }
