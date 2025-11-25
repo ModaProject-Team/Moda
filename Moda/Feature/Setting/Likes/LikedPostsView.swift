@@ -18,24 +18,18 @@ struct LikedPostsView: View {
                 Color.white.ignoresSafeArea()
 
                 if store.state.isLoading && store.state.posts.isEmpty {
-                    ProgressView()
+                    shimmerList
                 } else if store.state.posts.isEmpty {
-                    Text("찜한 물건이 없어요")
-                        .foregroundStyle(.secondary)
+                    emptyStateView
                 } else {
                     ScrollView {
-                        LazyVStack(spacing: 0) {
+                        LazyVStack(spacing: 12) {
                             ForEach(Array(store.state.posts.enumerated()), id: \.element.id) { index, post in
                                 LikedPostItemView(
                                     post: post,
                                     onLikeTapped: { store.send(.toggleLike(post.id)) },
                                     onTapped: { store.send(.postTapped(post.id)) }
                                 )
-
-                                if index < store.state.posts.count - 1 {
-                                    Divider()
-                                        .padding(.leading, 108)
-                                }
 
                                 if index >= store.state.posts.count - 4 {
                                     Color.clear
@@ -45,13 +39,16 @@ struct LikedPostsView: View {
                                 }
                             }
                         }
+                        .padding(.horizontal, 16)
+                        .padding(.top, 16)
+                        .padding(.bottom, 100)
                     }
                     .refreshable {
                         store.send(.refresh)
                     }
                 }
             }
-            .navigationTitle("좋아요")
+            .navigationTitle("찜 목록")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
@@ -59,13 +56,42 @@ struct LikedPostsView: View {
                         dismiss()
                     } label: {
                         Image(systemName: "xmark")
-                            .foregroundColor(.primary)
+                            .font(.system(size: 18))
+                            .foregroundColor(.gray1)
                     }
                 }
             }
         }
         .task {
             store.send(.onAppear)
+        }
+    }
+
+    private var shimmerList: some View {
+        ScrollView {
+            LazyVStack(spacing: 12) {
+                ForEach(0..<5, id: \.self) { _ in
+                    LikedPostShimmerView()
+                }
+            }
+            .padding(.horizontal, 16)
+            .padding(.top, 16)
+        }
+    }
+
+    private var emptyStateView: some View {
+        VStack(spacing: 16) {
+            Image(systemName: "heart.slash")
+                .font(.system(size: 48))
+                .foregroundColor(.gray3)
+
+            Text("찜한 게시글이 없습니다")
+                .H2()
+                .foregroundColor(.gray2)
+
+            Text("마음에 드는 물건을 찜해보세요")
+                .Body2()
+                .foregroundColor(.gray3)
         }
     }
 }
@@ -81,30 +107,30 @@ private struct LikedPostItemView: View {
                 KFImage(url)
                     .requestModifier(KFHeaders.modifier)
                     .placeholder {
-                        RoundedRectangle(cornerRadius: 8)
-                            .fill(Color.gray.opacity(0.3))
+                        RoundedRectangle(cornerRadius: 12, style: .continuous)
+                            .fill(Color.gray5)
                     }
                     .cacheOriginalImage()
                     .fade(duration: 0.2)
                     .resizable()
                     .aspectRatio(contentMode: .fill)
                     .frame(width: 80, height: 80)
-                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
             } else {
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(Color.gray.opacity(0.3))
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .fill(Color.gray5)
                     .frame(width: 80, height: 80)
             }
 
-            VStack(alignment: .leading, spacing: 6) {
+            VStack(alignment: .leading, spacing: 4) {
                 Text(post.title)
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundColor(.black)
+                    .Body1()
+                    .foregroundColor(.gray1)
                     .lineLimit(2)
 
                 Text("\(post.price)원")
-                    .font(.system(size: 15, weight: .bold))
-                    .foregroundColor(.blue1)
+                    .H2()
+                    .foregroundColor(.gray1)
 
                 Spacer()
 
@@ -113,7 +139,7 @@ private struct LikedPostItemView: View {
                         KFImage(url)
                             .requestModifier(KFHeaders.modifier)
                             .placeholder {
-                                Circle().fill(Color.gray.opacity(0.3))
+                                Circle().fill(Color.gray3)
                             }
                             .cacheOriginalImage()
                             .resizable()
@@ -122,34 +148,90 @@ private struct LikedPostItemView: View {
                             .clipShape(Circle())
                     } else {
                         Circle()
-                            .fill(Color.gray.opacity(0.3))
+                            .fill(Color.gray3)
                             .frame(width: 20, height: 20)
                     }
 
                     Text(post.nickname)
-                        .font(.system(size: 13))
-                        .foregroundColor(.gray)
+                        .Body2()
+                        .foregroundColor(.gray2)
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
 
-            // 좋아요 버튼
             Button {
                 onLikeTapped()
             } label: {
                 Image(systemName: post.isLiked ? "heart.fill" : "heart")
                     .font(.system(size: 20))
-                    .foregroundColor(post.isLiked ? .pink1 : .gray)
+                    .foregroundColor(post.isLiked ? .pink1 : .gray2)
             }
-            .padding(.trailing, 8)
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 12)
-        .background(Color.white)
+        .padding(16)
+        .background(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .fill(Color.gray5)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .stroke(Color.gray4, lineWidth: 0.5)
+        )
         .contentShape(Rectangle())
         .onTapGesture {
             onTapped()
         }
+    }
+}
+
+private struct LikedPostShimmerView: View {
+    var body: some View {
+        HStack(spacing: 12) {
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(Color.gray4)
+                .frame(width: 80, height: 80)
+                .shimmer()
+
+            VStack(alignment: .leading, spacing: 4) {
+                RoundedRectangle(cornerRadius: 4)
+                    .fill(Color.gray4)
+                    .frame(height: 16)
+                    .shimmer()
+
+                RoundedRectangle(cornerRadius: 4)
+                    .fill(Color.gray4)
+                    .frame(width: 80, height: 16)
+                    .shimmer()
+
+                Spacer()
+
+                HStack(spacing: 6) {
+                    Circle()
+                        .fill(Color.gray4)
+                        .frame(width: 20, height: 20)
+                        .shimmer()
+
+                    RoundedRectangle(cornerRadius: 4)
+                        .fill(Color.gray4)
+                        .frame(width: 60, height: 12)
+                        .shimmer()
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+
+            Circle()
+                .fill(Color.gray4)
+                .frame(width: 24, height: 24)
+                .shimmer()
+        }
+        .padding(16)
+        .background(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .fill(Color.gray5)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .stroke(Color.gray4, lineWidth: 0.5)
+        )
     }
 }
 
