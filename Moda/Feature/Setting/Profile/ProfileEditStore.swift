@@ -84,11 +84,18 @@ final class ProfileEditStore {
                 var imageData: Data? = nil
 
                 if let selectedImage = state.selectedImage {
-                    imageData = selectedImage.jpegData(compressionQuality: 0.8)
+                    // ImageCompressor를 사용하여 이미지 압축
+                    if let compressed = ImageCompressor.shared.compress(
+                        image: selectedImage,
+                        maxSizeInKB: 100
+                    ) {
+                        imageData = compressed.data
+                    }
                 }
 
-                let nickToSend = state.nickname.isEmpty ? nil : state.nickname
-                let statusToSend = state.statusMessage.isEmpty ? nil : state.statusMessage
+                // 닉네임이 비어있거나 공백만 있으면 nil로 전송
+                let nickToSend = state.nickname.trimmingCharacters(in: .whitespaces).isEmpty ? nil : state.nickname.trimmingCharacters(in: .whitespaces)
+                let statusToSend = state.statusMessage.trimmingCharacters(in: .whitespaces).isEmpty ? nil : state.statusMessage
 
                 _ = try await userProfileAPI.updateMyProfile(
                     nick: nickToSend,
