@@ -19,7 +19,7 @@ final class PostAPI: PostAPIProtocol {
         self.networkService = networkService
     }
 
-    func uploadFiles(files: [Data]) async throws -> FileUploadResponse {
+    func uploadFiles(files: [FileData]) async throws -> FileUploadResponse {
         let endpoint = PostRouter.uploadFiles(files: files)
 
         guard let multipartData = endpoint.multipartData() else {
