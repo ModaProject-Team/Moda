@@ -159,29 +159,17 @@ struct FriendListView: View {
     }
 
     private var headerSection: some View {
-        HStack(spacing: 20) {
-            Text("친구")
-                .H1()
-                .foregroundColor(.gray1)
-
-            Spacer()
-
-            Button {
-                navigator.push(.friendSearch(friends: store.friendPeople))
-            } label: {
-                Image(systemName: "magnifyingglass")
-                    .foregroundColor(.gray1)
-            }
-
-            Button {
-                navigator.push(.friendAdd)
-            } label: {
-                Image(systemName: "person.badge.plus")
-                    .foregroundColor(.gray1)
-            }
-        }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 12)
+        TabHeaderView(
+            title: "친구",
+            actions: [
+                HeaderAction(icon: "magnifyingglass") {
+                    navigator.push(.friendSearch(friends: store.friendPeople))
+                },
+                HeaderAction(icon: "person.badge.plus") {
+                    navigator.push(.friendAdd)
+                }
+            ]
+        )
         .background(Color.white)
     }
 
