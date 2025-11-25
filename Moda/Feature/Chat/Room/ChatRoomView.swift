@@ -26,6 +26,7 @@ struct ChatRoomState {
 
 enum ChatRoomIntent {
     case onAppear
+    case onDisappear
     case inputTextChanged(String)
     case sendButtonTapped
     case dismissError
@@ -37,6 +38,7 @@ final class ChatRoomStore: ObservableObject {
     private let roomId: String
     private let chatAPI: ChatAPIProtocol
     private let userProfileAPI: UserProfileAPIProtocol
+    private let socketService: ChatSocketServiceProtocol
 
     // 내 사용자 ID (보낸 사람 판별용)
     private var myUserId: String?
@@ -45,18 +47,23 @@ final class ChatRoomStore: ObservableObject {
         roomId: String,
         participantName: String,
         chatAPI: ChatAPIProtocol = ChatAPI.shared,
-        userProfileAPI: UserProfileAPIProtocol = UserProfileAPI.shared
+        userProfileAPI: UserProfileAPIProtocol = UserProfileAPI.shared,
+        socketService: ChatSocketServiceProtocol = ChatSocketService()
     ) {
         self.roomId = roomId
         self.chatAPI = chatAPI
         self.userProfileAPI = userProfileAPI
+        self.socketService = socketService
         self.state.participantName = participantName
+        setupSocketCallbacks()
     }
 
     func send(_ intent: ChatRoomIntent) {
         switch intent {
         case .onAppear:
-            Task { await loadInitial() }
+            Task { await loadAndConnect() }
+        case .onDisappear:
+            disconnectSocket()
         case .inputTextChanged(let text):
             state.inputText = text
         case .sendButtonTapped:
@@ -66,18 +73,55 @@ final class ChatRoomStore: ObservableObject {
         }
     }
 
-    // MARK: - Load
-    private func loadInitial() async {
+    private func setupSocketCallbacks() {
+        socketService.onConnect = { [weak self] in
+            print("SOCKET CONNECTED")
+        }
+        socketService.onDisconnect = { [weak self] in
+            print("SOCKET DISCONNECTED")
+        }
+        socketService.onError = { [weak self] message in
+            Task { @MainActor in
+                self?.state.errorMessage = message
+            }
+        }
+        socketService.onChat = { [weak self] dto in
+            guard let self else { return }
+            let mapped = self.mapToViewModel(dto)
+            Task { @MainActor in
+                self.state.messages.append(mapped)
+            }
+        }
+    }
+
+    // MARK: - Load + Socket
+    private func loadAndConnect() async {
         guard !state.isLoading else { return }
         await setLoading(true)
         defer { Task { await setLoading(false) } }
 
         do {
             try await ensureMyUserId()
-            try await loadMessages(cursorDate: nil) // 초기 전체/최근 로드
+            try await loadMessages(cursorDate: nil) // 초기 로드(현재는 전체/최신 정책에 맞춰 서버가 반환)
+            connectSocket()
         } catch {
             await setError(error)
         }
+    }
+
+    private func connectSocket() {
+        // 토큰이 없으면 연결 시도하지 않음
+        guard TokenManager.shared.accessToken != nil else {
+            Task { @MainActor in
+                self.state.errorMessage = "인증이 필요합니다."
+            }
+            return
+        }
+        socketService.connect(roomId: roomId)
+    }
+
+    private func disconnectSocket() {
+        socketService.disconnect()
     }
 
     private func ensureMyUserId() async throws {
@@ -91,8 +135,6 @@ final class ChatRoomStore: ObservableObject {
         let history = try await chatAPI.getMessages(roomId: roomId, cursorDate: cursorDate)
         let mapped = history.data.map { mapToViewModel($0) }
         await MainActor.run {
-            // 서버가 최신순/오래된순 어떤 정렬인지 명세에 따라 다를 수 있음.
-            // 여기서는 createdAt 오름차순으로 정렬해 표시.
             self.state.messages = mapped.sorted { $0.createdAt < $1.createdAt }
         }
     }
@@ -192,6 +234,9 @@ struct ChatRoomView: View {
         .navigationBarHidden(true)
         .task {
             store.send(.onAppear)
+        }
+        .onDisappear {
+            store.send(.onDisappear)
         }
     }
 
