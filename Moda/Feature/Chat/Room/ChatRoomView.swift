@@ -16,117 +16,147 @@ struct ChatMessage: Identifiable {
     let isMine: Bool
 }
 
-extension ChatMessage {
-    static func mockData(for roomId: String) -> [ChatMessage] {
-        let myUserId = "myUserId"
-        let opponentId = "opponentId"
-
-        return [
-            ChatMessage(
-                id: "1",
-                content: "야 그거 아직 있어?",
-                senderId: opponentId,
-                senderName: "상대방",
-                createdAt: Date().addingTimeInterval(-3600),
-                isMine: false
-            ),
-            ChatMessage(
-                id: "2",
-                content: "ㅇㅇ 있어",
-                senderId: myUserId,
-                senderName: "나",
-                createdAt: Date().addingTimeInterval(-3500),
-                isMine: true
-            ),
-            ChatMessage(
-                id: "3",
-                content: "상태 어때?",
-                senderId: opponentId,
-                senderName: "상대방",
-                createdAt: Date().addingTimeInterval(-3400),
-                isMine: false
-            ),
-            ChatMessage(
-                id: "4",
-                content: "거의 새거야 몇 번 안 씀",
-                senderId: myUserId,
-                senderName: "나",
-                createdAt: Date().addingTimeInterval(-3300),
-                isMine: true
-            ),
-            ChatMessage(
-                id: "5",
-                content: "ㅇㅋ 직접 만나서 거래 가능?",
-                senderId: opponentId,
-                senderName: "상대방",
-                createdAt: Date().addingTimeInterval(-1800),
-                isMine: false
-            ),
-            ChatMessage(
-                id: "6",
-                content: "ㄱㄱ 언제 돼?",
-                senderId: myUserId,
-                senderName: "나",
-                createdAt: Date().addingTimeInterval(-1700),
-                isMine: true
-            ),
-            ChatMessage(
-                id: "7",
-                content: "내일 3시 ㄱ?",
-                senderId: opponentId,
-                senderName: "상대방",
-                createdAt: Date().addingTimeInterval(-600),
-                isMine: false
-            ),
-            ChatMessage(
-                id: "8",
-                content: "ㅇㅋ 어디서 볼까",
-                senderId: myUserId,
-                senderName: "나",
-                createdAt: Date().addingTimeInterval(-300),
-                isMine: true
-            )
-        ]
-    }
-}
-
 struct ChatRoomState {
     var messages: [ChatMessage] = []
     var inputText: String = ""
     var participantName: String = ""
+    var isLoading: Bool = false
+    var errorMessage: String?
 }
 
 enum ChatRoomIntent {
+    case onAppear
     case inputTextChanged(String)
     case sendButtonTapped
+    case dismissError
 }
 
 final class ChatRoomStore: ObservableObject {
     @Published private(set) var state = ChatRoomState()
 
-    init(roomId: String, participantName: String) {
-        state.messages = ChatMessage.mockData(for: roomId)
-        state.participantName = participantName
+    private let roomId: String
+    private let chatAPI: ChatAPIProtocol
+    private let userProfileAPI: UserProfileAPIProtocol
+
+    // 내 사용자 ID (보낸 사람 판별용)
+    private var myUserId: String?
+
+    init(
+        roomId: String,
+        participantName: String,
+        chatAPI: ChatAPIProtocol = ChatAPI.shared,
+        userProfileAPI: UserProfileAPIProtocol = UserProfileAPI.shared
+    ) {
+        self.roomId = roomId
+        self.chatAPI = chatAPI
+        self.userProfileAPI = userProfileAPI
+        self.state.participantName = participantName
     }
 
     func send(_ intent: ChatRoomIntent) {
         switch intent {
+        case .onAppear:
+            Task { await loadInitial() }
         case .inputTextChanged(let text):
             state.inputText = text
         case .sendButtonTapped:
-            guard !state.inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+            Task { await sendCurrentMessage() }
+        case .dismissError:
+            state.errorMessage = nil
+        }
+    }
 
-            let newMessage = ChatMessage(
-                id: UUID().uuidString,
-                content: state.inputText,
-                senderId: "myUserId",
-                senderName: "나",
-                createdAt: Date(),
-                isMine: true
-            )
+    // MARK: - Load
+    private func loadInitial() async {
+        guard !state.isLoading else { return }
+        await setLoading(true)
+        defer { Task { await setLoading(false) } }
 
-            state.messages.append(newMessage)
-            state.inputText = ""
+        do {
+            try await ensureMyUserId()
+            try await loadMessages(cursorDate: nil) // 초기 전체/최근 로드
+        } catch {
+            await setError(error)
+        }
+    }
+
+    private func ensureMyUserId() async throws {
+        if myUserId == nil {
+            let me = try await userProfileAPI.getMyProfile()
+            self.myUserId = me.userId
+        }
+    }
+
+    private func loadMessages(cursorDate: String?) async throws {
+        let history = try await chatAPI.getMessages(roomId: roomId, cursorDate: cursorDate)
+        let mapped = history.data.map { mapToViewModel($0) }
+        await MainActor.run {
+            // 서버가 최신순/오래된순 어떤 정렬인지 명세에 따라 다를 수 있음.
+            // 여기서는 createdAt 오름차순으로 정렬해 표시.
+            self.state.messages = mapped.sorted { $0.createdAt < $1.createdAt }
+        }
+    }
+
+    // MARK: - Send
+    private func sendCurrentMessage() async {
+        let text = state.inputText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !text.isEmpty else { return }
+        await MainActor.run { state.inputText = "" }
+
+        do {
+            try await ensureMyUserId()
+            let sent = try await chatAPI.sendMessage(roomId: roomId, content: text, files: nil)
+            let mapped = mapToViewModel(sent)
+            await MainActor.run {
+                self.state.messages.append(mapped)
+            }
+        } catch {
+            await setError(error)
+        }
+    }
+
+    // MARK: - Mapping
+    private func mapToViewModel(_ dto: ChatMessageResponse) -> ChatMessage {
+        let created = parseISODate(dto.createdAt)
+        let myId = myUserId ?? ""
+        let isMine = (dto.sender.userId == myId)
+
+        let text: String
+        if let content = dto.content, !content.isEmpty {
+            text = content
+        } else {
+            text = dto.files.isEmpty ? "" : "파일"
+        }
+
+        return ChatMessage(
+            id: dto.chatId,
+            content: text,
+            senderId: dto.sender.userId,
+            senderName: dto.sender.nick,
+            createdAt: created,
+            isMine: isMine
+        )
+    }
+
+    private func parseISODate(_ string: String) -> Date {
+        let iso = ISO8601DateFormatter()
+        iso.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return iso.date(from: string) ?? Date()
+    }
+
+    // MARK: - UI State helpers
+    @MainActor
+    private func setLoading(_ loading: Bool) {
+        state.isLoading = loading
+        if loading { state.errorMessage = nil }
+    }
+
+    @MainActor
+    private func setError(_ error: Error) {
+        if let net = error as? NetworkError {
+            state.errorMessage = net.localizedDescription
+        } else {
+            state.errorMessage = error.localizedDescription
         }
     }
 }
@@ -147,11 +177,22 @@ struct ChatRoomView: View {
 
             VStack(spacing: 0) {
                 headerSection
-                messageListSection
+
+                if store.state.isLoading {
+                    loadingSection
+                } else if let message = store.state.errorMessage {
+                    errorSection(message: message)
+                } else {
+                    messageListSection
+                }
+
                 inputSection
             }
         }
         .navigationBarHidden(true)
+        .task {
+            store.send(.onAppear)
+        }
     }
 
     private var headerSection: some View {
@@ -182,6 +223,28 @@ struct ChatRoomView: View {
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
         .background(Color.white)
+    }
+
+    private var loadingSection: some View {
+        VStack {
+            Spacer()
+            ProgressView()
+            Spacer()
+        }
+    }
+
+    private func errorSection(message: String) -> some View {
+        VStack(spacing: 12) {
+            Spacer()
+            Text(message)
+                .Body1()
+                .foregroundColor(.gray2)
+            Button("다시 시도") {
+                store.send(.onAppear)
+            }
+            .buttonStyle(.bordered)
+            Spacer()
+        }
     }
 
     private var messageListSection: some View {
