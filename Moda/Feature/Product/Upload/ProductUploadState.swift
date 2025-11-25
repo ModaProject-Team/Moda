@@ -7,6 +7,11 @@
 
 import SwiftUI
 
+enum MediaItem {
+    case image(UIImage)
+    case video(url: URL, thumbnail: UIImage)
+}
+
 struct ProductUploadState {
     var title: String = ""
     var description: String = ""
@@ -14,10 +19,11 @@ struct ProductUploadState {
     var isSelling: Bool = true
     var isPriceNegotiable: Bool = false
     var location: String = ""
-    var selectedImages: [UIImage] = []
+    var selectedMedia: [MediaItem] = []
     var isUploading: Bool = false
     var uploadError: String?
     var uploadedPostId: String?
+    var showFileSizeAlert: Bool = false
 
     // Location data
     var locationName: String = ""
@@ -27,11 +33,11 @@ struct ProductUploadState {
 
     // 작성 완료 버튼 활성화 조건
     var isFormValid: Bool {
-        let hasImages = !selectedImages.isEmpty
+        let hasMedia = !selectedMedia.isEmpty
         let hasTitle = !title.trimmingCharacters(in: .whitespaces).isEmpty
         let hasPrice = !isSelling || !price.trimmingCharacters(in: .whitespaces).isEmpty
         let hasLocation = !locationName.trimmingCharacters(in: .whitespaces).isEmpty
 
-        return hasImages && hasTitle && hasPrice && hasLocation
+        return hasMedia && hasTitle && hasPrice && hasLocation
     }
 }

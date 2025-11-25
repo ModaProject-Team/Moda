@@ -40,6 +40,13 @@ struct PostCard: Identifiable {
         return "\(formattedNumber)원"
     }
 
+    var isVideo: Bool {
+        guard let imageURL = imageURL else { return false }
+        let videoExtensions = ["mp4", "mov", "m4v", "avi", "mkv"]
+        let fileExtension = (imageURL as NSString).pathExtension.lowercased()
+        return videoExtensions.contains(fileExtension)
+    }
+
     var formattedDate: String {
         let isoFormatter = ISO8601DateFormatter()
         isoFormatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]

@@ -9,14 +9,12 @@ import SwiftUI
 import Observation
 import Kingfisher
 
-//MARK: 검색 결과 모델
 private struct FriendSearchItem: Identifiable, Hashable {
     let id: String          // userId
     let nickname: String    // nick
     let profileImageURL: URL?
 }
 
-// MARK: - State
 private struct FriendAddState {
     var query: String = ""
     let maxLength: Int = 20
@@ -40,7 +38,6 @@ private struct FriendAddState {
 }
 
 
-// MARK: - Intent
 private enum FriendAddIntent {
     case onAppear
     case queryChanged(String)
@@ -55,7 +52,6 @@ private enum FriendAddIntent {
     case cardCloseTapped
 }
 
-// MARK: - Store (@Observable)
 @MainActor
 @Observable
 private final class FriendAddStore {
@@ -91,7 +87,6 @@ private final class FriendAddStore {
         }
     }
 
-    // MARK: - Handlers
     private func handleOnAppear() {
         // 최초 1회 내 프로필 로드(내 userId 확보)
         guard myUserId == nil else { return }
@@ -230,7 +225,6 @@ private final class FriendAddStore {
         state.isFollowUpdating = false
     }
 
-    // MARK: - Helpers
     private func clampToMaxLength(_ text: String) -> String {
         if text.count > state.maxLength {
             return String(text.prefix(state.maxLength))
@@ -240,95 +234,40 @@ private final class FriendAddStore {
     }
 }
 
-// MARK: - View
 struct FriendAddView: View {
     @State private var store = FriendAddStore()
     @FocusState private var isSearching: Bool
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
-        VStack(spacing: 0) {
-            FriendIDSearchBar(
-                text: Binding(
-                    get: { store.state.query },
-                    set: { store.send(.queryChanged($0)) }
-                ),
-                isFocused: _isSearching,
-                maxLength: store.state.maxLength,
-                onSubmit: {
-                    // 키보드의 Search 버튼을 눌렀을 때만 검색
-                    store.send(.searchSubmitted)
-                    isSearching = false
-                }, onClear: {
-                    store.send(.clearTapped)
-                }
-            )
+        ZStack {
+            Color.white
+                .ignoresSafeArea()
 
-            // 선택된 카드가 있으면 카드만 노출, 아니면 기존 결과 영역
-            if let selected = store.state.selectedItem {
-                FriendSelectedCard(
-                    item: selected,
-                    isLoading: store.state.isFollowUpdating,
-                    buttonTitle: (store.state.selectedIsFriend == true) ? "친구 취소" : "친구 추가",
-                    onButtonTap: {
-                        store.send(.friendAddButtonTapped)
-                    },
-                    onCloseTap: {
-                        store.send(.cardCloseTapped)
-                    }
-                )
-                .padding(.horizontal, 16)
-                .padding(.top, 12)
-                .frame(maxWidth: .infinity, maxHeight: 320, alignment: .top)
+            VStack(spacing: 0) {
+                searchBarSection
 
-                Spacer()
-            } else {
-                // 결과 영역
-                Group {
-                    if store.state.isLoading {
-                        ProgressView("검색 중…")
-                            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
-                    } else if let message = store.state.errorMessage {
-                        ContentUnavailableView(
-                            "오류가 발생했어요",
-                            systemImage: "exclamationmark.triangle",
-                            description: Text(message)
-                        )
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    } else if !store.state.hasSearched {
-                        // 초기 상태(중립 안내): 아직 검색하지 않았을 때
-                        ContentUnavailableView(
-                            "친구를 검색해 보세요",
-                            systemImage: "person.crop.circle.badge.magnifyingglass",
-                            description: Text("닉네임을 입력하고 검색을 눌러보세요.")
-                        )
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    } else if store.state.results.isEmpty {
-                        // 검색은 했지만 결과가 없을 때
-                        ContentUnavailableView(
-                            "검색 결과가 없어요",
-                            systemImage: "person.fill.questionmark",
-                            description: Text("다른 닉네임으로 다시 시도해 보세요.")
-                        )
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    } else {
-                        List(store.state.results) { item in
-                            Button {
-                                store.send(.rowTapped(item))
-                                isSearching = false
-                            } label: {
-                                FriendRow(item: item)
-                            }
-                        }
-                        .listStyle(.plain)
-                    }
+                if let selected = store.state.selectedItem {
+                    selectedCardSection(selected: selected)
+                } else {
+                    resultsSection
                 }
             }
         }
         .navigationTitle("닉네임으로 추가")
-        .toolbarTitleDisplayMode(.inline)
+        .navigationBarTitleDisplayMode(.inline)
+        .navigationBarBackButtonHidden(true)
+        .toolbar {
+            ToolbarItem(placement: .navigationBarLeading) {
+                Button {
+                    dismiss()
+                } label: {
+                    Image(systemName: "chevron.left")
+                        .foregroundColor(.gray1)
+                }
+            }
+        }
         .task {
-            // 진입 시 내 ID 로드 + 키보드 포커스
             store.send(.onAppear)
             try? await Task.sleep(for: .milliseconds(250))
             await MainActor.run {
@@ -336,9 +275,142 @@ struct FriendAddView: View {
             }
         }
     }
+
+    private var searchBarSection: some View {
+        FriendIDSearchBar(
+            text: Binding(
+                get: { store.state.query },
+                set: { store.send(.queryChanged($0)) }
+            ),
+            isFocused: _isSearching,
+            maxLength: store.state.maxLength,
+            onSubmit: {
+                store.send(.searchSubmitted)
+                isSearching = false
+            }, onClear: {
+                store.send(.clearTapped)
+            }
+        )
+    }
+
+    private func selectedCardSection(selected: FriendSearchItem) -> some View {
+        VStack {
+            FriendSelectedCard(
+                item: selected,
+                isLoading: store.state.isFollowUpdating,
+                buttonTitle: (store.state.selectedIsFriend == true) ? "친구 취소" : "친구 추가",
+                onButtonTap: {
+                    store.send(.friendAddButtonTapped)
+                },
+                onCloseTap: {
+                    store.send(.cardCloseTapped)
+                }
+            )
+            .padding(.horizontal, 16)
+            .padding(.top, 12)
+            .frame(maxWidth: .infinity, maxHeight: 320, alignment: .top)
+
+            Spacer()
+        }
+    }
+
+    private var resultsSection: some View {
+        Group {
+            if store.state.isLoading {
+                loadingSection
+            } else if let message = store.state.errorMessage {
+                errorSection(message: message)
+            } else if !store.state.hasSearched {
+                emptySearchSection
+            } else if store.state.results.isEmpty {
+                noResultsSection
+            } else {
+                searchResultsList
+            }
+        }
+    }
+
+    private var loadingSection: some View {
+        VStack(spacing: 12) {
+            Spacer()
+            ProgressView()
+            Text("검색 중…")
+                .Body1()
+                .foregroundColor(.gray2)
+            Spacer()
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    private func errorSection(message: String) -> some View {
+        VStack(spacing: 12) {
+            Spacer()
+            Image(systemName: "exclamationmark.triangle")
+                .font(.system(size: 48))
+                .foregroundColor(.gray3)
+            Text("오류가 발생했어요")
+                .Body1()
+                .foregroundColor(.gray2)
+            Text(message)
+                .Body2()
+                .foregroundColor(.gray3)
+            Spacer()
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    private var emptySearchSection: some View {
+        VStack(spacing: 12) {
+            Spacer()
+            Image(systemName: "person.crop.circle.badge.magnifyingglass")
+                .font(.system(size: 48))
+                .foregroundColor(.gray3)
+            Text("친구를 검색해 보세요")
+                .Body1()
+                .foregroundColor(.gray2)
+            Text("닉네임을 입력하고 검색을 눌러보세요")
+                .Body2()
+                .foregroundColor(.gray3)
+            Spacer()
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    private var noResultsSection: some View {
+        VStack(spacing: 12) {
+            Spacer()
+            Image(systemName: "person.fill.questionmark")
+                .font(.system(size: 48))
+                .foregroundColor(.gray3)
+            Text("검색 결과가 없어요")
+                .Body1()
+                .foregroundColor(.gray2)
+            Text("다른 닉네임으로 다시 시도해 보세요")
+                .Body2()
+                .foregroundColor(.gray3)
+            Spacer()
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    private var searchResultsList: some View {
+        ScrollView(showsIndicators: false) {
+            LazyVStack(spacing: 0) {
+                ForEach(store.state.results) { item in
+                    Button {
+                        store.send(.rowTapped(item))
+                        isSearching = false
+                    } label: {
+                        FriendRow(item: item)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(.bottom, 100)
+        }
+    }
 }
 
-// MARK: - Search Bar
 private struct FriendIDSearchBar: View {
     @Binding var text: String
     @FocusState var isFocused: Bool
@@ -373,7 +445,6 @@ private struct FriendIDSearchBar: View {
     }
 }
 
-// MARK: - 친구 선택 카드
 private struct FriendSelectedCard: View {
     let item: FriendSearchItem
     let isLoading: Bool
@@ -443,37 +514,37 @@ private struct FriendSelectedCard: View {
     }
 }
 
-// MARK: - Result Row
 private struct FriendRow: View {
     let item: FriendSearchItem
 
     var body: some View {
         HStack(spacing: 12) {
             ProfileImageView(url: item.profileImageURL)
-                .frame(width: 48, height: 48)
+                .frame(width: 52, height: 52)
 
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: 4) {
                 Text(item.nickname)
-                    .font(.body.weight(.semibold))
+                    .H2()
+                    .foregroundColor(.gray1)
                 Text(item.id)
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
+                    .Body2()
+                    .foregroundColor(.gray2)
             }
 
             Spacer()
         }
-        .padding(.vertical, 6)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 14)
     }
 }
 
-// MARK: - Image View (Kingfisher + KFHeaders)
 private struct ProfileImageView: View {
     let url: URL?
 
     var body: some View {
         if let url {
             KFImage(url)
-                .requestModifier(KFHeaders.modifier) // 인증/공통 헤더
+                .requestModifier(KFHeaders.modifier)
                 .placeholder { placeholder }
                 .cacheOriginalImage()
                 .fade(duration: 0.2)
@@ -488,9 +559,9 @@ private struct ProfileImageView: View {
 
     private var placeholder: some View {
         ZStack {
-            Circle().fill(Color.gray.opacity(0.2))
+            Circle().fill(Color.gray3)
             Image(systemName: "person.fill")
-                .foregroundStyle(.secondary)
+                .foregroundColor(.white)
         }
     }
 }

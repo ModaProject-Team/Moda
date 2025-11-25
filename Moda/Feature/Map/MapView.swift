@@ -12,6 +12,7 @@ import CoreLocation
 struct MapView: View {
 
     @StateObject private var store = MapStore()
+    @EnvironmentObject var navigator: AppNavigator
 
     var body: some View {
         ZStack {
@@ -150,9 +151,15 @@ struct MapView: View {
                         }
                     )) {
                         ForEach(Array(store.state.sortedPosts.enumerated()), id: \.element.id) { index, post in
-                            MapPostCardView(post: post) { postId, isLiked in
-                                store.send(.toggleLike(postId: postId, isLiked: isLiked))
-                            }
+                            MapPostCardView(
+                                post: post,
+                                onLikeTapped: { postId, isLiked in
+                                    store.send(.toggleLike(postId: postId, isLiked: isLiked))
+                                },
+                                onTapped: {
+                                    navigator.push(.productDetail(postId: post.id))
+                                }
+                            )
                                 .tag(index)
                                 .padding(.top, 10)
                         }
@@ -224,8 +231,19 @@ struct MapView: View {
                 },
                 onLikeTapped: { postId, isLiked in
                     store.send(.toggleLike(postId: postId, isLiked: isLiked))
+                },
+                onPostTapped: { postId in
+                    store.send(.dismissClusterSheet)
+                    navigator.push(.productDetail(postId: postId))
                 }
             )
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .postLikeUpdated)) { notification in
+            if let userInfo = notification.userInfo,
+               let postId = userInfo["postId"] as? String,
+               let isLiked = userInfo["isLiked"] as? Bool {
+                store.send(.updateLikeFromExternal(postId: postId, isLiked: isLiked))
+            }
         }
     }
 }

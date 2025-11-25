@@ -18,13 +18,13 @@ struct QuickActionButton: View {
     private var iconColor: Color {
         switch icon {
         case "arrow.up.circle.fill":
-            return Color.green1
+            return .green1
         case "heart.fill":
-            return Color.pink1
+            return .pink1
         case "clock.fill":
-            return Color.blue1
+            return .blue1
         default:
-            return Color.gray1
+            return .gray1
         }
     }
 
@@ -43,7 +43,7 @@ struct QuickActionButton: View {
             .padding(.vertical, 10)
             .background(
                 RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .fill(Color.white.opacity(0.6))
+                    .fill(.white.opacity(0.6))
             )
         }
     }
@@ -54,6 +54,7 @@ struct PostCardView: View {
     let itemWidth: CGFloat
     let currentLocation: CLLocationCoordinate2D?
     let onLikeTapped: () -> Void
+    let onTapped: () -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -62,6 +63,8 @@ struct PostCardView: View {
             infoSection
         }
         .frame(width: itemWidth, alignment: .leading)
+        .contentShape(Rectangle())
+        .onTapGesture(perform: onTapped)
     }
 
     private var profileSection: some View {
@@ -94,7 +97,7 @@ struct PostCardView: View {
                 HStack(spacing: 4) {
                     Image(systemName: product.isLiked ? "heart.fill" : "heart")
                         .font(.system(size: 16, weight: .semibold))
-                        .foregroundColor(product.isLiked ? Color.pink1 : Color.gray1)
+                        .foregroundColor(product.isLiked ? .pink1 : .gray1)
 
                     Text("\(product.likeCount)")
                         .Body1()
@@ -109,19 +112,26 @@ struct PostCardView: View {
     private var imageSection: some View {
         Group {
             if let imageURL = product.imageURL, !imageURL.isEmpty {
-                KFImage(URL(string: "\(NetworkConfig.baseURL)/v1\(imageURL)"))
-                    .requestModifier(KFHeaders.modifier)
-                    .placeholder {
-                        RoundedRectangle(cornerRadius: 12, style: .continuous)
-                            .fill(Color.gray5)
-                            .frame(width: itemWidth, height: itemWidth)
-                    }
-                    .cacheOriginalImage()
-                    .fade(duration: 0.2)
-                    .resizable()
-                    .aspectRatio(contentMode: .fit)
-                    .frame(width: itemWidth)
-                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                if product.isVideo {
+                    VideoPlayerView(
+                        url: URL(string: "\(NetworkConfig.baseURL)/v1\(imageURL)")!,
+                        itemWidth: itemWidth
+                    )
+                } else {
+                    KFImage(URL(string: "\(NetworkConfig.baseURL)/v1\(imageURL)"))
+                        .requestModifier(KFHeaders.modifier)
+                        .placeholder {
+                            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                .fill(Color.gray5)
+                                .frame(width: itemWidth, height: itemWidth)
+                        }
+                        .cacheOriginalImage()
+                        .fade(duration: 0.2)
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: itemWidth)
+                        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                }
             } else {
                 RoundedRectangle(cornerRadius: 12, style: .continuous)
                     .fill(Color.gray5)
@@ -138,26 +148,27 @@ struct PostCardView: View {
                 .lineLimit(2)
                 .fixedSize(horizontal: false, vertical: true)
 
-            HStack(spacing: 4) {
-                if let distance = product.formattedDistance(from: currentLocation.map { ($0.latitude, $0.longitude) }) {
-                    Text(distance)
-                        .Body2()
-                        .foregroundColor(.gray2)
+            VStack(alignment: .leading, spacing: 2) {
+                HStack(spacing: 4) {
+                    if let distance = product.formattedDistance(from: currentLocation.map { ($0.latitude, $0.longitude) }) {
+                        Text(distance)
+                            .Body2()
+                            .foregroundColor(.gray2)
+                            .lineLimit(1)
 
-                    Text("·")
-                        .Body2()
-                        .foregroundColor(.gray2)
-                }
+                        Text("·")
+                            .Body2()
+                            .foregroundColor(.gray2)
+                    }
 
-                if let location = product.formattedLocation {
-                    Text(location)
-                        .Body2()
-                        .foregroundColor(.gray2)
-                        .lineLimit(1)
+                    if let location = product.formattedLocation {
+                        Text(location)
+                            .Body2()
+                            .foregroundColor(.gray2)
+                            .lineLimit(1)
+                    }
 
-                    Text("·")
-                        .Body2()
-                        .foregroundColor(.gray2)
+                    Spacer(minLength: 0)
                 }
 
                 Text(product.formattedDate)

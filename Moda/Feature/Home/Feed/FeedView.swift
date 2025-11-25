@@ -7,7 +7,6 @@
 
 import SwiftUI
 
-// MARK: - View
 struct FeedView: View {
     @StateObject private var store = FeedViewStore()
     @EnvironmentObject var navigator: AppNavigator
@@ -28,8 +27,27 @@ struct FeedView: View {
 //                    userInfoCard
                     ScrollView(showsIndicators: false) {
                         VStack(spacing: 20) {
-                            productSectionView(itemWidth: itemWidth, spacing: spacing, horizontalPadding: horizontalPadding)
-                            
+                            ProductGridView(
+                                products: store.state.displayProducts,
+                                itemWidth: itemWidth,
+                                spacing: spacing,
+                                horizontalPadding: horizontalPadding,
+                                currentLocation: store.state.currentLocation,
+                                isLoading: store.state.isLoading && store.state.products.isEmpty,
+                                emptyMessage: store.state.isSearching ? "검색 결과가 없습니다." : "게시글이 없습니다.",
+                                onLikeTapped: { postId in
+                                    store.send(.toggleLike(postId))
+                                },
+                                onProductTapped: { postId in
+                                    navigator.push(.productDetail(postId: postId))
+                                },
+                                onLoadMore: {
+                                    if !store.state.isSearching {
+                                        store.send(.loadMore)
+                                    }
+                                }
+                            )
+
                             if store.state.isLoading && !store.state.products.isEmpty {
                                 ProgressView()
                                     .padding()
@@ -46,6 +64,17 @@ struct FeedView: View {
         }
         .onAppear {
             store.send(.onAppear)
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .postDeleted)) { _ in
+            store.send(.refresh)
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .postLikeUpdated)) { notification in
+            if let userInfo = notification.userInfo,
+               let postId = userInfo["postId"] as? String,
+               let isLiked = userInfo["isLiked"] as? Bool,
+               let likeCount = userInfo["likeCount"] as? Int {
+                store.send(.updateLikeFromExternal(postId: postId, isLiked: isLiked, likeCount: likeCount))
+            }
         }
     }
 
@@ -151,66 +180,6 @@ struct FeedView: View {
         .padding(.horizontal, 16)
     }
      */
-
-    @ViewBuilder
-    private func productSectionView(itemWidth: CGFloat, spacing: CGFloat, horizontalPadding: CGFloat) -> some View {
-        let products = store.state.displayProducts
-
-        if products.isEmpty && store.state.isLoading {
-            ProgressView()
-                .frame(maxWidth: .infinity)
-                .padding(.top, 50)
-        } else if products.isEmpty {
-            Text(store.state.isSearching ? "검색 결과가 없습니다." : "게시글이 없습니다.")
-                .Body1()
-                .foregroundColor(.gray2)
-                .frame(maxWidth: .infinity)
-                .padding(.top, 50)
-        } else {
-            HStack(alignment: .top, spacing: spacing) {
-                // 왼쪽 열
-                VStack(spacing: 12) {
-                    ForEach(Array(products.enumerated().filter { $0.offset % 2 == 0 }), id: \.element.id) { index, product in
-                        PostCardView(
-                            product: product,
-                            itemWidth: itemWidth,
-                            currentLocation: store.state.currentLocation,
-                            onLikeTapped: {
-                                store.send(.toggleLike(product.id))
-                            }
-                        )
-                        .onAppear {
-                            if index >= products.count - 4 && !store.state.isSearching {
-                                store.send(.loadMore)
-                            }
-                        }
-                    }
-                }
-                .frame(width: itemWidth)
-
-                // 오른쪽 열
-                VStack(spacing: 12) {
-                    ForEach(Array(products.enumerated().filter { $0.offset % 2 == 1 }), id: \.element.id) { index, product in
-                        PostCardView(
-                            product: product,
-                            itemWidth: itemWidth,
-                            currentLocation: store.state.currentLocation,
-                            onLikeTapped: {
-                                store.send(.toggleLike(product.id))
-                            }
-                        )
-                        .onAppear {
-                            if index >= products.count - 4 && !store.state.isSearching {
-                                store.send(.loadMore)
-                            }
-                        }
-                    }
-                }
-                .frame(width: itemWidth)
-            }
-            .padding(.horizontal, horizontalPadding)
-        }
-    }
 
     private var uploadButton: some View {
         VStack {

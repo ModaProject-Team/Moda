@@ -118,7 +118,7 @@ extension NavigationDestination {
         case .profile:
             Text("Profile View")
         case .settings:
-            Text("Settings View")
+            SettingView()
         case .productUpload:
             ProductUploadView()
         case .productDetail(let postId):

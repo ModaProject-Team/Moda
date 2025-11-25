@@ -20,4 +20,5 @@ enum ProductUploadIntent {
     case imagesSelected([PhotosPickerItem])
     case imageRemoved(Int)
     case submitButtonTapped
+    case dismissFileSizeAlert
 }

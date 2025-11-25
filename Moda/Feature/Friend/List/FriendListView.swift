@@ -114,69 +114,24 @@ final class FriendListStore {
 }
 
 
-// MARK: - Mainview
 struct FriendListView: View {
     @State private var store = FriendListStore()
-    // 네비게이션
     @EnvironmentObject var navigator: AppNavigator
 
     var body: some View {
-        List {
-            // 내 프로필 섹션
-            Section {
-                if let my = store.myPeople {
-                    MyProfileHeader(people: my)
-                        .onTapGesture {
-                            // 내 프로필 상세
-                            navigator.push(.profileDetail(people: my, isCurrentUser: true))
-                        }
-                        .listRowSeparator(.hidden)
-                        .listRowBackground(Color.clear)
-                        .listRowInsets(.init(top: 8, leading: 16, bottom: 8, trailing: 16))
-                } else {
-                    // 로딩 중/미표시 상태용 플레이스홀더
-                    MyProfilePlaceholder()
-                        .listRowSeparator(.hidden)
-                        .listRowBackground(Color.clear)
-                        .listRowInsets(.init(top: 8, leading: 16, bottom: 8, trailing: 16))
-                }
-            }
+        ZStack {
+            Color.white
+                .ignoresSafeArea()
 
-            // 친구 섹션(맞팔만)
-            Section {
-                let friendPeople = store.friendPeople
-                if friendPeople.isEmpty {
-                    EmptyFriendsView()
-                } else {
-                    ForEach(friendPeople) { person in
-                        FriendRow(people: person)
-                            .onTapGesture {
-                                // 친구 프로필 상세 (친구 정보 전달)
-                                navigator.push(.profileDetail(people: person, isCurrentUser: false))
-                            }
+            VStack(spacing: 0) {
+                headerSection
+
+                ScrollView(showsIndicators: false) {
+                    VStack(spacing: 0) {
+                        myProfileSection
+                        friendListSection
                     }
-                }
-            } header: {
-                Text("친구 \(store.friendPeople.count)")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-            }
-        }
-        .listStyle(.plain)
-        .navigationTitle("친구")
-        .navigationBarTitleDisplayMode(.large)
-        .toolbar {
-            ToolbarItemGroup(placement: .navigationBarTrailing) {
-                Button {
-                    navigator.push(.friendSearch(friends: store.friendPeople))
-                } label: {
-                    Image(systemName: "magnifyingglass")
-                }
-
-                Button {
-                    navigator.push(.friendAdd)
-                } label: {
-                    Image(systemName: "person.badge.plus")
+                    .padding(.bottom, 100)
                 }
             }
         }
@@ -202,96 +157,190 @@ struct FriendListView: View {
             }
         )
     }
-}
 
-// MARK: - Subviews
-private struct MyProfileHeader: View {
-    let people: People
+    private var headerSection: some View {
+        HStack(spacing: 20) {
+            Text("친구")
+                .H1()
+                .foregroundColor(.gray1)
 
-    var body: some View {
-        HStack(spacing: 14) {
-            ProfileImageView(people: people)
-                .frame(width: 56, height: 56)
+            Spacer()
 
-            VStack(alignment: .leading, spacing: 4) {
-                Text(people.name)
-                    .font(.title3.weight(.semibold))
+            Button {
+                navigator.push(.friendSearch(friends: store.friendPeople))
+            } label: {
+                Image(systemName: "magnifyingglass")
+                    .foregroundColor(.gray1)
+            }
 
-                if let msg = people.statusMessage, !msg.isEmpty {
-                    Text(msg)
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                        .truncationMode(.tail)
+            Button {
+                navigator.push(.friendAdd)
+            } label: {
+                Image(systemName: "person.badge.plus")
+                    .foregroundColor(.gray1)
+            }
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+        .background(Color.white)
+    }
+
+    private var myProfileSection: some View {
+        VStack(spacing: 0) {
+            if let my = store.myPeople {
+                MyProfileCell(people: my) {
+                    navigator.push(.profileDetail(people: my, isCurrentUser: true))
+                }
+            } else {
+                MyProfilePlaceholder()
+            }
+        }
+    }
+
+    private var friendListSection: some View {
+        VStack(spacing: 0) {
+            HStack {
+                Text("친구 \(store.friendPeople.count)")
+                    .Body2()
+                    .foregroundColor(.gray2)
+
+                Spacer()
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
+
+            let friendPeople = store.friendPeople
+            if friendPeople.isEmpty {
+                emptyFriendsSection
+            } else {
+                LazyVStack(spacing: 0) {
+                    ForEach(friendPeople) { person in
+                        FriendCell(people: person) {
+                            navigator.push(.profileDetail(people: person, isCurrentUser: false))
+                        }
+                    }
                 }
             }
+        }
+    }
+
+    private var emptyFriendsSection: some View {
+        VStack(spacing: 12) {
+            Spacer()
+
+            Image(systemName: "person.2")
+                .font(.system(size: 48))
+                .foregroundColor(.gray3)
+
+            Text("아직 친구가 없어요")
+                .Body1()
+                .foregroundColor(.gray2)
 
             Spacer()
         }
-        .padding(.vertical, 6)
-        .contentShape(Rectangle())
+        .frame(maxWidth: .infinity)
+        .frame(height: UIScreen.main.bounds.height - 300)
+    }
+}
+
+private struct MyProfileCell: View {
+    let people: People
+    let onTap: () -> Void
+
+    var body: some View {
+        Button(action: onTap) {
+            HStack(spacing: 12) {
+                profileImageSection
+                contentSection
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 14)
+        }
+        .buttonStyle(.plain)
+    }
+
+    private var profileImageSection: some View {
+        ProfileImageView(people: people)
+            .frame(width: 52, height: 52)
+    }
+
+    private var contentSection: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(people.name)
+                .H2()
+                .foregroundColor(.gray1)
+
+            if let msg = people.statusMessage, !msg.isEmpty {
+                Text(msg)
+                    .Body2()
+                    .foregroundColor(.gray2)
+                    .lineLimit(1)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 
 private struct MyProfilePlaceholder: View {
     var body: some View {
-        HStack(spacing: 14) {
+        HStack(spacing: 12) {
             Circle()
-                .fill(Color.gray.opacity(0.2))
-                .frame(width: 56, height: 56)
+                .fill(Color.gray3)
+                .frame(width: 52, height: 52)
 
-            VStack(alignment: .leading, spacing: 6) {
+            VStack(alignment: .leading, spacing: 4) {
                 RoundedRectangle(cornerRadius: 4)
-                    .fill(Color.gray.opacity(0.2))
-                    .frame(width: 120, height: 16)
+                    .fill(Color.gray3)
+                    .frame(width: 120, height: 18)
 
                 RoundedRectangle(cornerRadius: 4)
-                    .fill(Color.gray.opacity(0.2))
+                    .fill(Color.gray3)
                     .frame(width: 180, height: 14)
             }
+
             Spacer()
         }
-        .padding(.vertical, 6)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 14)
         .redacted(reason: .placeholder)
     }
 }
 
-private struct FriendRow: View {
+private struct FriendCell: View {
     let people: People
+    let onTap: () -> Void
 
     var body: some View {
-        HStack(spacing: 12) {
-            ProfileImageView(people: people)
-                .frame(width: 48, height: 48)
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text(people.name)
-                    .font(.body.weight(.semibold))
-
-                if let msg = people.statusMessage, !msg.isEmpty {
-                    Text(msg)
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                        .truncationMode(.tail)
-                }
+        Button(action: onTap) {
+            HStack(spacing: 12) {
+                profileImageSection
+                contentSection
             }
-
-            Spacer()
+            .padding(.horizontal, 16)
+            .padding(.vertical, 14)
         }
-        .padding(.vertical, 6)
-        .contentShape(Rectangle())
+        .buttonStyle(.plain)
     }
-}
 
-private struct EmptyFriendsView: View {
-    var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("아직 친구가 없습니다")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
+    private var profileImageSection: some View {
+        ProfileImageView(people: people)
+            .frame(width: 52, height: 52)
+    }
+
+    private var contentSection: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(people.name)
+                .H2()
+                .foregroundColor(.gray1)
+
+            if let msg = people.statusMessage, !msg.isEmpty {
+                Text(msg)
+                    .Body2()
+                    .foregroundColor(.gray2)
+                    .lineLimit(1)
+            }
         }
-        .padding(.vertical, 8)
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 

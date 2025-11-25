@@ -7,6 +7,22 @@
 
 import SwiftUI
 import PhotosUI
+import AVFoundation
+import UniformTypeIdentifiers
+
+struct Movie: Transferable {
+    let url: URL
+
+    static var transferRepresentation: some TransferRepresentation {
+        FileRepresentation(contentType: .movie) { movie in
+            SentTransferredFile(movie.url)
+        } importing: { received in
+            let copy = URL.documentsDirectory.appending(path: "movie-\(UUID().uuidString).mp4")
+            try FileManager.default.copyItem(at: received.file, to: copy)
+            return Self(url: copy)
+        }
+    }
+}
 
 final class ProductUploadStore: ObservableObject {
     
@@ -40,32 +56,63 @@ final class ProductUploadStore: ObservableObject {
             state.showLocationSelection = false
         case .imagesSelected(let items):
             Task {
-                await loadImages(from: items)
+                await loadMedia(from: items)
             }
         case .imageRemoved(let index):
-            state.selectedImages.remove(at: index)
+            state.selectedMedia.remove(at: index)
         case .submitButtonTapped:
             Task {
                 await uploadPost()
             }
+        case .dismissFileSizeAlert:
+            state.showFileSizeAlert = false
         }
     }
 
     @MainActor
-    private func loadImages(from items: [PhotosPickerItem]) async {
-        var images: [UIImage] = []
+    private func loadMedia(from items: [PhotosPickerItem]) async {
+        var mediaItems: [MediaItem] = []
 
         for item in items {
-            if let data = try? await item.loadTransferable(type: Data.self),
-               let image = UIImage(data: data) {
-                images.append(image)
+            if let movie = try? await item.loadTransferable(type: Movie.self) {
+                let compressedURL = try? await VideoCompressor.shared.compress(url: movie.url)
+                let videoURL = compressedURL ?? movie.url
+
+                if let thumbnail = await generateThumbnail(from: videoURL) {
+                    mediaItems.append(.video(url: videoURL, thumbnail: thumbnail))
+                }
+            } else if let data = try? await item.loadTransferable(type: Data.self),
+                      let image = UIImage(data: data) {
+                mediaItems.append(.image(image))
             }
         }
 
-        state.selectedImages.append(contentsOf: images)
+        state.selectedMedia.append(contentsOf: mediaItems)
 
-        if state.selectedImages.count > 5 {
-            state.selectedImages = Array(state.selectedImages.prefix(5))
+        if state.selectedMedia.count > 5 {
+            state.selectedMedia = Array(state.selectedMedia.prefix(5))
+        }
+    }
+
+    private func getFileSize(url: URL) -> Int64 {
+        guard let attributes = try? FileManager.default.attributesOfItem(atPath: url.path),
+              let fileSize = attributes[.size] as? Int64 else {
+            return 0
+        }
+        return fileSize
+    }
+
+    private func generateThumbnail(from url: URL) async -> UIImage? {
+        let asset = AVAsset(url: url)
+        let imageGenerator = AVAssetImageGenerator(asset: asset)
+        imageGenerator.appliesPreferredTrackTransform = true
+
+        do {
+            let cgImage = try imageGenerator.copyCGImage(at: .zero, actualTime: nil)
+            return UIImage(cgImage: cgImage)
+        } catch {
+            print("썸네일 생성 실패: \(error)")
+            return nil
         }
     }
 
@@ -87,12 +134,26 @@ final class ProductUploadStore: ObservableObject {
         state.uploadError = nil
 
         do {
-            // 1. 이미지가 있으면 먼저 파일 업로드
+            // 1. 미디어 파일 업로드
             var uploadedFileURLs: [String] = []
 
-            if !state.selectedImages.isEmpty {
-                let imageDataArray = state.selectedImages.compactMap { $0.jpegData(compressionQuality: 0.8) }
-                let uploadResponse = try await postAPI.uploadFiles(files: imageDataArray)
+            if !state.selectedMedia.isEmpty {
+                var fileDataArray: [FileData] = []
+
+                for media in state.selectedMedia {
+                    switch media {
+                    case .image(let image):
+                        if let imageData = image.jpegData(compressionQuality: 0.8) {
+                            fileDataArray.append(FileData(data: imageData, type: .image))
+                        }
+                    case .video(let url, _):
+                        if let videoData = try? Data(contentsOf: url) {
+                            fileDataArray.append(FileData(data: videoData, type: .video))
+                        }
+                    }
+                }
+
+                let uploadResponse = try await postAPI.uploadFiles(files: fileDataArray)
                 uploadedFileURLs = uploadResponse.files
             }
 

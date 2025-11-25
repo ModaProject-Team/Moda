@@ -10,7 +10,6 @@ import Observation
 import Kingfisher
 import Combine
 
-// MARK: - Model
 private enum ProfileTab: String, CaseIterable, Identifiable {
     case myItems
     case likeItems
@@ -25,7 +24,6 @@ private enum ProfileTab: String, CaseIterable, Identifiable {
     }
 }
 
-// MARK: - State
 private struct ProfileDetailState {
     // 입력/환경
     var isCurrentUser: Bool = true
@@ -73,7 +71,6 @@ private struct ProfileDetailState {
     }
 }
 
-// MARK: - Intent
 private enum ProfileDetailIntent {
     case onAppear
     case selectTab(ProfileTab)
@@ -85,7 +82,6 @@ private enum ProfileDetailIntent {
     case toggleLike(String)
 }
 
-// MARK: - Store (@Observable)
 @MainActor
 @Observable
 private final class ProfileDetailStore {
@@ -131,7 +127,6 @@ private final class ProfileDetailStore {
         }
     }
 
-    // MARK: - Combine
     private func setupCombine() {
         likeSubject
             .debounce(for: .milliseconds(300), scheduler: RunLoop.main)
@@ -143,7 +138,6 @@ private final class ProfileDetailStore {
             .store(in: &cancellables)
     }
 
-    // MARK: - Handlers
     private func handleOnAppear() {
         // 초기에는 사용자 게시글 로드
         if state.userPosts.isEmpty {
@@ -186,7 +180,6 @@ private final class ProfileDetailStore {
         }
     }
 
-    // MARK: - API Calls
     private func fetchUserPosts(refresh: Bool) async {
         if refresh {
             state.nextCursorUser = ""
@@ -270,7 +263,6 @@ private final class ProfileDetailStore {
         state.isLoading = false
     }
 
-    // MARK: - Like with Debouncing
     private func toggleLikeWithDebounce(postId: String) {
         // 현재 탭 기준으로 먼저 UI 반영
         updateLikeUI(postId: postId) { newState in
@@ -349,11 +341,10 @@ private final class ProfileDetailStore {
     }
 }
 
-// MARK: - View
 struct ProfileDetailView: View {
     @State private var store: ProfileDetailStore
+    @EnvironmentObject var navigator: AppNavigator
 
-    // FriendListView에서 전달받아 초기 상태 구성
     init(people: People, isCurrentUser: Bool) {
         let initial = ProfileDetailState(
             userId: people.id,
@@ -381,10 +372,27 @@ struct ProfileDetailView: View {
                             segment
                         }
 
-                        productGrid(itemWidth: itemWidth, spacing: spacing, horizontalPadding: horizontalPadding)
+                        ProductGridView(
+                            products: store.state.currentList,
+                            itemWidth: itemWidth,
+                            spacing: spacing,
+                            horizontalPadding: horizontalPadding,
+                            currentLocation: nil,
+                            isLoading: store.state.isLoading,
+                            emptyMessage: store.state.isCurrentUser && store.state.selectedTab == .likeItems ? "찜한 물건이 없어요" : "등록된 물건이 없어요",
+                            onLikeTapped: { postId in
+                                store.send(.toggleLike(postId))
+                            },
+                            onProductTapped: { postId in
+                                navigator.push(.productDetail(postId: postId))
+                            },
+                            onLoadMore: {
+                                store.send(.loadMore)
+                            }
+                        )
                     }
                     .padding(.top, 8)
-                    .padding(.bottom, 80) // 플로팅 버튼 영역 확보
+                    .padding(.bottom, 80)
                 }
                 .refreshable {
                     store.send(.refresh)
@@ -396,13 +404,24 @@ struct ProfileDetailView: View {
             }
         }
         .navigationBarTitleDisplayMode(.inline)
+        .navigationBarBackButtonHidden(true)
         .toolbar {
+            ToolbarItem(placement: .navigationBarLeading) {
+                Button {
+                    navigator.pop()
+                } label: {
+                    Image(systemName: "chevron.left")
+                        .foregroundColor(.gray1)
+                }
+            }
+
             if store.state.isCurrentUser {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("수정") {
                         store.send(.editTapped)
                     }
-                    .font(.body.weight(.semibold))
+                    .font(.custom("SUIT-Medium", size: 14))
+                    .foregroundColor(.gray1)
                 }
             }
         }
@@ -420,13 +439,12 @@ struct ProfileDetailView: View {
 
     private var header: some View {
         VStack(spacing: 10) {
-            // 프로필 이미지
             Group {
                 if let url = store.state.profileImageURL {
                     KFImage(url)
                         .requestModifier(KFHeaders.modifier)
                         .placeholder {
-                            Circle().fill(Color.gray.opacity(0.2))
+                            Circle().fill(Color.gray3)
                         }
                         .cacheOriginalImage()
                         .fade(duration: 0.2)
@@ -436,16 +454,17 @@ struct ProfileDetailView: View {
                         .clipShape(Circle())
                 } else {
                     ZStack {
-                        Circle().fill(Color.gray.opacity(0.2))
+                        Circle().fill(Color.gray3)
                         Image(systemName: "person.fill")
-                            .foregroundStyle(.secondary)
+                            .foregroundColor(.white)
                     }
                     .frame(width: 72, height: 72)
                 }
             }
 
             Text(store.state.nickname)
-                .font(.headline.weight(.semibold))
+                .H2()
+                .foregroundColor(.gray1)
         }
         .frame(maxWidth: .infinity)
         .padding(.horizontal, 16)
@@ -465,78 +484,28 @@ struct ProfileDetailView: View {
         .padding(.horizontal, 16)
     }
 
-    @ViewBuilder
-    private func productGrid(itemWidth: CGFloat, spacing: CGFloat, horizontalPadding: CGFloat) -> some View {
-        let items = store.state.currentList
-
-        if items.isEmpty && store.state.isLoading {
-            ProgressView()
-                .frame(maxWidth: .infinity)
-                .padding(.top, 50)
-        } else if items.isEmpty {
-            Text(store.state.isCurrentUser && store.state.selectedTab == .likeItems ? "찜한 물건이 없어요" : "등록된 물건이 없어요")
-                .foregroundStyle(.secondary)
-                .frame(maxWidth: .infinity, alignment: .center)
-                .padding(.top, 40)
-        } else {
-            HStack(alignment: .top, spacing: spacing) {
-                // 왼쪽 열
-                VStack(spacing: 12) {
-                    ForEach(Array(items.enumerated().filter { $0.offset % 2 == 0 }), id: \.element.id) { index, product in
-                        PostCardView(
-                            product: product,
-                            itemWidth: itemWidth,
-                            currentLocation: nil,
-                            onLikeTapped: { store.send(.toggleLike(product.id)) }
-                        )
-                        .onAppear {
-                            if index >= items.count - 4 {
-                                store.send(.loadMore)
-                            }
-                        }
-                    }
-                }
-                .frame(width: itemWidth)
-
-                // 오른쪽 열
-                VStack(spacing: 12) {
-                    ForEach(Array(items.enumerated().filter { $0.offset % 2 == 1 }), id: \.element.id) { index, product in
-                        PostCardView(
-                            product: product,
-                            itemWidth: itemWidth,
-                            currentLocation: nil,
-                            onLikeTapped: { store.send(.toggleLike(product.id)) }
-                        )
-                        .onAppear {
-                            if index >= items.count - 4 {
-                                store.send(.loadMore)
-                            }
-                        }
-                    }
-                }
-                .frame(width: itemWidth)
-            }
-            .padding(.horizontal, horizontalPadding)
-        }
-    }
 }
 
-// MARK: - Subviews
 private struct FloatingUploadButton: View {
     let title: String
     let action: () -> Void
 
     var body: some View {
         Button(action: action) {
-            Text(title)
-                .font(.headline.weight(.semibold))
-                .foregroundStyle(.white)
-                .padding(.horizontal, 16)
-                .frame(height: 48)
-                .background(
-                    RoundedRectangle(cornerRadius: 12, style: .continuous)
-                        .fill(Color.orange)
-                )
+            HStack(spacing: 8) {
+                Image(systemName: "plus")
+                    .font(.system(size: 18, weight: .bold))
+                    .foregroundColor(.white)
+                Text(title)
+                    .H2()
+                    .foregroundColor(.white)
+            }
+            .padding(.horizontal, 24)
+            .padding(.vertical, 14)
+            .background(
+                Capsule()
+                    .fill(Color.blue1)
+            )
         }
         .buttonStyle(.plain)
         .shadow(color: .black.opacity(0.15), radius: 6, x: 0, y: 3)
