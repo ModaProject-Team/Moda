@@ -378,6 +378,16 @@ struct ProductDetailView: View {
             Text("|")
                 .font(.system(size: 14))
                 .foregroundColor(.white.opacity(0.3))
+            
+            Button {
+                // TODO: 결제 기능 구현
+            } label: {
+                HStack(spacing: 4) {
+                    Image(systemName: "creditcard.fill")
+                        .font(.system(size: 14))
+                }
+                .foregroundColor(.white)
+            }
 
             Button {
                 // Navigate to chat
