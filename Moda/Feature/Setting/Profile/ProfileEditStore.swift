@@ -27,6 +27,9 @@ final class ProfileEditStore {
         case .nicknameChanged(let nickname):
             state.nickname = nickname
 
+        case .statusMessageChanged(let statusMessage):
+            state.statusMessage = statusMessage
+
         case .imageSelected(let item):
             state.selectedItem = item
             loadSelectedImage(item)
@@ -45,6 +48,7 @@ final class ProfileEditStore {
             do {
                 let response = try await userProfileAPI.getMyProfile()
                 state.nickname = response.nick
+                state.statusMessage = response.info1 ?? ""
                 if let profilePath = response.profileImage,
                    let url = URL(string: NetworkConfig.baseURL + "/v1/" + profilePath) {
                     state.profileImageURL = url
@@ -84,10 +88,12 @@ final class ProfileEditStore {
                 }
 
                 let nickToSend = state.nickname.isEmpty ? nil : state.nickname
+                let statusToSend = state.statusMessage.isEmpty ? nil : state.statusMessage
 
                 _ = try await userProfileAPI.updateMyProfile(
                     nick: nickToSend,
-                    profileImage: imageData
+                    profileImage: imageData,
+                    info1: statusToSend
                 )
 
                 state.shouldDismiss = true

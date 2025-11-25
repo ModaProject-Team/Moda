@@ -10,6 +10,7 @@ import PhotosUI
 
 struct ProfileEditState {
     var nickname: String = ""
+    var statusMessage: String = ""
     var profileImageURL: URL? = nil
     var selectedImage: UIImage? = nil
     var selectedItem: PhotosPickerItem? = nil
