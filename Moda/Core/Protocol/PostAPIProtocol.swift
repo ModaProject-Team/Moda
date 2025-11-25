@@ -10,7 +10,7 @@ import Foundation
 /// 게시글 관련 API 프로토콜
 protocol PostAPIProtocol {
     /// 파일 업로드
-    func uploadFiles(files: [Data]) async throws -> FileUploadResponse
+    func uploadFiles(files: [FileData]) async throws -> FileUploadResponse
 
     /// 게시글 작성
     func createPost(

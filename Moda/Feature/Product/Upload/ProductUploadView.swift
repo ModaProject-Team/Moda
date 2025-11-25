@@ -73,6 +73,19 @@ struct ProductUploadView: View {
                 }
             }
         }
+        .alert(
+            "동영상 용량 초과",
+            isPresented: Binding(
+                get: { store.state.showFileSizeAlert },
+                set: { if !$0 { store.send(.dismissFileSizeAlert) } }
+            )
+        ) {
+            Button("확인", role: .cancel) {
+                store.send(.dismissFileSizeAlert)
+            }
+        } message: {
+            Text("동영상은 10MB 이하만 업로드 가능합니다.")
+        }
     }
 
     private var headerSection: some View {
@@ -112,7 +125,7 @@ struct ProductUploadView: View {
                     // 사진 추가 버튼
                     PhotosPicker(
                         selection: $selectedItems,
-                        maxSelectionCount: 5 - store.state.selectedImages.count,
+                        maxSelectionCount: 5 - store.state.selectedMedia.count,
                         matching: .any(of: [.images, .videos])
                     ) {
                         VStack(spacing: 4) {
@@ -120,7 +133,7 @@ struct ProductUploadView: View {
                                 .font(.system(size: 24))
                                 .foregroundColor(.gray2)
 
-                            Text("\(store.state.selectedImages.count)/5")
+                            Text("\(store.state.selectedMedia.count)/5")
                                 .Body2()
                                 .foregroundColor(.gray2)
                         }
@@ -138,15 +151,32 @@ struct ProductUploadView: View {
                     }
                     .padding(.vertical, 8)
 
-                    // 선택된 이미지들 표시
-                    ForEach(Array(store.state.selectedImages.enumerated()), id: \.offset) { index, image in
+                    // 선택된 미디어 표시
+                    ForEach(Array(store.state.selectedMedia.enumerated()), id: \.offset) { index, media in
                         ZStack(alignment: .topTrailing) {
-                            Image(uiImage: image)
-                                .resizable()
-                                .scaledToFill()
-                                .frame(width: 70, height: 70)
-                                .cornerRadius(12)
-                                .clipped()
+                            switch media {
+                            case .image(let image):
+                                Image(uiImage: image)
+                                    .resizable()
+                                    .scaledToFill()
+                                    .frame(width: 70, height: 70)
+                                    .cornerRadius(12)
+                                    .clipped()
+
+                            case .video(_, let thumbnail):
+                                ZStack {
+                                    Image(uiImage: thumbnail)
+                                        .resizable()
+                                        .scaledToFill()
+                                        .frame(width: 70, height: 70)
+                                        .cornerRadius(12)
+                                        .clipped()
+
+                                    Image(systemName: "play.circle.fill")
+                                        .font(.system(size: 24))
+                                        .foregroundColor(.white)
+                                }
+                            }
 
                             Button {
                                 store.send(.imageRemoved(index))

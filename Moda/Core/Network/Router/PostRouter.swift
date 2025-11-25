@@ -7,10 +7,20 @@
 
 import Foundation
 
+enum FileType {
+    case image
+    case video
+}
+
+struct FileData {
+    let data: Data
+    let type: FileType
+}
+
 /// 게시글 관련 API 엔드포인트
 enum PostRouter {
     /// 파일 업로드
-    case uploadFiles(files: [Data])
+    case uploadFiles(files: [FileData])
 
     /// 게시글 작성
     case createPost(
@@ -291,16 +301,27 @@ extension PostRouter: Endpoint {
         let boundary = "Boundary-\(UUID().uuidString)"
         var body = Data()
 
-        for (index, fileData) in files.enumerated() {
+        for (index, file) in files.enumerated() {
+            let (filename, contentType) = getFileMetadata(for: file.type, index: index)
+
             body.append("--\(boundary)\r\n".data(using: .utf8)!)
-            body.append("Content-Disposition: form-data; name=\"files\"; filename=\"file\(index).jpg\"\r\n".data(using: .utf8)!)
-            body.append("Content-Type: image/jpeg\r\n\r\n".data(using: .utf8)!)
-            body.append(fileData)
+            body.append("Content-Disposition: form-data; name=\"files\"; filename=\"\(filename)\"\r\n".data(using: .utf8)!)
+            body.append("Content-Type: \(contentType)\r\n\r\n".data(using: .utf8)!)
+            body.append(file.data)
             body.append("\r\n".data(using: .utf8)!)
         }
 
         body.append("--\(boundary)--\r\n".data(using: .utf8)!)
 
         return (body, boundary)
+    }
+
+    private func getFileMetadata(for type: FileType, index: Int) -> (filename: String, contentType: String) {
+        switch type {
+        case .image:
+            return ("file\(index)_\(Int(Date().timeIntervalSince1970 * 1000)).jpg", "image/jpeg")
+        case .video:
+            return ("file\(index)_\(Int(Date().timeIntervalSince1970 * 1000)).mp4", "video/mp4")
+        }
     }
 }
