@@ -22,6 +22,9 @@ struct ChatRoomState {
     var participantName: String = ""
     var isLoading: Bool = false
     var errorMessage: String?
+
+    // 첨부 액션 시트 표시 여부
+    var showAttachmentSheet: Bool = false
 }
 
 enum ChatRoomIntent {
@@ -30,6 +33,13 @@ enum ChatRoomIntent {
     case inputTextChanged(String)
     case sendButtonTapped
     case dismissError
+
+    // 첨부 액션
+    case attachmentButtonTapped
+
+    // 미디어 선택 트리거(후속 구현용)
+    case pickImage
+    case pickVideo
 }
 
 final class ChatRoomStore: ObservableObject {
@@ -70,6 +80,16 @@ final class ChatRoomStore: ObservableObject {
             Task { await sendCurrentMessage() }
         case .dismissError:
             state.errorMessage = nil
+
+        case .attachmentButtonTapped:
+            state.showAttachmentSheet = true
+
+        case .pickImage:
+            state.showAttachmentSheet = false
+            // TODO: 이미지 선택 로직 연결
+        case .pickVideo:
+            state.showAttachmentSheet = false
+            // TODO: 동영상 선택 로직 연결
         }
     }
 
@@ -105,7 +125,7 @@ final class ChatRoomStore: ObservableObject {
 
         do {
             try await ensureMyUserId()
-            try await loadMessages(cursorDate: nil) // 초기 로드(현재는 전체/최신 정책에 맞춰 서버가 반환)
+            try await loadMessages(cursorDate: nil)
             connectSocket()
         } catch {
             await setError(error)
@@ -113,7 +133,6 @@ final class ChatRoomStore: ObservableObject {
     }
 
     private func connectSocket() {
-        // 토큰이 없으면 연결 시도하지 않음
         guard TokenManager.shared.accessToken != nil else {
             Task { @MainActor in
                 self.state.errorMessage = "인증이 필요합니다."
@@ -153,7 +172,6 @@ final class ChatRoomStore: ObservableObject {
             let sent = try await chatAPI.sendMessage(roomId: roomId, content: text, files: nil)
             let mapped = mapToViewModel(sent)
             await MainActor.run {
-                // 중복 체크: 이미 존재하는 메시지는 추가하지 않음
                 if !self.state.messages.contains(where: { $0.id == mapped.id }) {
                     self.state.messages.append(mapped)
                 }
@@ -244,6 +262,22 @@ struct ChatRoomView: View {
         .onDisappear {
             store.send(.onDisappear)
         }
+        .confirmationDialog(
+            "첨부",
+            isPresented: Binding(
+                get: { store.state.showAttachmentSheet },
+                set: { _ in } // confirmationDialog가 닫힘을 자체 관리하므로 별도 처리 불필요
+            ),
+            titleVisibility: .visible
+        ) {
+            Button("사진 첨부") {
+                store.send(.pickImage)
+            }
+            Button("동영상 첨부") {
+                store.send(.pickVideo)
+            }
+            Button("취소", role: .cancel) { }
+        }
     }
 
     private var headerSection: some View {
@@ -311,7 +345,6 @@ struct ChatRoomView: View {
                 .padding(.vertical, 12)
             }
             .onAppear {
-                // 초기 로드 시 맨 아래로 스크롤
                 if let lastMessage = store.state.messages.last {
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                         withAnimation(.easeOut(duration: 0.3)) {
@@ -338,6 +371,7 @@ struct ChatRoomView: View {
 
             HStack(spacing: 12) {
                 Button {
+                    store.send(.attachmentButtonTapped)
                 } label: {
                     Image(systemName: "plus")
                         .font(.system(size: 20))
