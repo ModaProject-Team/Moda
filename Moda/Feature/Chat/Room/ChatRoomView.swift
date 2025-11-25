@@ -310,6 +310,16 @@ struct ChatRoomView: View {
                 .padding(.horizontal, 16)
                 .padding(.vertical, 12)
             }
+            .onAppear {
+                // 초기 로드 시 맨 아래로 스크롤
+                if let lastMessage = store.state.messages.last {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                        withAnimation(.easeOut(duration: 0.3)) {
+                            proxy.scrollTo(lastMessage.id, anchor: .top)
+                        }
+                    }
+                }
+            }
             .onChange(of: store.state.messages.count) {
                 if let lastMessage = store.state.messages.last {
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
