@@ -7,8 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		030D64C42ED5CC3D00AFA941 /* SocketIO in Frameworks */ = {isa = PBXBuildFile; productRef = 030D64C32ED5CC3D00AFA941 /* SocketIO */; };
 		037028BA2EBC8F1F00A4A7CF /* .gitignore in Resources */ = {isa = PBXBuildFile; fileRef = 037028B92EBC8F1700A4A7CF /* .gitignore */; };
-		926284F12ED5A79300E6CE69 /* SocketIO in Frameworks */ = {isa = PBXBuildFile; productRef = 926284F02ED5A79300E6CE69 /* SocketIO */; };
 		92D4A6372EC1D679002526FC /* Kingfisher in Frameworks */ = {isa = PBXBuildFile; productRef = 92D4A6362EC1D679002526FC /* Kingfisher */; };
 /* End PBXBuildFile section */
 
@@ -44,7 +44,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				92D4A6372EC1D679002526FC /* Kingfisher in Frameworks */,
-				926284F12ED5A79300E6CE69 /* SocketIO in Frameworks */,
+				030D64C42ED5CC3D00AFA941 /* SocketIO in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -89,7 +89,7 @@
 			name = Moda;
 			packageProductDependencies = (
 				92D4A6362EC1D679002526FC /* Kingfisher */,
-				926284F02ED5A79300E6CE69 /* SocketIO */,
+				030D64C32ED5CC3D00AFA941 /* SocketIO */,
 			);
 			productName = Moda;
 			productReference = 037028A92EBC8ED900A4A7CF /* Moda.app */;
@@ -121,7 +121,7 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				92D4A6352EC1D679002526FC /* XCRemoteSwiftPackageReference "Kingfisher" */,
-				926284EF2ED5A79300E6CE69 /* XCRemoteSwiftPackageReference "socket" */,
+				030D64C22ED5CC3D00AFA941 /* XCRemoteSwiftPackageReference "socket" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 037028AA2EBC8ED900A4A7CF /* Products */;
@@ -366,7 +366,7 @@
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */
-		926284EF2ED5A79300E6CE69 /* XCRemoteSwiftPackageReference "socket" */ = {
+		030D64C22ED5CC3D00AFA941 /* XCRemoteSwiftPackageReference "socket" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/socketio/socket.io-client-swift";
 			requirement = {
@@ -385,9 +385,9 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
-		926284F02ED5A79300E6CE69 /* SocketIO */ = {
+		030D64C32ED5CC3D00AFA941 /* SocketIO */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = 926284EF2ED5A79300E6CE69 /* XCRemoteSwiftPackageReference "socket" */;
+			package = 030D64C22ED5CC3D00AFA941 /* XCRemoteSwiftPackageReference "socket" */;
 			productName = SocketIO;
 		};
 		92D4A6362EC1D679002526FC /* Kingfisher */ = {

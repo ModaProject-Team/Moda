@@ -12,7 +12,7 @@ final class TokenManager {
 
     static let shared = TokenManager()
 
-    private let userDefaults = UserDefaults.standard
+    private let keychain = KeychainManager.shared
 
     private enum Keys {
         static let accessToken = "moda_access_token"
@@ -21,31 +21,39 @@ final class TokenManager {
 
     var accessToken: String? {
         get {
-            return userDefaults.string(forKey: Keys.accessToken)
+            return keychain.load(key: Keys.accessToken)
         }
         set {
-            userDefaults.set(newValue, forKey: Keys.accessToken)
+            if let value = newValue {
+                _ = keychain.save(key: Keys.accessToken, value: value)
+            } else {
+                _ = keychain.delete(key: Keys.accessToken)
+            }
         }
     }
 
     var refreshToken: String? {
         get {
-            return userDefaults.string(forKey: Keys.refreshToken)
+            return keychain.load(key: Keys.refreshToken)
         }
         set {
-            userDefaults.set(newValue, forKey: Keys.refreshToken)
+            if let value = newValue {
+                _ = keychain.save(key: Keys.refreshToken, value: value)
+            } else {
+                _ = keychain.delete(key: Keys.refreshToken)
+            }
         }
     }
 
     var isLoggedIn: Bool {
         return accessToken != nil
     }
-    
+
     func saveToken(accessToken: String, refreshToken: String) {
         self.accessToken = accessToken
         self.refreshToken = refreshToken
     }
-    
+
     func clearToken() {
         accessToken = nil
         refreshToken = nil
