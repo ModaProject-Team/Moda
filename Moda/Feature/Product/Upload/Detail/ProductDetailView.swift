@@ -13,6 +13,7 @@ import iamport_ios
 extension Notification.Name {
     static let postDeleted = Notification.Name("postDeleted")
     static let postLikeUpdated = Notification.Name("postLikeUpdated")
+    static let postPaymentCompleted = Notification.Name("postPaymentCompleted")
 }
 
 extension IamportPayment: @retroactive Identifiable {
@@ -78,18 +79,6 @@ struct ProductDetailView: View {
                         }
 
                         Spacer()
-
-                        if store.state.isMyPost {
-                            Button {
-                                store.send(.showActionSheet)
-                            } label: {
-                                Image(systemName: "ellipsis")
-                                    .font(.system(size: 16))
-                                    .foregroundColor(.white)
-                                    .frame(width: 44, height: 44)
-                                    .contentShape(Rectangle())
-                            }
-                        }
                     }
                     .padding(.horizontal, 8)
                     .padding(.top, 8)
@@ -98,18 +87,6 @@ struct ProductDetailView: View {
         }
         .task {
             store.send(.loadPost)
-        }
-        .confirmationDialog("", isPresented: Binding(
-            get: { store.state.showActionSheet },
-            set: { if !$0 { store.send(.dismissActionSheet) } }
-        ), titleVisibility: .hidden) {
-            Button("게시글 수정") {
-                // TODO: 수정 화면으로 이동
-            }
-            Button("삭제", role: .destructive) {
-                store.send(.showDeleteAlert)
-            }
-            Button("취소", role: .cancel) { }
         }
         .alert("게시글 삭제", isPresented: Binding(
             get: { store.state.showDeleteAlert },
@@ -222,26 +199,12 @@ struct ProductDetailView: View {
                         
                         VStack(alignment: .leading, spacing: 0) {
 
-                            HStack(alignment: .top, spacing: 8) {
-                                Text(post.title)
-                                    .font(.title2)
-                                    .fontWeight(.semibold)
-                                    .foregroundColor(.black)
-                                    .multilineTextAlignment(.leading)
-
-                                // 거래 완료 뱃지
-                                if !post.buyers.isEmpty {
-                                    Text("거래완료")
-                                        .font(.caption)
-                                        .fontWeight(.semibold)
-                                        .foregroundColor(.white)
-                                        .padding(.horizontal, 8)
-                                        .padding(.vertical, 4)
-                                        .background(Color.gray)
-                                        .cornerRadius(4)
-                                }
-                            }
-                            .padding(.vertical, 16)
+                            Text(post.title)
+                                .font(.title2)
+                                .fontWeight(.semibold)
+                                .foregroundColor(.black)
+                                .multilineTextAlignment(.leading)
+                                .padding(.vertical, 16)
 
                                 if let price = post.price, price > 0 {
                                     Text("\(price.formatted())원")
@@ -389,9 +352,10 @@ struct ProductDetailView: View {
     private func floatingActionBar(post: PostResponse) -> some View {
         let isPaymentCompleted = !post.buyers.isEmpty
         let isFreeItem = post.price == nil || post.price == 0
-        let shouldShowPaymentButton = !isPaymentCompleted && !isFreeItem
+        let isMyPost = store.state.isMyPost
 
         return HStack(spacing: 16) {
+            // 프로필 버튼 (항상 표시)
             Button {
                 // Navigate to seller profile
             } label: {
@@ -417,33 +381,68 @@ struct ProductDetailView: View {
                 .font(.system(size: 14))
                 .foregroundColor(.white.opacity(0.3))
 
-            // 결제 버튼 (거래 완료 또는 나눔 상품이 아닐 때만 표시)
-            if shouldShowPaymentButton {
+            // 거래 완료일 때
+            if isPaymentCompleted {
+                Text("거래완료")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundColor(.white)
+            }
+            // 내 게시글일 때
+            else if isMyPost {
+                // 수정 버튼
                 Button {
-                    startPayment(post: post)
+                    // TODO: 수정 화면으로 이동
                 } label: {
                     HStack(spacing: 4) {
-                        Image(systemName: "creditcard.fill")
+                        Image(systemName: "pencil")
+                            .font(.system(size: 14))
+                    }
+                    .foregroundColor(.white)
+                }
+
+                // 삭제 버튼
+                Button {
+                    store.send(.showDeleteAlert)
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: "trash")
                             .font(.system(size: 14))
                     }
                     .foregroundColor(.white)
                 }
             }
+            // 타인의 게시글일 때
+            else {
+                // 결제 버튼 (나눔 상품이 아닐 때만)
+                if !isFreeItem {
+                    Button {
+                        startPayment(post: post)
+                    } label: {
+                        HStack(spacing: 4) {
+                            Image(systemName: "creditcard.fill")
+                                .font(.system(size: 14))
+                        }
+                        .foregroundColor(.white)
+                    }
+                }
 
-            Button {
-                // Navigate to chat
-            } label: {
-                Image(systemName: "message.fill")
-                    .font(.system(size: 16))
-                    .foregroundColor(.white)
-            }
+                // 채팅 버튼
+                Button {
+                    // Navigate to chat
+                } label: {
+                    Image(systemName: "message.fill")
+                        .font(.system(size: 16))
+                        .foregroundColor(.white)
+                }
 
-            Button {
-                store.send(.toggleLike)
-            } label: {
-                Image(systemName: store.state.isLiked ? "heart.fill" : "heart")
-                    .font(.system(size: 16))
-                    .foregroundColor(store.state.isLiked ? .pink1 : .white)
+                // 좋아요 버튼
+                Button {
+                    store.send(.toggleLike)
+                } label: {
+                    Image(systemName: store.state.isLiked ? "heart.fill" : "heart")
+                        .font(.system(size: 16))
+                        .foregroundColor(store.state.isLiked ? .pink1 : .white)
+                }
             }
         }
         .padding(.horizontal, 28)
@@ -491,13 +490,7 @@ struct ProductDetailView: View {
 
     // MARK: - Payment
     private func startPayment(post: PostResponse) {
-
-        guard let price = post.price, price > 0 else {
-            //TODO: 나눔 상품은 결제버튼 X
-            paymentMessage = "이 상품은 나눔 상품으로 결제할 수 없습니다."
-            showPaymentAlert = true
-            return
-        }
+        guard let price = post.price, price > 0 else { return }
 
         // merchant_uid: 고유한 주문 번호 생성 (product_id + timestamp)
         let merchantUid = "ios_\(postId)_\(Int(Date().timeIntervalSince1970 * 1000))"
@@ -545,6 +538,7 @@ struct ProductDetailView: View {
             // 결제 검증 성공 - 게시글 데이터 다시 로드하여 UI 업데이트
             await MainActor.run {
                 store.send(.loadPost)
+                NotificationCenter.default.post(name: .postPaymentCompleted, object: nil)
             }
 
             // 잠시 대기 후 알림 표시 (데이터 로딩 완료 후)

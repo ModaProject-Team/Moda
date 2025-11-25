@@ -117,6 +117,7 @@ struct PostCardView: View {
                         url: URL(string: "\(NetworkConfig.baseURL)/v1\(imageURL)")!,
                         itemWidth: itemWidth
                     )
+                    .overlay(completedOverlay)
                 } else {
                     KFImage(URL(string: "\(NetworkConfig.baseURL)/v1\(imageURL)"))
                         .requestModifier(KFHeaders.modifier)
@@ -131,12 +132,32 @@ struct PostCardView: View {
                         .scaledToFit()
                         .frame(width: itemWidth)
                         .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                .fill(Color.clear)
+                                .overlay(completedOverlay)
+                        )
                 }
             } else {
                 RoundedRectangle(cornerRadius: 12, style: .continuous)
                     .fill(Color.gray5)
                     .frame(width: itemWidth, height: itemWidth)
+                    .overlay(completedOverlay)
             }
+        }
+    }
+
+    @ViewBuilder
+    private var completedOverlay: some View {
+        if !product.buyers.isEmpty {
+            ZStack {
+                Color.gray2.opacity(0.7)
+
+                Text("거래완료")
+                    .H2()
+                    .foregroundColor(.white)
+            }
+            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
         }
     }
 
