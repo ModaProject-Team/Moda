@@ -27,6 +27,9 @@ final class ProfileEditStore {
         case .nicknameChanged(let nickname):
             state.nickname = nickname
 
+        case .statusMessageChanged(let statusMessage):
+            state.statusMessage = statusMessage
+
         case .imageSelected(let item):
             state.selectedItem = item
             loadSelectedImage(item)
@@ -45,6 +48,7 @@ final class ProfileEditStore {
             do {
                 let response = try await userProfileAPI.getMyProfile()
                 state.nickname = response.nick
+                state.statusMessage = response.info1 ?? ""
                 if let profilePath = response.profileImage,
                    let url = URL(string: NetworkConfig.baseURL + "/v1/" + profilePath) {
                     state.profileImageURL = url
@@ -80,14 +84,23 @@ final class ProfileEditStore {
                 var imageData: Data? = nil
 
                 if let selectedImage = state.selectedImage {
-                    imageData = selectedImage.jpegData(compressionQuality: 0.8)
+                    // ImageCompressor를 사용하여 이미지 압축
+                    if let compressed = ImageCompressor.shared.compress(
+                        image: selectedImage,
+                        maxSizeInKB: 100
+                    ) {
+                        imageData = compressed.data
+                    }
                 }
 
-                let nickToSend = state.nickname.isEmpty ? nil : state.nickname
+                // 닉네임이 비어있거나 공백만 있으면 nil로 전송
+                let nickToSend = state.nickname.trimmingCharacters(in: .whitespaces).isEmpty ? nil : state.nickname.trimmingCharacters(in: .whitespaces)
+                let statusToSend = state.statusMessage.trimmingCharacters(in: .whitespaces).isEmpty ? nil : state.statusMessage
 
                 _ = try await userProfileAPI.updateMyProfile(
                     nick: nickToSend,
-                    profileImage: imageData
+                    profileImage: imageData,
+                    info1: statusToSend
                 )
 
                 state.shouldDismiss = true

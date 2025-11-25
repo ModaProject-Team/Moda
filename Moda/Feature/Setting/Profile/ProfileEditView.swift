@@ -25,7 +25,11 @@ struct ProfileEditView: View {
                     ScrollView {
                         VStack(spacing: 24) {
                             profileImageSection
-                            nicknameSection
+
+                            VStack(spacing: 16) {
+                                nicknameSection
+                                statusMessageSection
+                            }
                         }
                         .padding(.horizontal, 16)
                         .padding(.top, 24)
@@ -104,14 +108,47 @@ struct ProfileEditView: View {
     private var nicknameSection: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text("닉네임")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
+                .Body1()
+                .foregroundColor(.gray1)
 
             TextField("닉네임을 입력하세요", text: Binding(
                 get: { MainActor.assumeIsolated { store.state.nickname } },
                 set: { newValue in MainActor.assumeIsolated { store.send(.nicknameChanged(newValue)) } }
             ))
-            .textFieldStyle(.roundedBorder)
+            .Input()
+            .padding(12)
+            .background(
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .fill(Color.gray5)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .stroke(Color.gray4, lineWidth: 1)
+            )
+            .autocorrectionDisabled()
+        }
+    }
+
+    private var statusMessageSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("상태메시지")
+                .Body1()
+                .foregroundColor(.gray1)
+
+            TextField("상태메시지를 입력하세요", text: Binding(
+                get: { MainActor.assumeIsolated { store.state.statusMessage } },
+                set: { newValue in MainActor.assumeIsolated { store.send(.statusMessageChanged(newValue)) } }
+            ))
+            .Input()
+            .padding(12)
+            .background(
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .fill(Color.gray5)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .stroke(Color.gray4, lineWidth: 1)
+            )
             .autocorrectionDisabled()
         }
     }
