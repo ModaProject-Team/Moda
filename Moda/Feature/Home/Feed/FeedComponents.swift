@@ -112,19 +112,26 @@ struct PostCardView: View {
     private var imageSection: some View {
         Group {
             if let imageURL = product.imageURL, !imageURL.isEmpty {
-                KFImage(URL(string: "\(NetworkConfig.baseURL)/v1\(imageURL)"))
-                    .requestModifier(KFHeaders.modifier)
-                    .placeholder {
-                        RoundedRectangle(cornerRadius: 12, style: .continuous)
-                            .fill(Color.gray5)
-                            .frame(width: itemWidth, height: itemWidth)
-                    }
-                    .cacheOriginalImage()
-                    .fade(duration: 0.2)
-                    .resizable()
-                    .scaledToFit()
-                    .frame(width: itemWidth)
-                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                if product.isVideo {
+                    VideoPlayerView(
+                        url: URL(string: "\(NetworkConfig.baseURL)/v1\(imageURL)")!,
+                        itemWidth: itemWidth
+                    )
+                } else {
+                    KFImage(URL(string: "\(NetworkConfig.baseURL)/v1\(imageURL)"))
+                        .requestModifier(KFHeaders.modifier)
+                        .placeholder {
+                            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                .fill(Color.gray5)
+                                .frame(width: itemWidth, height: itemWidth)
+                        }
+                        .cacheOriginalImage()
+                        .fade(duration: 0.2)
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: itemWidth)
+                        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                }
             } else {
                 RoundedRectangle(cornerRadius: 12, style: .continuous)
                     .fill(Color.gray5)
