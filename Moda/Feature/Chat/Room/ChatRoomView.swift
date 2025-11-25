@@ -6,6 +6,8 @@
 //
 
 import SwiftUI
+import PhotosUI
+import AVFoundation
 
 struct ChatMessage: Identifiable {
     let id: String
@@ -25,6 +27,18 @@ struct ChatRoomState {
 
     // 첨부 액션 시트 표시 여부
     var showAttachmentSheet: Bool = false
+
+    // PhotosPicker 표시 상태
+    var showImagePicker: Bool = false
+    var showVideoPicker: Bool = false
+
+    // Alert
+    var showSendConfirmAlert: Bool = false
+    var pendingImageData: Data? = nil
+    var pendingVideoURL: URL? = nil
+    var pendingType: PendingType = .none
+
+    enum PendingType { case image, video, none }
 }
 
 enum ChatRoomIntent {
@@ -34,12 +48,27 @@ enum ChatRoomIntent {
     case sendButtonTapped
     case dismissError
 
-    // 첨부 액션
+    // 첨부
     case attachmentButtonTapped
-
-    // 미디어 선택 트리거(후속 구현용)
     case pickImage
     case pickVideo
+    case attachmentSheetDismissed
+
+    // 선택 완료
+    case imagePicked(Data)
+    case videoPicked(URL)
+
+    // 피커 닫힘
+    case imagePickerDismissed
+    case videoPickerDismissed
+
+    // Alert 표시/닫힘
+    case showSendConfirm
+    case hideSendConfirm
+
+    // Alert 액션
+    case confirmSend
+    case cancelSend
 }
 
 final class ChatRoomStore: ObservableObject {
@@ -50,7 +79,6 @@ final class ChatRoomStore: ObservableObject {
     private let userProfileAPI: UserProfileAPIProtocol
     private let socketService: ChatSocketServiceProtocol
 
-    // 내 사용자 ID (보낸 사람 판별용)
     private var myUserId: String?
 
     init(
@@ -86,10 +114,72 @@ final class ChatRoomStore: ObservableObject {
 
         case .pickImage:
             state.showAttachmentSheet = false
-            // TODO: 이미지 선택 로직 연결
+            state.showImagePicker = true
+
         case .pickVideo:
             state.showAttachmentSheet = false
-            // TODO: 동영상 선택 로직 연결
+            state.showVideoPicker = true
+
+        case .attachmentSheetDismissed:
+            state.showAttachmentSheet = false
+
+        case .imagePicked(let data):
+            state.pendingImageData = data
+            state.pendingVideoURL = nil
+            state.pendingType = .image
+            Task { @MainActor in
+                state.showImagePicker = false
+                try? await Task.sleep(nanoseconds: 200_000_000) // 0.2s
+                state.showSendConfirmAlert = true
+            }
+
+        case .videoPicked(let url):
+            state.pendingVideoURL = url
+            state.pendingImageData = nil
+            state.pendingType = .video
+            Task { @MainActor in
+                state.showVideoPicker = false
+                try? await Task.sleep(nanoseconds: 200_000_000) // 0.2s
+                state.showSendConfirmAlert = true
+            }
+
+        case .imagePickerDismissed:
+            state.showImagePicker = false
+
+        case .videoPickerDismissed:
+            state.showVideoPicker = false
+
+        case .showSendConfirm:
+            state.showSendConfirmAlert = true
+
+        case .hideSendConfirm:
+            state.showSendConfirmAlert = false
+
+        case .confirmSend:
+            switch state.pendingType {
+            case .image:
+                if state.pendingImageData != nil {
+                    print("사진 전송중… (네트워크 통신은 추후 구현)")
+                }
+            case .video:
+                if state.pendingVideoURL != nil {
+                    print("동영상 전송중… (네트워크 통신은 추후 구현)")
+                }
+            case .none:
+                break
+            }
+            // 전송 후 초기화
+            state.pendingImageData = nil
+            state.pendingVideoURL = nil
+            state.pendingType = .none
+            state.showSendConfirmAlert = false
+
+        case .cancelSend:
+            // 취소: 초기화
+            state.pendingImageData = nil
+            state.pendingVideoURL = nil
+            state.pendingType = .none
+            state.showSendConfirmAlert = false
         }
     }
 
@@ -109,7 +199,6 @@ final class ChatRoomStore: ObservableObject {
             guard let self else { return }
             let mapped = self.mapToViewModel(dto)
             Task { @MainActor in
-                // 중복 체크: 이미 존재하는 메시지는 추가하지 않음
                 if !self.state.messages.contains(where: { $0.id == mapped.id }) {
                     self.state.messages.append(mapped)
                 }
@@ -232,6 +321,10 @@ struct ChatRoomView: View {
     @EnvironmentObject var navigator: AppNavigator
     @FocusState private var isInputFocused: Bool
 
+    // PhotosPicker 선택 항목 상태
+    @State private var imageSelection: PhotosPickerItem? = nil
+    @State private var videoSelection: PhotosPickerItem? = nil
+
     init(roomId: String, participantName: String) {
         _store = StateObject(wrappedValue: ChatRoomStore(roomId: roomId, participantName: participantName))
     }
@@ -266,7 +359,11 @@ struct ChatRoomView: View {
             "첨부",
             isPresented: Binding(
                 get: { store.state.showAttachmentSheet },
-                set: { _ in } // confirmationDialog가 닫힘을 자체 관리하므로 별도 처리 불필요
+                set: { newValue in
+                    if newValue == false {
+                        store.send(.attachmentSheetDismissed)
+                    }
+                }
             ),
             titleVisibility: .visible
         ) {
@@ -277,6 +374,106 @@ struct ChatRoomView: View {
                 store.send(.pickVideo)
             }
             Button("취소", role: .cancel) { }
+        }
+        // 이미지 피커
+        .photosPicker(
+            isPresented: Binding(
+                get: { store.state.showImagePicker },
+                set: { newValue in
+                    if newValue == false {
+                        store.send(.imagePickerDismissed)
+                    }
+                }
+            ),
+            selection: Binding(
+                get: { imageSelection },
+                set: { newItem in
+                    imageSelection = newItem
+                    guard newItem != nil else { return }
+                    Task { await handlePickedImage() }
+                }
+            ),
+            matching: .images,
+            preferredItemEncoding: .automatic
+        )
+        // 동영상 피커
+        .photosPicker(
+            isPresented: Binding(
+                get: { store.state.showVideoPicker },
+                set: { newValue in
+                    if newValue == false {
+                        store.send(.videoPickerDismissed)
+                    }
+                }
+            ),
+            selection: Binding(
+                get: { videoSelection },
+                set: { newItem in
+                    videoSelection = newItem
+                    guard newItem != nil else { return }
+                    Task { await handlePickedVideo() }
+                }
+            ),
+            matching: .videos,
+            preferredItemEncoding: .automatic
+        )
+        .alert("전송하시겠습니까?", isPresented: Binding(
+            get: { store.state.showSendConfirmAlert },
+            set: { newValue in
+                if newValue == false {
+                    store.send(.hideSendConfirm)
+                } else {
+                    store.send(.showSendConfirm)
+                }
+            }
+        )) {
+            Button("취소", role: .cancel) {
+                store.send(.cancelSend)
+            }
+            Button("전송", role: .destructive) {
+                store.send(.confirmSend)
+            }
+        } message: {
+            Text(alertMessage)
+        }
+    }
+
+    private var alertMessage: String {
+        switch store.state.pendingType {
+        case .image:
+            return "선택한 사진을 전송합니다."
+        case .video:
+            return "선택한 동영상을 전송합니다."
+        case .none:
+            return ""
+        }
+    }
+
+    private func handlePickedImage() async {
+        guard let item = imageSelection else { return }
+        defer { imageSelection = nil }
+        do {
+            if let data = try await item.loadTransferable(type: Data.self) {
+                store.send(.imagePicked(data))
+            }
+        } catch {
+            print("이미지 로드 실패: \(error)")
+        }
+    }
+
+    private func handlePickedVideo() async {
+        guard let item = videoSelection else { return }
+        defer { videoSelection = nil }
+        do {
+            if let fileURL = try await item.loadTransferable(type: URL.self) {
+                store.send(.videoPicked(fileURL))
+            } else if let data = try? await item.loadTransferable(type: Data.self) {
+                let tmpURL = FileManager.default.temporaryDirectory.appendingPathComponent("picked-\(UUID().uuidString).mp4")
+                try data.write(to: tmpURL)
+                store.send(.videoPicked(tmpURL))
+            }
+        } catch {
+            print("동영상 로드 실패: \(error)")
         }
     }
 
