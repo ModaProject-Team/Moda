@@ -89,7 +89,10 @@ final class ChatRoomStore: ObservableObject {
             guard let self else { return }
             let mapped = self.mapToViewModel(dto)
             Task { @MainActor in
-                self.state.messages.append(mapped)
+                // 중복 체크: 이미 존재하는 메시지는 추가하지 않음
+                if !self.state.messages.contains(where: { $0.id == mapped.id }) {
+                    self.state.messages.append(mapped)
+                }
             }
         }
     }
@@ -150,7 +153,10 @@ final class ChatRoomStore: ObservableObject {
             let sent = try await chatAPI.sendMessage(roomId: roomId, content: text, files: nil)
             let mapped = mapToViewModel(sent)
             await MainActor.run {
-                self.state.messages.append(mapped)
+                // 중복 체크: 이미 존재하는 메시지는 추가하지 않음
+                if !self.state.messages.contains(where: { $0.id == mapped.id }) {
+                    self.state.messages.append(mapped)
+                }
             }
         } catch {
             await setError(error)
@@ -306,8 +312,10 @@ struct ChatRoomView: View {
             }
             .onChange(of: store.state.messages.count) {
                 if let lastMessage = store.state.messages.last {
-                    withAnimation {
-                        proxy.scrollTo(lastMessage.id, anchor: .bottom)
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+                        withAnimation(.easeInOut(duration: 0.2)) {
+                            proxy.scrollTo(lastMessage.id, anchor: .top)
+                        }
                     }
                 }
             }
