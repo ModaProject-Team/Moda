@@ -75,16 +75,11 @@ final class ProductUploadStore: ObservableObject {
 
         for item in items {
             if let movie = try? await item.loadTransferable(type: Movie.self) {
-                let fileSize = getFileSize(url: movie.url)
-                let maxSize: Int64 = 10 * 1024 * 1024
+                let compressedURL = try? await VideoCompressor.shared.compress(url: movie.url)
+                let videoURL = compressedURL ?? movie.url
 
-                if fileSize > maxSize {
-                    state.showFileSizeAlert = true
-                    continue
-                }
-
-                if let thumbnail = await generateThumbnail(from: movie.url) {
-                    mediaItems.append(.video(url: movie.url, thumbnail: thumbnail))
+                if let thumbnail = await generateThumbnail(from: videoURL) {
+                    mediaItems.append(.video(url: videoURL, thumbnail: thumbnail))
                 }
             } else if let data = try? await item.loadTransferable(type: Data.self),
                       let image = UIImage(data: data) {
