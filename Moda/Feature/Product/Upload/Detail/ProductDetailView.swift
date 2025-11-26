@@ -9,6 +9,7 @@ import SwiftUI
 import Kingfisher
 import MapKit
 import iamport_ios
+import AVKit
 
 extension Notification.Name {
     static let postDeleted = Notification.Name("postDeleted")
@@ -33,6 +34,7 @@ struct ProductDetailView: View {
     @State private var showPaymentAlert = false
     @State private var paymentMessage = ""
     @State private var currentPayment: IamportPayment?
+    @State private var selectedVideoURL: URL?
 
     init(postId: String) {
         self.postId = postId
@@ -124,6 +126,13 @@ struct ProductDetailView: View {
             }
             .ignoresSafeArea()
         }
+        .fullScreenCover(item: Binding(
+            get: { selectedVideoURL.map { VideoURLWrapper(url: $0) } },
+            set: { selectedVideoURL = $0?.url }
+        )) { wrapper in
+            FullScreenVideoPlayer(videoURL: wrapper.url)
+                .ignoresSafeArea()
+        }
     }
 
     private func errorView(error: String) -> some View {
@@ -153,21 +162,20 @@ struct ProductDetailView: View {
                         ZStack(alignment: .bottom) {
                             if !post.files.isEmpty {
                                 TabView(selection: $currentImageIndex) {
-                                    ForEach(Array(post.files.enumerated()), id: \.offset) { index, imageURL in
-                                        KFImage(URL(string: "\(NetworkConfig.baseURL)/v1\(imageURL)"))
-                                            .requestModifier(KFHeaders.modifier)
-                                            .onSuccess { result in
-                                                extractColor(from: result.image)
+                                    ForEach(Array(post.files.enumerated()), id: \.offset) { index, fileURL in
+                                        MediaItemView(
+                                            fileURL: fileURL,
+                                            geometry: geometry,
+                                            onColorExtracted: { color in
+                                                withAnimation(.easeInOut(duration: 0.5)) {
+                                                    self.dominantColor = color
+                                                }
+                                            },
+                                            onVideoTapped: { url in
+                                                selectedVideoURL = url
                                             }
-                                            .placeholder {
-                                                Rectangle()
-                                                    .fill(Color.gray.opacity(0.3))
-                                            }
-                                            .resizable()
-                                            .aspectRatio(contentMode: .fill)
-                                            .frame(width: geometry.size.width, height: geometry.size.height * 0.6)
-                                            .clipped()
-                                            .tag(index)
+                                        )
+                                        .tag(index)
                                     }
                                 }
                                 .tabViewStyle(PageTabViewStyle(indexDisplayMode: .never))
@@ -553,6 +561,107 @@ struct ProductDetailView: View {
         }
     }
 
+}
+
+// MARK: - Helper Views
+
+struct VideoURLWrapper: Identifiable {
+    let id = UUID()
+    let url: URL
+}
+
+struct MediaItemView: View {
+    let fileURL: String
+    let geometry: GeometryProxy
+    let onColorExtracted: (Color) -> Void
+    let onVideoTapped: (URL) -> Void
+
+    var body: some View {
+        let isVideo = fileURL.isVideoFile
+        let fullURL = "\(NetworkConfig.baseURL)/v1\(fileURL)"
+
+        ZStack {
+            if isVideo {
+                // 동영상인 경우 MediaImageView로 썸네일 표시
+                MediaImageView(
+                    mediaURL: fileURL,
+                    contentMode: .fill
+                )
+                .frame(width: geometry.size.width, height: geometry.size.height * 0.6)
+                .clipped()
+            } else {
+                // 이미지인 경우 기존 KFImage 사용
+                KFImage(URL(string: fullURL))
+                    .requestModifier(KFHeaders.modifier)
+                    .onSuccess { result in
+                        extractColor(from: result.image)
+                    }
+                    .placeholder {
+                        Rectangle()
+                            .fill(Color.gray.opacity(0.3))
+                    }
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+                    .frame(width: geometry.size.width, height: geometry.size.height * 0.6)
+                    .clipped()
+            }
+
+            if isVideo {
+                ZStack {
+                    Button {
+                        if let url = URL(string: fullURL) {
+                            onVideoTapped(url)
+                        }
+                    } label: {
+                        ZStack {
+                            Circle()
+                                .fill(Color.black.opacity(0.3))
+                                .frame(width: 70, height: 70)
+
+                            Image(systemName: "play.fill")
+                                .font(.system(size: 30))
+                                .foregroundColor(.blue1)
+                                .offset(x: 1)
+                        }
+                    }
+                    .padding(.top, 50)
+                }
+            }
+        }
+    }
+
+    private func extractColor(from image: KFCrossPlatformImage) {
+        DispatchQueue.global(qos: .userInitiated).async {
+            guard let cgImage = image.cgImage else { return }
+
+            let width = 1
+            let height = 1
+            let bitmapInfo = CGImageAlphaInfo.premultipliedLast.rawValue
+
+            guard let context = CGContext(
+                data: nil,
+                width: width,
+                height: height,
+                bitsPerComponent: 8,
+                bytesPerRow: width * 4,
+                space: CGColorSpaceCreateDeviceRGB(),
+                bitmapInfo: bitmapInfo
+            ) else { return }
+
+            context.draw(cgImage, in: CGRect(x: 0, y: 0, width: width, height: height))
+
+            guard let data = context.data else { return }
+            let pointer = data.bindMemory(to: UInt8.self, capacity: 4)
+
+            let r = CGFloat(pointer[0]) / 255.0
+            let g = CGFloat(pointer[1]) / 255.0
+            let b = CGFloat(pointer[2]) / 255.0
+
+            DispatchQueue.main.async {
+                onColorExtracted(Color(red: r, green: g, blue: b))
+            }
+        }
+    }
 }
 
 #Preview {

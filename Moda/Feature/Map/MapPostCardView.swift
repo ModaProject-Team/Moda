@@ -23,18 +23,18 @@ struct MapPostCardView: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            KFImage(URL(string: "\(NetworkConfig.baseURL)/v1\(post.media)"))
-                .requestModifier(KFHeaders.modifier)
-                .placeholder {
-                    Image(systemName: "photo")
-                        .foregroundColor(.gray3)
+            MediaImageView(
+                mediaURL: post.media,
+                contentMode: .fill,
+                placeholder: {
+                    AnyView(
+                        Image(systemName: "photo")
+                            .foregroundColor(.gray3)
+                    )
                 }
-                .cacheOriginalImage()
-                .fade(duration: 0.2)
-                .resizable()
-                .aspectRatio(contentMode: .fill)
-                .frame(width: 70, height: 70)
-                .clipShape(RoundedRectangle(cornerRadius: 10))
+            )
+            .frame(width: 70, height: 70)
+            .clipShape(RoundedRectangle(cornerRadius: 10))
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(post.title)

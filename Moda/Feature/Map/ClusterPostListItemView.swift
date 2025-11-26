@@ -23,20 +23,20 @@ struct ClusterPostListItemView: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            
+
             if !post.media.isEmpty {
-                KFImage(URL(string: "\(NetworkConfig.baseURL)/v1\(post.media)"))
-                    .requestModifier(KFHeaders.modifier)
-                    .placeholder {
-                        RoundedRectangle(cornerRadius: 8)
-                            .fill(Color.gray.opacity(0.3))
+                MediaImageView(
+                    mediaURL: post.media,
+                    contentMode: .fill,
+                    placeholder: {
+                        AnyView(
+                            RoundedRectangle(cornerRadius: 8)
+                                .fill(Color.gray.opacity(0.3))
+                        )
                     }
-                    .cacheOriginalImage()
-                    .fade(duration: 0.2)
-                    .resizable()
-                    .aspectRatio(contentMode: .fill)
-                    .frame(width: 80, height: 80)
-                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                )
+                .frame(width: 80, height: 80)
+                .clipShape(RoundedRectangle(cornerRadius: 8))
             } else {
                 RoundedRectangle(cornerRadius: 8)
                     .fill(Color.gray.opacity(0.3))
