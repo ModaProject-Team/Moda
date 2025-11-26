@@ -9,6 +9,7 @@ import SwiftUI
 
 @main
 struct ModaApp: App {
+    @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     @StateObject private var navigator = AppNavigator.shared
     
     var body: some Scene {

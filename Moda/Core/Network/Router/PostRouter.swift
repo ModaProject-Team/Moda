@@ -91,6 +91,9 @@ enum PostRouter {
 
     /// 제목 검색
     case searchPosts(title: String, category: [String]?)
+
+    /// 결제 검증
+    case validatePayment(impUid: String, postId: String)
 }
 
 extension PostRouter: Endpoint {
@@ -99,38 +102,45 @@ extension PostRouter: Endpoint {
     }
 
     var path: String {
-        let basePath = "/v1/posts"
-        let subPath: String
-
         switch self {
-        case .uploadFiles:
-            subPath = "/files"
-        case .createPost, .getPosts:
-            subPath = ""
-        case .getPost(let postId), .updatePost(let postId, _, _, _, _, _, _, _, _, _, _, _, _), .deletePost(let postId):
-            subPath = "/\(postId)"
-        case .likePost(let postId, _):
-            subPath = "/\(postId)/like"
-        case .getMyLikedPosts:
-            subPath = "/likes/me"
-        case .getUserPosts(let userId, _, _, _):
-            subPath = "/users/\(userId)"
-        case .searchHashtags:
-            subPath = "/hashtags"
-        case .getFeed:
-            subPath = "/feed"
-        case .getPostsByGeolocation:
-            subPath = "/geolocation"
-        case .searchPosts:
-            subPath = "/search"
-        }
+        case .validatePayment:
+            return "/v1/payments/validation"
+        default:
+            let basePath = "/v1/posts"
+            let subPath: String
 
-        return basePath + subPath
+            switch self {
+            case .uploadFiles:
+                subPath = "/files"
+            case .createPost, .getPosts:
+                subPath = ""
+            case .getPost(let postId), .updatePost(let postId, _, _, _, _, _, _, _, _, _, _, _, _), .deletePost(let postId):
+                subPath = "/\(postId)"
+            case .likePost(let postId, _):
+                subPath = "/\(postId)/like"
+            case .getMyLikedPosts:
+                subPath = "/likes/me"
+            case .getUserPosts(let userId, _, _, _):
+                subPath = "/users/\(userId)"
+            case .searchHashtags:
+                subPath = "/hashtags"
+            case .getFeed:
+                subPath = "/feed"
+            case .getPostsByGeolocation:
+                subPath = "/geolocation"
+            case .searchPosts:
+                subPath = "/search"
+            default:
+                subPath = ""
+            }
+
+            return basePath + subPath
+        }
     }
 
     var method: HTTPMethod {
         switch self {
-        case .uploadFiles, .createPost, .likePost:
+        case .uploadFiles, .createPost, .likePost, .validatePayment:
             return .post
         case .updatePost:
             return .put
@@ -200,6 +210,12 @@ extension PostRouter: Endpoint {
 
         case .likePost(_, let likeStatus):
             return ["like_status": likeStatus]
+
+        case .validatePayment(let impUid, let postId):
+            return [
+                "imp_uid": impUid,
+                "post_id": postId
+            ]
 
         default:
             return nil
