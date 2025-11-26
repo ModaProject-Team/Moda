@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		030D64C42ED5CC3D00AFA941 /* SocketIO in Frameworks */ = {isa = PBXBuildFile; productRef = 030D64C32ED5CC3D00AFA941 /* SocketIO */; };
+		030D64E72ED6D00100AFA941 /* iamport-ios in Frameworks */ = {isa = PBXBuildFile; productRef = 030D64E62ED6D00100AFA941 /* iamport-ios */; };
 		037028BA2EBC8F1F00A4A7CF /* .gitignore in Resources */ = {isa = PBXBuildFile; fileRef = 037028B92EBC8F1700A4A7CF /* .gitignore */; };
 		92628BA02ED6D7DF00E6CE69 /* iamport-ios in Frameworks */ = {isa = PBXBuildFile; productRef = 92628B9F2ED6D7DF00E6CE69 /* iamport-ios */; };
 		92D4A6372EC1D679002526FC /* Kingfisher in Frameworks */ = {isa = PBXBuildFile; productRef = 92D4A6362EC1D679002526FC /* Kingfisher */; };
@@ -44,7 +45,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				92628BA02ED6D7DF00E6CE69 /* iamport-ios in Frameworks */,
+				030D64E72ED6D00100AFA941 /* iamport-ios in Frameworks */,
 				92D4A6372EC1D679002526FC /* Kingfisher in Frameworks */,
 				030D64C42ED5CC3D00AFA941 /* SocketIO in Frameworks */,
 			);
@@ -92,7 +93,7 @@
 			packageProductDependencies = (
 				92D4A6362EC1D679002526FC /* Kingfisher */,
 				030D64C32ED5CC3D00AFA941 /* SocketIO */,
-				92628B9F2ED6D7DF00E6CE69 /* iamport-ios */,
+				030D64E62ED6D00100AFA941 /* iamport-ios */,
 			);
 			productName = Moda;
 			productReference = 037028A92EBC8ED900A4A7CF /* Moda.app */;
@@ -125,7 +126,7 @@
 			packageReferences = (
 				92D4A6352EC1D679002526FC /* XCRemoteSwiftPackageReference "Kingfisher" */,
 				030D64C22ED5CC3D00AFA941 /* XCRemoteSwiftPackageReference "socket" */,
-				92628B9E2ED6D7DF00E6CE69 /* XCRemoteSwiftPackageReference "iamport-ios" */,
+				030D64E52ED6D00100AFA941 /* XCRemoteSwiftPackageReference "iamport-ios" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 037028AA2EBC8ED900A4A7CF /* Products */;
@@ -378,9 +379,9 @@
 				kind = branch;
 			};
 		};
-		92628B9E2ED6D7DF00E6CE69 /* XCRemoteSwiftPackageReference "iamport-ios" */ = {
+		030D64E52ED6D00100AFA941 /* XCRemoteSwiftPackageReference "iamport-ios" */ = {
 			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/iamport/iamport-ios?tab=readme-ov-file";
+			repositoryURL = "https://github.com/iamport/iamport-ios?tab=readme-ov-file%20%EB%82%9C%20%EC%9D%B4%EA%B1%B0%20%EC%B6%94%EA%B0%80%ED%95%98%EB%A9%B4%20%EC%9D%B4%EA%B1%B0%20%EB%8B%A4%20%EB%93%A4%EC%96%B4%EC%98%A4%EB%8A%94%EB%8D%B0%20%EB%84%88%EB%84%A4%EB%8F%84%EA%B7%B8%EB%9F%AC%EB%8B%88?";
 			requirement = {
 				kind = upToNextMajorVersion;
 				minimumVersion = 1.4.7;
@@ -402,9 +403,9 @@
 			package = 030D64C22ED5CC3D00AFA941 /* XCRemoteSwiftPackageReference "socket" */;
 			productName = SocketIO;
 		};
-		92628B9F2ED6D7DF00E6CE69 /* iamport-ios */ = {
+		030D64E62ED6D00100AFA941 /* iamport-ios */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = 92628B9E2ED6D7DF00E6CE69 /* XCRemoteSwiftPackageReference "iamport-ios" */;
+			package = 030D64E52ED6D00100AFA941 /* XCRemoteSwiftPackageReference "iamport-ios" */;
 			productName = "iamport-ios";
 		};
 		92D4A6362EC1D679002526FC /* Kingfisher */ = {
