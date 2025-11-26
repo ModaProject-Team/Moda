@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		030D64C42ED5CC3D00AFA941 /* SocketIO in Frameworks */ = {isa = PBXBuildFile; productRef = 030D64C32ED5CC3D00AFA941 /* SocketIO */; };
 		037028BA2EBC8F1F00A4A7CF /* .gitignore in Resources */ = {isa = PBXBuildFile; fileRef = 037028B92EBC8F1700A4A7CF /* .gitignore */; };
 		92D4A6372EC1D679002526FC /* Kingfisher in Frameworks */ = {isa = PBXBuildFile; productRef = 92D4A6362EC1D679002526FC /* Kingfisher */; };
 		B086E8B72ED5BC5F002B27D7 /* iamport-ios in Frameworks */ = {isa = PBXBuildFile; productRef = B086E8B62ED5BC5F002B27D7 /* iamport-ios */; };
@@ -45,6 +46,7 @@
 			files = (
 				92D4A6372EC1D679002526FC /* Kingfisher in Frameworks */,
 				B086E8B72ED5BC5F002B27D7 /* iamport-ios in Frameworks */,
+				030D64C42ED5CC3D00AFA941 /* SocketIO in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -90,6 +92,7 @@
 			packageProductDependencies = (
 				92D4A6362EC1D679002526FC /* Kingfisher */,
 				B086E8B62ED5BC5F002B27D7 /* iamport-ios */,
+				030D64C32ED5CC3D00AFA941 /* SocketIO */,
 			);
 			productName = Moda;
 			productReference = 037028A92EBC8ED900A4A7CF /* Moda.app */;
@@ -122,6 +125,7 @@
 			packageReferences = (
 				92D4A6352EC1D679002526FC /* XCRemoteSwiftPackageReference "Kingfisher" */,
 				B086E8B52ED5BC5F002B27D7 /* XCRemoteSwiftPackageReference "iamport-ios" */,
+				030D64C22ED5CC3D00AFA941 /* XCRemoteSwiftPackageReference "socket" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 037028AA2EBC8ED900A4A7CF /* Products */;
@@ -376,6 +380,14 @@
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */
+		030D64C22ED5CC3D00AFA941 /* XCRemoteSwiftPackageReference "socket" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/socketio/socket.io-client-swift";
+			requirement = {
+				branch = master;
+				kind = branch;
+			};
+		};
 		92D4A6352EC1D679002526FC /* XCRemoteSwiftPackageReference "Kingfisher" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/onevcat/Kingfisher.git";
@@ -395,6 +407,11 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
+		030D64C32ED5CC3D00AFA941 /* SocketIO */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 030D64C22ED5CC3D00AFA941 /* XCRemoteSwiftPackageReference "socket" */;
+			productName = SocketIO;
+		};
 		92D4A6362EC1D679002526FC /* Kingfisher */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = 92D4A6352EC1D679002526FC /* XCRemoteSwiftPackageReference "Kingfisher" */;

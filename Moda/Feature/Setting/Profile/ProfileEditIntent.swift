@@ -11,6 +11,7 @@ import SwiftUI
 enum ProfileEditIntent {
     case onAppear
     case nicknameChanged(String)
+    case statusMessageChanged(String)
     case imageSelected(PhotosPickerItem?)
     case saveTapped
     case dismissError

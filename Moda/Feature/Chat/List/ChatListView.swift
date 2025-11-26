@@ -16,58 +16,120 @@ struct ChatRoom: Identifiable {
     let unreadCount: Int
 }
 
-extension ChatRoom {
-    static let mockData: [ChatRoom] = [
-        ChatRoom(
-            id: "1",
-            participantName: "김민수",
-            participantProfileImage: nil,
-            lastMessage: "ㅇㅋ 내일 3시 ㄱㄱ",
-            lastMessageTime: Date().addingTimeInterval(-300),
-            unreadCount: 2
-        ),
-        ChatRoom(
-            id: "2",
-            participantName: "이서연",
-            participantProfileImage: nil,
-            lastMessage: "야 그거 아직 있어?",
-            lastMessageTime: Date().addingTimeInterval(-3600),
-            unreadCount: 0
-        ),
-        ChatRoom(
-            id: "3",
-            participantName: "박지훈",
-            participantProfileImage: nil,
-            lastMessage: "ㄹㅇ? 좀 깎아줘 ㅋㅋ",
-            lastMessageTime: Date().addingTimeInterval(-86400),
-            unreadCount: 1
-        ),
-        ChatRoom(
-            id: "4",
-            participantName: "최유진",
-            participantProfileImage: nil,
-            lastMessage: "ㄱㅅㄱㅅ 잘 받았어!",
-            lastMessageTime: Date().addingTimeInterval(-172800),
-            unreadCount: 0
-        )
-    ]
-}
-
 struct ChatListState {
-    var chatRooms: [ChatRoom] = ChatRoom.mockData
+    var chatRooms: [ChatRoom] = []
+    var isLoading: Bool = false
+    var errorMessage: String?
 }
 
 enum ChatListIntent {
     case chatRoomTapped(ChatRoom)
+    case loadRooms
+    case refresh
 }
 
 final class ChatListStore: ObservableObject {
     @Published private(set) var state = ChatListState()
 
+    private let chatAPI: ChatAPIProtocol
+    private let userProfileAPI: UserProfileAPIProtocol
+
+    // 내 사용자 ID (상대방 판별용)
+    private var myUserId: String?
+
+    init(
+        chatAPI: ChatAPIProtocol = ChatAPI.shared,
+        userProfileAPI: UserProfileAPIProtocol = UserProfileAPI.shared
+    ) {
+        self.chatAPI = chatAPI
+        self.userProfileAPI = userProfileAPI
+    }
+
     func send(_ intent: ChatListIntent) {
         switch intent {
         case .chatRoomTapped:
             break
+        case .loadRooms, .refresh:
+            Task { await loadRooms() }
+        }
+    }
+
+    @MainActor
+    private func setLoading(_ loading: Bool) {
+        state.isLoading = loading
+        if loading {
+            state.errorMessage = nil
+        }
+    }
+
+    private func parseISODate(_ string: String) -> Date {
+        // 서버 createdAt/updatedAt이 ISO8601 형식이라고 가정
+        let iso = ISO8601DateFormatter()
+        iso.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return iso.date(from: string) ?? Date()
+    }
+
+    private func mapToViewModel(_ dto: ChatRoomResponse) -> ChatRoom {
+        let opponent: ChatParticipant?
+        if let myId = myUserId {
+            opponent = dto.participants.first(where: { $0.userId != myId }) ?? dto.participants.first
+        } else {
+            //MARK: 만약 대화 참여자 조회시 내 아이디가 없으면 상대가 말 건 것으로 간주, 첫 참여자를 상대로 뒀음, 나중애 필요하면 수정하기
+            opponent = dto.participants.first
+        }
+
+        // 마지막 메시지 텍스트/시간
+        let lastMessageText: String
+        let lastMessageTime: Date
+        if let last = dto.lastChat {
+            if let content = last.content, !content.isEmpty {
+                //MARK: TODO 라스트쳇 요청후 "{닉네임} {대화내용} 형태로 나오는것 확인됨, 추후 닉네임 부분 제거하는 로직 추가하기"
+                lastMessageText = content
+            } else {
+                lastMessageText = last.files.isEmpty ? "" : "파일"
+            }
+            lastMessageTime = parseISODate(last.createdAt)
+        } else {
+            lastMessageText = ""
+            lastMessageTime = parseISODate(dto.updatedAt)
+        }
+
+        return ChatRoom(
+            id: dto.roomId,
+            participantName: opponent?.nick ?? "알 수 없음",
+            participantProfileImage: opponent?.profileImage,
+            lastMessage: lastMessageText,
+            lastMessageTime: lastMessageTime,
+            unreadCount: 0 // API 명세에 없으므로 일단 0으로 처리
+        )
+    }
+
+    @MainActor
+    private func applyRooms(_ rooms: [ChatRoomResponse]) {
+        self.state.chatRooms = rooms.map(mapToViewModel)
+    }
+
+    // 내 userId를 보장
+    private func ensureMyUserId() async throws {
+        if myUserId == nil {
+            let me = try await userProfileAPI.getMyProfile()
+            self.myUserId = me.userId
+        }
+    }
+
+    private func loadRooms() async {
+        await setLoading(true)
+        do {
+            // 내 ID 확보 후 방 목록 불러오기
+            try await ensureMyUserId()
+            let response = try await chatAPI.getRooms()
+            await applyRooms(response.data)
+            await setLoading(false)
+        } catch {
+            await MainActor.run {
+                self.state.errorMessage = (error as? NetworkError)?.localizedDescription ?? "채팅방을 불러오지 못했어요."
+                self.state.isLoading = false
+            }
         }
     }
 }
@@ -84,12 +146,20 @@ struct ChatListView: View {
             VStack(spacing: 0) {
                 headerSection
 
-                if store.state.chatRooms.isEmpty {
+                if store.state.isLoading {
+                    loadingSection
+                } else if let message = store.state.errorMessage {
+                    errorSection(message: message)
+                } else if store.state.chatRooms.isEmpty {
                     emptyStateSection
                 } else {
                     chatListSection
                 }
             }
+        }
+        .task {
+            // 화면 진입 시 최초 로드
+            store.send(.loadRooms)
         }
     }
 
@@ -106,6 +176,28 @@ struct ChatListView: View {
         .background(Color.white)
     }
 
+    private var loadingSection: some View {
+        VStack {
+            Spacer()
+            ProgressView()
+            Spacer()
+        }
+    }
+
+    private func errorSection(message: String) -> some View {
+        VStack(spacing: 12) {
+            Spacer()
+            Text(message)
+                .Body1()
+                .foregroundColor(.gray2)
+            Button("다시 시도") {
+                store.send(.refresh)
+            }
+            .buttonStyle(.bordered)
+            Spacer()
+        }
+    }
+
     private var emptyStateSection: some View {
         VStack(spacing: 12) {
             Spacer()
@@ -117,6 +209,11 @@ struct ChatListView: View {
             Text("아직 대화가 없어요")
                 .Body1()
                 .foregroundColor(.gray2)
+
+            Button("새로고침") {
+                store.send(.refresh)
+            }
+            .buttonStyle(.bordered)
 
             Spacer()
         }
@@ -135,6 +232,9 @@ struct ChatListView: View {
                 }
             }
             .padding(.bottom, 100)
+        }
+        .refreshable {
+            store.send(.refresh)
         }
     }
 }
