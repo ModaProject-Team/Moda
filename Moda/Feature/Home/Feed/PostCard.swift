@@ -16,6 +16,7 @@ struct PostCard: Identifiable {
     let creator: Creator
     let imageURL: String?
     let likes: [String]
+    let buyers: [String]
     let latitude: Double?
     let longitude: Double?
     let locationName: String?
@@ -157,6 +158,7 @@ extension Post {
             ),
             imageURL: files.first,
             likes: likes,
+            buyers: buyers,
             latitude: geolocation?.latitude,
             longitude: geolocation?.longitude,
             locationName: value1,
@@ -199,6 +201,7 @@ extension PostCard {
                 ),
                 imageURL: nil,
                 likes: ["user2", "user3"],
+                buyers: [],
                 latitude: 37.517682,
                 longitude: 126.886417,
                 locationName: "문래역 1번 출구",
@@ -217,6 +220,7 @@ extension PostCard {
                 ),
                 imageURL: nil,
                 likes: ["user1", "user3", "user4"],
+                buyers: [],
                 latitude: 37.517682,
                 longitude: 126.886417,
                 locationName: "강남역 2번 출구",
@@ -236,6 +240,7 @@ extension PostCard {
                 ),
                 imageURL: nil,
                 likes: ["user2", "user5"],
+                buyers: [],
                 latitude: 37.517682,
                 longitude: 126.886417,
                 locationName: nil,
@@ -254,6 +259,7 @@ extension PostCard {
                 ),
                 imageURL: nil,
                 likes: ["user1"],
+                buyers: [],
                 latitude: 37.517682,
                 longitude: 126.886417,
                 locationName: "신촌역 앞",
@@ -272,6 +278,7 @@ extension PostCard {
                 ),
                 imageURL: nil,
                 likes: ["user1", "user2", "user3", "user4", "user5"],
+                buyers: [],
                 latitude: 37.517682,
                 longitude: 126.886417,
                 locationName: "홍대입구역",
@@ -291,6 +298,7 @@ extension PostCard {
                 ),
                 imageURL: nil,
                 likes: ["user2", "user3", "user6"],
+                buyers: [],
                 latitude: 37.517682,
                 longitude: 126.886417,
                 locationName: "여의도역 3번 출구",

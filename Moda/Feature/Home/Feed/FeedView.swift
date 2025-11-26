@@ -76,6 +76,9 @@ struct FeedView: View {
                 store.send(.updateLikeFromExternal(postId: postId, isLiked: isLiked, likeCount: likeCount))
             }
         }
+        .onReceive(NotificationCenter.default.publisher(for: .postPaymentCompleted)) { _ in
+            store.send(.refresh)
+        }
     }
 
     private var logoSection: some View {

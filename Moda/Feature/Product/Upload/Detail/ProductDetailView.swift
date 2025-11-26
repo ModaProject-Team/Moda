@@ -8,10 +8,18 @@
 import SwiftUI
 import Kingfisher
 import MapKit
+import iamport_ios
 
 extension Notification.Name {
     static let postDeleted = Notification.Name("postDeleted")
     static let postLikeUpdated = Notification.Name("postLikeUpdated")
+    static let postPaymentCompleted = Notification.Name("postPaymentCompleted")
+}
+
+extension IamportPayment: @retroactive Identifiable {
+    public var id: String {
+        return merchant_uid
+    }
 }
 
 struct ProductDetailView: View {
@@ -22,6 +30,9 @@ struct ProductDetailView: View {
     @State private var selectedTab: Int = 0
     @State private var dominantColor: Color = .gray
     @State private var currentImageIndex: Int = 0
+    @State private var showPaymentAlert = false
+    @State private var paymentMessage = ""
+    @State private var currentPayment: IamportPayment?
 
     init(postId: String) {
         self.postId = postId
@@ -44,10 +55,8 @@ struct ProductDetailView: View {
         }
         .navigationBarHidden(true)
         .overlay(alignment: .top) {
-            // Gradient + Header
             if store.state.post != nil {
                 ZStack(alignment: .top) {
-                    // Gradient background
                     LinearGradient(
                         colors: [.black.opacity(0.5), .clear],
                         startPoint: .top,
@@ -68,18 +77,6 @@ struct ProductDetailView: View {
                         }
 
                         Spacer()
-
-                        if store.state.isMyPost {
-                            Button {
-                                store.send(.showActionSheet)
-                            } label: {
-                                Image(systemName: "ellipsis")
-                                    .font(.system(size: 16))
-                                    .foregroundColor(.white)
-                                    .frame(width: 44, height: 44)
-                                    .contentShape(Rectangle())
-                            }
-                        }
                     }
                     .padding(.horizontal, 8)
                     .padding(.top, 8)
@@ -88,18 +85,6 @@ struct ProductDetailView: View {
         }
         .task {
             store.send(.loadPost)
-        }
-        .confirmationDialog("", isPresented: Binding(
-            get: { store.state.showActionSheet },
-            set: { if !$0 { store.send(.dismissActionSheet) } }
-        ), titleVisibility: .hidden) {
-            Button("게시글 수정") {
-                // TODO: 수정 화면으로 이동
-            }
-            Button("삭제", role: .destructive) {
-                store.send(.showDeleteAlert)
-            }
-            Button("취소", role: .cancel) { }
         }
         .alert("게시글 삭제", isPresented: Binding(
             get: { store.state.showDeleteAlert },
@@ -124,9 +109,23 @@ struct ProductDetailView: View {
         .onReceive(NotificationCenter.default.publisher(for: .postDeleted)) { _ in
             navigator.popToRoot()
         }
+        .alert("결제 결과", isPresented: $showPaymentAlert) {
+            Button("확인", role: .cancel) { }
+        } message: {
+            Text(paymentMessage)
+        }
+        .fullScreenCover(item: $currentPayment) { payment in
+            IamportWebView(
+                userCode: "imp14511373",
+                payment: payment
+            ) { response in
+                currentPayment = nil
+                handlePaymentResponse(response)
+            }
+            .ignoresSafeArea()
+        }
     }
 
-    // MARK: - Error View
     private func errorView(error: String) -> some View {
         VStack(spacing: 16) {
             Text("오류가 발생했습니다")
@@ -146,7 +145,6 @@ struct ProductDetailView: View {
         }
     }
 
-    // MARK: - Content View
     private func contentView(post: PostResponse) -> some View {
         GeometryReader { geometry in
             VStack {
@@ -205,7 +203,7 @@ struct ProductDetailView: View {
                                 .foregroundColor(.black)
                                 .multilineTextAlignment(.leading)
                                 .padding(.vertical, 16)
-                            
+
                                 if let price = post.price, price > 0 {
                                     Text("\(price.formatted())원")
                                         .H2()
@@ -230,7 +228,6 @@ struct ProductDetailView: View {
                                 }
                                 .padding(.bottom, 12)
                                 
-                                // Tab Indicator
                                 GeometryReader { tabGeometry in
                                     Rectangle()
                                         .fill(Color.black)
@@ -263,7 +260,6 @@ struct ProductDetailView: View {
         .ignoresSafeArea(edges: .top)
     }
 
-    // MARK: - Tab Button
     private func tabButton(title: String, index: Int) -> some View {
         Button {
             withAnimation(.easeInOut(duration: 0.2)) {
@@ -277,7 +273,6 @@ struct ProductDetailView: View {
         }
     }
 
-    // MARK: - Product Info Tab
     private func productInfoTab(post: PostResponse) -> some View {
         VStack(alignment: .leading, spacing: 16) {
 
@@ -311,7 +306,6 @@ struct ProductDetailView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    // MARK: - Trade Location Tab
     private func tradeLocationTab(post: PostResponse) -> some View {
         VStack(alignment: .leading, spacing: 16) {
             if let locationName = post.value1, !locationName.isEmpty,
@@ -351,11 +345,14 @@ struct ProductDetailView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    // MARK: - Floating Action Bar
     private func floatingActionBar(post: PostResponse) -> some View {
-        HStack(spacing: 16) {
+        let isPaymentCompleted = !post.buyers.isEmpty
+        let isFreeItem = post.price == nil || post.price == 0
+        let isMyPost = store.state.isMyPost
+
+        return HStack(spacing: 16) {
             Button {
-                // Navigate to seller profile
+                //TODO: Navigate to seller profile
             } label: {
                 if let profileImage = post.creator.profileImage, !profileImage.isEmpty {
                     KFImage(URL(string: "\(NetworkConfig.baseURL)/v1\(profileImage)"))
@@ -379,20 +376,61 @@ struct ProductDetailView: View {
                 .font(.system(size: 14))
                 .foregroundColor(.white.opacity(0.3))
 
-            Button {
-                // Navigate to chat
-            } label: {
-                Image(systemName: "message.fill")
-                    .font(.system(size: 16))
+            if isPaymentCompleted {
+                Text("거래완료")
+                    .font(.system(size: 14, weight: .semibold))
                     .foregroundColor(.white)
             }
+            else if isMyPost {
+                Button {
+                    // TODO: 수정 화면으로 이동
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: "pencil")
+                            .font(.system(size: 14))
+                    }
+                    .foregroundColor(.white)
+                }
+
+                Button {
+                    store.send(.showDeleteAlert)
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: "trash")
+                            .font(.system(size: 14))
+                    }
+                    .foregroundColor(.white)
+                }
+            }
             
-            Button {
-                store.send(.toggleLike)
-            } label: {
-                Image(systemName: store.state.isLiked ? "heart.fill" : "heart")
-                    .font(.system(size: 16))
-                    .foregroundColor(store.state.isLiked ? .pink1 : .white)
+            else {
+                if !isFreeItem {
+                    Button {
+                        startPayment(post: post)
+                    } label: {
+                        HStack(spacing: 4) {
+                            Image(systemName: "creditcard.fill")
+                                .font(.system(size: 14))
+                        }
+                        .foregroundColor(.white)
+                    }
+                }
+
+                Button {
+                    //TODO: Navigate to chat
+                } label: {
+                    Image(systemName: "message.fill")
+                        .font(.system(size: 16))
+                        .foregroundColor(.white)
+                }
+
+                Button {
+                    store.send(.toggleLike)
+                } label: {
+                    Image(systemName: store.state.isLiked ? "heart.fill" : "heart")
+                        .font(.system(size: 16))
+                        .foregroundColor(store.state.isLiked ? .pink1 : .white)
+                }
             }
         }
         .padding(.horizontal, 28)
@@ -403,7 +441,6 @@ struct ProductDetailView: View {
         )
     }
 
-    // MARK: - Extract Color
     private func extractColor(from image: KFCrossPlatformImage) {
         DispatchQueue.global(qos: .userInitiated).async {
             guard let cgImage = image.cgImage else { return }
@@ -435,6 +472,83 @@ struct ProductDetailView: View {
                 withAnimation(.easeInOut(duration: 0.5)) {
                     self.dominantColor = Color(red: r, green: g, blue: b)
                 }
+            }
+        }
+    }
+
+    // MARK: - Payment
+    private func startPayment(post: PostResponse) {
+        guard let price = post.price, price > 0 else { return }
+
+        // merchant_uid: 고유한 주문 번호 생성 (product_id + timestamp)
+        let merchantUid = "ios_\(postId)_\(Int(Date().timeIntervalSince1970 * 1000))"
+
+        // IamportPayment 생성
+        currentPayment = IamportPayment(
+            pg: PG.html5_inicis.makePgRawName(pgId: "INIpayTest"),
+            merchant_uid: merchantUid,
+            amount: "\(price)"
+        ).then {
+            $0.pay_method = PayMethod.card.rawValue
+            $0.name = post.title
+            $0.buyer_name = "장수지" // TODO: 실제 사용자 이름으로 변경
+            $0.app_scheme = "moda"
+        }
+    }
+
+    private func handlePaymentResponse(_ response: IamportResponse?) {
+        guard let response = response else {
+            paymentMessage = "결제 응답을 받지 못했습니다."
+            showPaymentAlert = true
+            return
+        }
+
+        if response.success == true, let impUid = response.imp_uid {
+            // 결제 성공 - 서버에 결제 검증 요청
+            Task {
+                await validatePayment(impUid: impUid)
+            }
+        } else {
+            paymentMessage = "결제가 취소되었습니다."
+            print(response.error_msg ?? "알 수 없는 오류")
+            showPaymentAlert = true
+        }
+    }
+
+    private func validatePayment(impUid: String) async {
+        do {
+            let response = try await NetworkService.shared.request(
+                endpoint: PostRouter.validatePayment(impUid: impUid, postId: postId),
+                responseType: PaymentValidationResponse.self
+            )
+
+            // 결제 검증 성공 - 게시글 데이터 다시 로드하여 UI 업데이트
+            await MainActor.run {
+                store.send(.loadPost)
+                NotificationCenter.default.post(name: .postPaymentCompleted, object: nil)
+            }
+
+            // 잠시 대기 후 알림 표시 (데이터 로딩 완료 후)
+            try? await Task.sleep(nanoseconds: 500_000_000) // 0.5초
+
+            await MainActor.run {
+                paymentMessage = "결제가 완료되었습니다.\n거래 품목: \(response.productName)\n금액: \(response.price)원"
+                showPaymentAlert = true
+            }
+        } catch {
+            // 결제 검증 실패
+            await MainActor.run {
+                if let networkError = error as? NetworkError {
+                    switch networkError {
+                    case .serverError(let message):
+                        paymentMessage = "결제 검증 실패: \(message)"
+                    default:
+                        paymentMessage = "결제 검증 중 오류가 발생했습니다."
+                    }
+                } else {
+                    paymentMessage = "결제 검증 중 오류가 발생했습니다."
+                }
+                showPaymentAlert = true
             }
         }
     }
