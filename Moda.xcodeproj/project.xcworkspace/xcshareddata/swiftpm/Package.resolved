@@ -1,5 +1,5 @@
 {
-  "originHash" : "37edea30138258c7343ef0071ab394a0ea269d932cf214e42ee68627dbc3d83e",
+  "originHash" : "32c402b2fb0713c12eac710a4d761ca97087d5299ffbb81de27561ca2509f78d",
   "pins" : [
     {
       "identity" : "alamofire",
@@ -11,9 +11,9 @@
       }
     },
     {
-      "identity" : "iamport-ios",
+      "identity" : "iamport-ios?tab=readme-ov-file",
       "kind" : "remoteSourceControl",
-      "location" : "https://github.com/iamport/iamport-ios.git",
+      "location" : "https://github.com/iamport/iamport-ios?tab=readme-ov-file",
       "state" : {
         "revision" : "cfa5ca2bb0f2be4e51981f14fd20d32d6c9d3636",
         "version" : "1.4.7"
@@ -40,7 +40,7 @@
     {
       "identity" : "socket.io-client-swift",
       "kind" : "remoteSourceControl",
-      "location" : "https://github.com/socketio/socket.io-client-swift.git",
+      "location" : "https://github.com/socketio/socket.io-client-swift",
       "state" : {
         "branch" : "master",
         "revision" : "42da871d9369f290d6ec4930636c40672143905b"

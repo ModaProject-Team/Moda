@@ -8,6 +8,8 @@
 import SwiftUI
 import PhotosUI
 import AVFoundation
+import AVKit
+import Kingfisher
 
 struct ChatMessage: Identifiable {
     let id: String
@@ -16,6 +18,12 @@ struct ChatMessage: Identifiable {
     let senderName: String
     let createdAt: Date
     let isMine: Bool
+    let attachment: Attachment?
+
+    enum Attachment: Equatable {
+        case image(URL)
+        case video(URL)
+    }
 }
 
 struct ChatRoomState {
@@ -37,6 +45,12 @@ struct ChatRoomState {
     var pendingImageData: Data? = nil
     var pendingVideoURL: URL? = nil
     var pendingType: PendingType = .none
+
+    // 미디어 풀스크린 뷰어
+    var showImageViewer: Bool = false
+    var showVideoPlayer: Bool = false
+    var selectedImageURL: URL? = nil
+    var selectedVideoURL: URL? = nil
 
     enum PendingType { case image, video, none }
 }
@@ -69,6 +83,12 @@ enum ChatRoomIntent {
     // Alert 액션
     case confirmSend
     case cancelSend
+
+    // 미디어 프리뷰
+    case showImageViewer(URL)
+    case hideImageViewer
+    case showVideoPlayer(URL)
+    case hideVideoPlayer
 }
 
 final class ChatRoomStore: ObservableObject {
@@ -156,38 +176,37 @@ final class ChatRoomStore: ObservableObject {
             state.showSendConfirmAlert = false
 
         case .confirmSend:
-            switch state.pendingType {
-            case .image:
-                if state.pendingImageData != nil {
-                    print("사진 전송중… (네트워크 통신은 추후 구현)")
-                }
-            case .video:
-                if state.pendingVideoURL != nil {
-                    print("동영상 전송중… (네트워크 통신은 추후 구현)")
-                }
-            case .none:
-                break
-            }
-            // 전송 후 초기화
+            Task { await sendPendingFileIfNeeded() }
+
+        case .cancelSend:
             state.pendingImageData = nil
             state.pendingVideoURL = nil
             state.pendingType = .none
             state.showSendConfirmAlert = false
 
-        case .cancelSend:
-            // 취소: 초기화
-            state.pendingImageData = nil
-            state.pendingVideoURL = nil
-            state.pendingType = .none
-            state.showSendConfirmAlert = false
+        case .showImageViewer(let url):
+            state.selectedImageURL = url
+            state.showImageViewer = true
+
+        case .hideImageViewer:
+            state.showImageViewer = false
+            state.selectedImageURL = nil
+
+        case .showVideoPlayer(let url):
+            state.selectedVideoURL = url
+            state.showVideoPlayer = true
+
+        case .hideVideoPlayer:
+            state.showVideoPlayer = false
+            state.selectedVideoURL = nil
         }
     }
 
     private func setupSocketCallbacks() {
-        socketService.onConnect = { [weak self] in
+        socketService.onConnect = {
             print("SOCKET CONNECTED")
         }
-        socketService.onDisconnect = { [weak self] in
+        socketService.onDisconnect = {
             print("SOCKET DISCONNECTED")
         }
         socketService.onError = { [weak self] message in
@@ -250,7 +269,7 @@ final class ChatRoomStore: ObservableObject {
         }
     }
 
-    // MARK: - Send
+    // MARK: - Send text
     private func sendCurrentMessage() async {
         let text = state.inputText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty else { return }
@@ -270,17 +289,76 @@ final class ChatRoomStore: ObservableObject {
         }
     }
 
+    // MARK: - Send files
+    private func sendPendingFileIfNeeded() async {
+        await MainActor.run {
+            state.showSendConfirmAlert = false
+        }
+
+        do {
+            try await ensureMyUserId()
+
+            let uploadedFiles: [String]
+
+            switch state.pendingType {
+            case .image:
+                guard let data = state.pendingImageData else { return }
+                let files: [FileData] = [FileData(data: data, type: .image)]
+                let uploadResponse = try await chatAPI.uploadFiles(roomId: roomId, files: files)
+                uploadedFiles = uploadResponse.files
+
+            case .video:
+                guard let url = state.pendingVideoURL else { return }
+                let videoData = try Data(contentsOf: url)
+                let files: [FileData] = [FileData(data: videoData, type: .video)]
+                let uploadResponse = try await chatAPI.uploadFiles(roomId: roomId, files: files)
+                uploadedFiles = uploadResponse.files
+
+            case .none:
+                return
+            }
+
+            let sent = try await chatAPI.sendMessage(roomId: roomId, content: nil, files: uploadedFiles)
+            let mapped = mapToViewModel(sent)
+
+            await MainActor.run {
+                if !self.state.messages.contains(where: { $0.id == mapped.id }) {
+                    self.state.messages.append(mapped)
+                }
+                self.state.pendingImageData = nil
+                self.state.pendingVideoURL = nil
+                self.state.pendingType = .none
+            }
+        } catch {
+            await setError(error)
+        }
+    }
+
     // MARK: - Mapping
     private func mapToViewModel(_ dto: ChatMessageResponse) -> ChatMessage {
         let created = parseISODate(dto.createdAt)
         let myId = myUserId ?? ""
         let isMine = (dto.sender.userId == myId)
 
+        // attachment 판별
+        let attachment: ChatMessage.Attachment? = {
+            guard let path = dto.files.first, !path.isEmpty else { return nil }
+            let full = makeFullURL(from: path)
+            let ext = (path as NSString).pathExtension.lowercased()
+            if ["jpg", "jpeg", "png", "gif", "webp"].contains(ext) {
+                return .image(full)
+            } else if ["mp4", "mov", "m4v"].contains(ext) {
+                return .video(full)
+            } else {
+                return .image(full) // 기본은 이미지로 처리
+            }
+        }()
+
         let text: String
         if let content = dto.content, !content.isEmpty {
             text = content
         } else {
-            text = dto.files.isEmpty ? "" : "파일"
+            text = attachment == nil ? "" : "파일"
         }
 
         return ChatMessage(
@@ -289,8 +367,15 @@ final class ChatRoomStore: ObservableObject {
             senderId: dto.sender.userId,
             senderName: dto.sender.nick,
             createdAt: created,
-            isMine: isMine
+            isMine: isMine,
+            attachment: attachment
         )
+    }
+
+    private func makeFullURL(from path: String) -> URL {
+        // FeedComponents에서 "\(NetworkConfig.baseURL)/v1\(imageURL)" 형태 사용 중
+        let urlString = "\(NetworkConfig.baseURL)/v1\(path)"
+        return URL(string: urlString) ?? URL(fileURLWithPath: "/")
     }
 
     private func parseISODate(_ string: String) -> Date {
@@ -436,6 +521,32 @@ struct ChatRoomView: View {
         } message: {
             Text(alertMessage)
         }
+        // 이미지 전체 보기
+        .fullScreenCover(isPresented: Binding(
+            get: { store.state.showImageViewer },
+            set: { newValue in
+                if newValue == false { store.send(.hideImageViewer) }
+            }
+        )) {
+            if let url = store.state.selectedImageURL {
+                ImageViewer(url: url) {
+                    store.send(.hideImageViewer)
+                }
+            }
+        }
+        // 비디오 재생
+        .fullScreenCover(isPresented: Binding(
+            get: { store.state.showVideoPlayer },
+            set: { newValue in
+                if newValue == false { store.send(.hideVideoPlayer) }
+            }
+        )) {
+            if let url = store.state.selectedVideoURL {
+                VideoPlayerViewFullScreen(url: url) {
+                    store.send(.hideVideoPlayer)
+                }
+            }
+        }
     }
 
     private var alertMessage: String {
@@ -534,8 +645,12 @@ struct ChatRoomView: View {
             ScrollView(showsIndicators: false) {
                 LazyVStack(spacing: 8) {
                     ForEach(store.state.messages) { message in
-                        MessageBubble(message: message)
-                            .id(message.id)
+                        MessageBubble(
+                            message: message,
+                            onTapImage: { url in store.send(.showImageViewer(url)) },
+                            onTapVideo: { url in store.send(.showVideoPlayer(url)) }
+                        )
+                        .id(message.id)
                     }
                 }
                 .padding(.horizontal, 16)
@@ -604,6 +719,10 @@ struct ChatRoomView: View {
 
 struct MessageBubble: View {
     let message: ChatMessage
+    let onTapImage: (URL) -> Void
+    let onTapVideo: (URL) -> Void
+
+    private let maxBubbleWidth: CGFloat = 220
 
     var body: some View {
         HStack(alignment: .bottom, spacing: 8) {
@@ -619,7 +738,45 @@ struct MessageBubble: View {
         }
     }
 
+    @ViewBuilder
     private var bubbleContent: some View {
+        switch message.attachment {
+        case .none:
+            textBubble
+        case .image(let url):
+            mediaBubble {
+                KFImage(url)
+                    .requestModifier(KFHeaders.modifier)
+                    .placeholder {
+                        RoundedRectangle(cornerRadius: 12).fill(Color.gray5)
+                            .frame(width: maxBubbleWidth, height: maxBubbleWidth * 0.6)
+                    }
+                    .cacheOriginalImage()
+                    .resizable()
+                    .scaledToFill()
+                    .frame(width: maxBubbleWidth, height: maxBubbleWidth * 0.6)
+                    .clipped()
+            }
+            .onTapGesture { onTapImage(url) }
+
+        case .video(let url):
+            mediaBubble {
+                VideoThumbnailView(url: url, itemWidth: maxBubbleWidth)
+                    .frame(width: maxBubbleWidth, height: maxBubbleWidth * 0.6)
+                    .clipped()
+                    .overlay(
+                        Image(systemName: "play.circle.fill")
+                            .resizable()
+                            .frame(width: 44, height: 44)
+                            .foregroundColor(.white)
+                            .shadow(radius: 4)
+                    )
+            }
+            .onTapGesture { onTapVideo(url) }
+        }
+    }
+
+    private var textBubble: some View {
         Text(message.content)
             .Body1()
             .foregroundColor(message.isMine ? .white : .gray1)
@@ -627,6 +784,13 @@ struct MessageBubble: View {
             .padding(.vertical, 10)
             .background(message.isMine ? Color.blue1 : Color.gray5)
             .cornerRadius(16)
+            .frame(maxWidth: maxBubbleWidth, alignment: .leading)
+    }
+
+    private func mediaBubble<Content: View>(@ViewBuilder content: () -> Content) -> some View {
+        content()
+            .background(message.isMine ? Color.blue1 : Color.gray5)
+            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
     }
 
     private var timeLabel: some View {
@@ -640,6 +804,73 @@ struct MessageBubble: View {
         formatter.dateFormat = "a h:mm"
         formatter.locale = Locale(identifier: "ko_KR")
         return formatter.string(from: date)
+    }
+}
+
+// MARK: - Full screen viewers
+
+struct ImageViewer: View {
+    let url: URL
+    let onClose: () -> Void
+
+    var body: some View {
+        ZStack {
+            Color.black.ignoresSafeArea()
+            KFImage(url)
+                .requestModifier(KFHeaders.modifier)
+                .placeholder { ProgressView().tint(.white) }
+                .cacheOriginalImage()
+                .resizable()
+                .scaledToFit()
+                .ignoresSafeArea()
+            VStack {
+                HStack {
+                    Button(action: onClose) {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.system(size: 24))
+                            .foregroundColor(.white.opacity(0.9))
+                    }
+                    Spacer()
+                }
+                .padding()
+                Spacer()
+            }
+        }
+    }
+}
+
+struct VideoPlayerViewFullScreen: View {
+    let url: URL
+    let onClose: () -> Void
+    @State private var player: AVPlayer? = nil
+
+    var body: some View {
+        ZStack {
+            Color.black.ignoresSafeArea()
+            if let player {
+                VideoPlayer(player: player)
+                    .ignoresSafeArea()
+                    .onAppear { player.play() }
+                    .onDisappear { player.pause() }
+            } else {
+                ProgressView().tint(.white)
+            }
+            VStack {
+                HStack {
+                    Button(action: onClose) {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.system(size: 24))
+                            .foregroundColor(.white.opacity(0.9))
+                    }
+                    Spacer()
+                }
+                .padding()
+                Spacer()
+            }
+        }
+        .onAppear {
+            player = AVPlayer(url: url)
+        }
     }
 }
 

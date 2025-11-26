@@ -15,4 +15,7 @@ protocol ChatAPIProtocol {
     func sendMessage(roomId: String, content: String?, files: [String]?) async throws -> ChatMessageResponse
 
     func getMessages(roomId: String, cursorDate: String?) async throws -> ChatHistoryResponse
+
+    // NEW: 채팅 파일 업로드
+    func uploadFiles(roomId: String, files: [FileData]) async throws -> ChatFileUploadResponse
 }

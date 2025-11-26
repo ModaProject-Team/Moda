@@ -7,10 +7,10 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		030D64C42ED5CC3D00AFA941 /* SocketIO in Frameworks */ = {isa = PBXBuildFile; productRef = 030D64C32ED5CC3D00AFA941 /* SocketIO */; };
 		037028BA2EBC8F1F00A4A7CF /* .gitignore in Resources */ = {isa = PBXBuildFile; fileRef = 037028B92EBC8F1700A4A7CF /* .gitignore */; };
+		92628BA02ED6D7DF00E6CE69 /* iamport-ios in Frameworks */ = {isa = PBXBuildFile; productRef = 92628B9F2ED6D7DF00E6CE69 /* iamport-ios */; };
 		92D4A6372EC1D679002526FC /* Kingfisher in Frameworks */ = {isa = PBXBuildFile; productRef = 92D4A6362EC1D679002526FC /* Kingfisher */; };
-		B02C8FB92ED6CF2200482905 /* SocketIO in Frameworks */ = {isa = PBXBuildFile; productRef = B02C8FB82ED6CF2200482905 /* SocketIO */; };
-		B086E8B72ED5BC5F002B27D7 /* iamport-ios in Frameworks */ = {isa = PBXBuildFile; productRef = B086E8B62ED5BC5F002B27D7 /* iamport-ios */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -44,9 +44,9 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				92628BA02ED6D7DF00E6CE69 /* iamport-ios in Frameworks */,
 				92D4A6372EC1D679002526FC /* Kingfisher in Frameworks */,
-				B086E8B72ED5BC5F002B27D7 /* iamport-ios in Frameworks */,
-				B02C8FB92ED6CF2200482905 /* SocketIO in Frameworks */,
+				030D64C42ED5CC3D00AFA941 /* SocketIO in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -91,8 +91,8 @@
 			name = Moda;
 			packageProductDependencies = (
 				92D4A6362EC1D679002526FC /* Kingfisher */,
-				B086E8B62ED5BC5F002B27D7 /* iamport-ios */,
-				B02C8FB82ED6CF2200482905 /* SocketIO */,
+				030D64C32ED5CC3D00AFA941 /* SocketIO */,
+				92628B9F2ED6D7DF00E6CE69 /* iamport-ios */,
 			);
 			productName = Moda;
 			productReference = 037028A92EBC8ED900A4A7CF /* Moda.app */;
@@ -124,8 +124,8 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				92D4A6352EC1D679002526FC /* XCRemoteSwiftPackageReference "Kingfisher" */,
-				B086E8B52ED5BC5F002B27D7 /* XCRemoteSwiftPackageReference "iamport-ios" */,
-				B02C8FB72ED6CF2200482905 /* XCRemoteSwiftPackageReference "socket.io-client-swift" */,
+				030D64C22ED5CC3D00AFA941 /* XCRemoteSwiftPackageReference "socket" */,
+				92628B9E2ED6D7DF00E6CE69 /* XCRemoteSwiftPackageReference "iamport-ios" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 037028AA2EBC8ED900A4A7CF /* Products */;
@@ -161,8 +161,6 @@
 /* Begin XCBuildConfiguration section */
 		037028B22EBC8EDB00A4A7CF /* Debug */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReferenceAnchor = 037028AB2EBC8ED900A4A7CF /* Moda */;
-			baseConfigurationReferenceRelativePath = Secret/Config.xcconfig;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
@@ -226,8 +224,6 @@
 		};
 		037028B32EBC8EDB00A4A7CF /* Release */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReferenceAnchor = 037028AB2EBC8ED900A4A7CF /* Moda */;
-			baseConfigurationReferenceRelativePath = Secret/Config.xcconfig;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
@@ -284,14 +280,11 @@
 		};
 		037028B52EBC8EDB00A4A7CF /* Debug */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReferenceAnchor = 037028AB2EBC8ED900A4A7CF /* Moda */;
-			baseConfigurationReferenceRelativePath = Secret/Config.xcconfig;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = 27A9369F66;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Moda/Info.plist;
@@ -321,14 +314,11 @@
 		};
 		037028B62EBC8EDB00A4A7CF /* Release */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReferenceAnchor = 037028AB2EBC8ED900A4A7CF /* Moda */;
-			baseConfigurationReferenceRelativePath = Secret/Config.xcconfig;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = 27A9369F66;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Moda/Info.plist;
@@ -380,6 +370,22 @@
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */
+		030D64C22ED5CC3D00AFA941 /* XCRemoteSwiftPackageReference "socket" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/socketio/socket.io-client-swift";
+			requirement = {
+				branch = master;
+				kind = branch;
+			};
+		};
+		92628B9E2ED6D7DF00E6CE69 /* XCRemoteSwiftPackageReference "iamport-ios" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/iamport/iamport-ios?tab=readme-ov-file";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 1.4.7;
+			};
+		};
 		92D4A6352EC1D679002526FC /* XCRemoteSwiftPackageReference "Kingfisher" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/onevcat/Kingfisher.git";
@@ -388,39 +394,23 @@
 				minimumVersion = 8.6.1;
 			};
 		};
-		B02C8FB72ED6CF2200482905 /* XCRemoteSwiftPackageReference "socket.io-client-swift" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/socketio/socket.io-client-swift.git";
-			requirement = {
-				branch = master;
-				kind = branch;
-			};
-		};
-		B086E8B52ED5BC5F002B27D7 /* XCRemoteSwiftPackageReference "iamport-ios" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/iamport/iamport-ios.git";
-			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 1.4.7;
-			};
-		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
+		030D64C32ED5CC3D00AFA941 /* SocketIO */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 030D64C22ED5CC3D00AFA941 /* XCRemoteSwiftPackageReference "socket" */;
+			productName = SocketIO;
+		};
+		92628B9F2ED6D7DF00E6CE69 /* iamport-ios */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 92628B9E2ED6D7DF00E6CE69 /* XCRemoteSwiftPackageReference "iamport-ios" */;
+			productName = "iamport-ios";
+		};
 		92D4A6362EC1D679002526FC /* Kingfisher */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = 92D4A6352EC1D679002526FC /* XCRemoteSwiftPackageReference "Kingfisher" */;
 			productName = Kingfisher;
-		};
-		B02C8FB82ED6CF2200482905 /* SocketIO */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = B02C8FB72ED6CF2200482905 /* XCRemoteSwiftPackageReference "socket.io-client-swift" */;
-			productName = SocketIO;
-		};
-		B086E8B62ED5BC5F002B27D7 /* iamport-ios */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = B086E8B52ED5BC5F002B27D7 /* XCRemoteSwiftPackageReference "iamport-ios" */;
-			productName = "iamport-ios";
 		};
 /* End XCSwiftPackageProductDependency section */
 	};
