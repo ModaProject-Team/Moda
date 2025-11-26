@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import Kingfisher
 
 struct ChatRoom: Identifiable {
     let id: String
@@ -257,9 +258,24 @@ struct ChatRoomCell: View {
     }
 
     private var profileImageSection: some View {
-        Circle()
-            .fill(Color.gray3)
-            .frame(width: 52, height: 52)
+        Group {
+            if let path = room.participantProfileImage, !path.isEmpty {
+                KFImage(URL(string: "\(NetworkConfig.baseURL)/v1\(path)"))
+                    .requestModifier(KFHeaders.modifier)
+                    .placeholder {
+                        Circle().fill(Color.gray3)
+                    }
+                    .cacheOriginalImage()
+                    .resizable()
+                    .scaledToFill()
+                    .frame(width: 52, height: 52)
+                    .clipShape(Circle())
+            } else {
+                Circle()
+                    .fill(Color.gray3)
+                    .frame(width: 52, height: 52)
+            }
+        }
     }
 
     private var contentSection: some View {

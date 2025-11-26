@@ -21,6 +21,9 @@ enum ChatRouter {
 
     /// 채팅 내역 리스트 조회
     case getMessages(roomId: String, cursorDate: String?)
+
+    /// 채팅 파일 업로드 (multipart/form-data)
+    case uploadFiles(roomId: String, files: [FileData])
 }
 
 extension ChatRouter: Endpoint {
@@ -37,6 +40,8 @@ extension ChatRouter: Endpoint {
             return basePath
         case .sendMessage(let roomId, _, _), .getMessages(let roomId, _):
             return "\(basePath)/\(roomId)"
+        case .uploadFiles(let roomId, _):
+            return "\(basePath)/\(roomId)/files"
         }
     }
 
@@ -46,6 +51,8 @@ extension ChatRouter: Endpoint {
             return .post
         case .getRooms, .getMessages:
             return .get
+        case .uploadFiles:
+            return .post
         }
     }
 
@@ -59,6 +66,10 @@ extension ChatRouter: Endpoint {
         case .getOrCreateRoom, .sendMessage:
             headers["Content-Type"] = "application/json"
         case .getRooms, .getMessages:
+            break
+        case .uploadFiles:
+            // 멀티파트는 Content-Type을 여기서 고정하지 않고,
+            // multipartData()에서 생성된 boundary로 호출부에서 설정합니다.
             break
         }
 
@@ -80,7 +91,7 @@ extension ChatRouter: Endpoint {
             if let files = files { body["files"] = files }
             return body.isEmpty ? nil : body
 
-        case .getRooms, .getMessages:
+        case .getRooms, .getMessages, .uploadFiles:
             return nil
         }
     }
@@ -88,8 +99,6 @@ extension ChatRouter: Endpoint {
     var queryItems: [URLQueryItem]? {
         switch self {
         case .getMessages(_, let cursorDate):
-            // 비어있는 문자열을 보내면 전체 조회가 가능하다고 명세에 있으므로,
-            // nil이면 쿼리 자체를 생략, 빈 문자열을 보내고 싶다면 호출부에서 "" 전달
             if let cursorDate = cursorDate {
                 return [URLQueryItem(name: "cursor_date", value: cursorDate)]
             } else {
@@ -97,6 +106,47 @@ extension ChatRouter: Endpoint {
             }
         default:
             return nil
+        }
+    }
+
+    var isMultipart: Bool {
+        switch self {
+        case .uploadFiles:
+            return true
+        default:
+            return false
+        }
+    }
+
+    func multipartData() -> (data: Data, boundary: String)? {
+        guard case .uploadFiles(_, let files) = self else {
+            return nil
+        }
+
+        let boundary = "Boundary-\(UUID().uuidString)"
+        var body = Data()
+
+        for (index, file) in files.enumerated() {
+            let (filename, contentType) = getFileMetadata(for: file.type, index: index)
+
+            body.append("--\(boundary)\r\n".data(using: .utf8)!)
+            body.append("Content-Disposition: form-data; name=\"files\"; filename=\"\(filename)\"\r\n".data(using: .utf8)!)
+            body.append("Content-Type: \(contentType)\r\n\r\n".data(using: .utf8)!)
+            body.append(file.data)
+            body.append("\r\n".data(using: .utf8)!)
+        }
+
+        body.append("--\(boundary)--\r\n".data(using: .utf8)!)
+
+        return (body, boundary)
+    }
+
+    private func getFileMetadata(for type: FileType, index: Int) -> (filename: String, contentType: String) {
+        switch type {
+        case .image:
+            return ("file\(index)_\(Int(Date().timeIntervalSince1970 * 1000)).jpg", "image/jpeg")
+        case .video:
+            return ("file\(index)_\(Int(Date().timeIntervalSince1970 * 1000)).mp4", "video/mp4")
         }
     }
 }

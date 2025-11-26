@@ -6,14 +6,22 @@
 //
 
 import SwiftUI
+import PhotosUI
+import Kingfisher
 
 struct ChatMessage: Identifiable {
     let id: String
     let content: String
     let senderId: String
     let senderName: String
+    let senderProfileImage: String? // 상대 프로필 표시용 추가
     let createdAt: Date
     let isMine: Bool
+    let attachment: Attachment?
+
+    enum Attachment: Equatable {
+        case image(URL)
+    }
 }
 
 struct ChatRoomState {
@@ -22,6 +30,23 @@ struct ChatRoomState {
     var participantName: String = ""
     var isLoading: Bool = false
     var errorMessage: String?
+
+    // 첨부 액션 시트 표시 여부
+    var showAttachmentSheet: Bool = false
+
+    // PhotosPicker 표시 상태
+    var showImagePicker: Bool = false
+
+    // Alert
+    var showSendConfirmAlert: Bool = false
+    var pendingImageData: Data? = nil
+    var pendingType: PendingType = .none
+
+    // 미디어 풀스크린 뷰어
+    var showImageViewer: Bool = false
+    var selectedImageURL: URL? = nil
+
+    enum PendingType { case image, none }
 }
 
 enum ChatRoomIntent {
@@ -30,6 +55,29 @@ enum ChatRoomIntent {
     case inputTextChanged(String)
     case sendButtonTapped
     case dismissError
+
+    // 첨부
+    case attachmentButtonTapped
+    case pickImage
+    case attachmentSheetDismissed
+
+    // 선택 완료
+    case imagePicked(Data)
+
+    // 피커 닫힘
+    case imagePickerDismissed
+
+    // Alert 표시/닫힘
+    case showSendConfirm
+    case hideSendConfirm
+
+    // Alert 액션
+    case confirmSend
+    case cancelSend
+
+    // 미디어 프리뷰
+    case showImageViewer(URL)
+    case hideImageViewer
 }
 
 final class ChatRoomStore: ObservableObject {
@@ -40,7 +88,6 @@ final class ChatRoomStore: ObservableObject {
     private let userProfileAPI: UserProfileAPIProtocol
     private let socketService: ChatSocketServiceProtocol
 
-    // 내 사용자 ID (보낸 사람 판별용)
     private var myUserId: String?
 
     init(
@@ -70,14 +117,58 @@ final class ChatRoomStore: ObservableObject {
             Task { await sendCurrentMessage() }
         case .dismissError:
             state.errorMessage = nil
+
+        case .attachmentButtonTapped:
+            state.showAttachmentSheet = true
+
+        case .pickImage:
+            state.showAttachmentSheet = false
+            state.showImagePicker = true
+
+        case .attachmentSheetDismissed:
+            state.showAttachmentSheet = false
+
+        case .imagePicked(let data):
+            state.pendingImageData = data
+            state.pendingType = .image
+            Task { @MainActor in
+                state.showImagePicker = false
+                try? await Task.sleep(nanoseconds: 200_000_000)
+                state.showSendConfirmAlert = true
+            }
+
+        case .imagePickerDismissed:
+            state.showImagePicker = false
+
+        case .showSendConfirm:
+            state.showSendConfirmAlert = true
+
+        case .hideSendConfirm:
+            state.showSendConfirmAlert = false
+
+        case .confirmSend:
+            Task { await sendPendingFileIfNeeded() }
+
+        case .cancelSend:
+            state.pendingImageData = nil
+            state.pendingType = .none
+            state.showSendConfirmAlert = false
+
+        case .showImageViewer(let url):
+            state.selectedImageURL = url
+            state.showImageViewer = true
+
+        case .hideImageViewer:
+            state.showImageViewer = false
+            state.selectedImageURL = nil
         }
     }
 
     private func setupSocketCallbacks() {
-        socketService.onConnect = { [weak self] in
+        socketService.onConnect = {
             print("SOCKET CONNECTED")
         }
-        socketService.onDisconnect = { [weak self] in
+        socketService.onDisconnect = {
             print("SOCKET DISCONNECTED")
         }
         socketService.onError = { [weak self] message in
@@ -89,7 +180,6 @@ final class ChatRoomStore: ObservableObject {
             guard let self else { return }
             let mapped = self.mapToViewModel(dto)
             Task { @MainActor in
-                // 중복 체크: 이미 존재하는 메시지는 추가하지 않음
                 if !self.state.messages.contains(where: { $0.id == mapped.id }) {
                     self.state.messages.append(mapped)
                 }
@@ -105,7 +195,7 @@ final class ChatRoomStore: ObservableObject {
 
         do {
             try await ensureMyUserId()
-            try await loadMessages(cursorDate: nil) // 초기 로드(현재는 전체/최신 정책에 맞춰 서버가 반환)
+            try await loadMessages(cursorDate: nil)
             connectSocket()
         } catch {
             await setError(error)
@@ -113,7 +203,6 @@ final class ChatRoomStore: ObservableObject {
     }
 
     private func connectSocket() {
-        // 토큰이 없으면 연결 시도하지 않음
         guard TokenManager.shared.accessToken != nil else {
             Task { @MainActor in
                 self.state.errorMessage = "인증이 필요합니다."
@@ -142,7 +231,7 @@ final class ChatRoomStore: ObservableObject {
         }
     }
 
-    // MARK: - Send
+    // MARK: - Send text
     private func sendCurrentMessage() async {
         let text = state.inputText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty else { return }
@@ -153,10 +242,41 @@ final class ChatRoomStore: ObservableObject {
             let sent = try await chatAPI.sendMessage(roomId: roomId, content: text, files: nil)
             let mapped = mapToViewModel(sent)
             await MainActor.run {
-                // 중복 체크: 이미 존재하는 메시지는 추가하지 않음
                 if !self.state.messages.contains(where: { $0.id == mapped.id }) {
                     self.state.messages.append(mapped)
                 }
+            }
+        } catch {
+            await setError(error)
+        }
+    }
+
+    // MARK: - Send image files only
+    private func sendPendingFileIfNeeded() async {
+        await MainActor.run {
+            state.showSendConfirmAlert = false
+        }
+
+        do {
+            try await ensureMyUserId()
+
+            switch state.pendingType {
+            case .image:
+                guard let data = state.pendingImageData else { return }
+                let files: [FileData] = [FileData(data: data, type: .image)]
+                let uploadResponse = try await chatAPI.uploadFiles(roomId: roomId, files: files)
+                let sent = try await chatAPI.sendMessage(roomId: roomId, content: nil, files: uploadResponse.files)
+                let mapped = mapToViewModel(sent)
+                await MainActor.run {
+                    if !self.state.messages.contains(where: { $0.id == mapped.id }) {
+                        self.state.messages.append(mapped)
+                    }
+                    self.state.pendingImageData = nil
+                    self.state.pendingType = .none
+                }
+
+            case .none:
+                return
             }
         } catch {
             await setError(error)
@@ -169,11 +289,22 @@ final class ChatRoomStore: ObservableObject {
         let myId = myUserId ?? ""
         let isMine = (dto.sender.userId == myId)
 
+        let attachment: ChatMessage.Attachment? = {
+            guard let path = dto.files.first, !path.isEmpty else { return nil }
+            let ext = (path as NSString).pathExtension.lowercased()
+            if ["jpg", "jpeg", "png", "gif", "webp"].contains(ext) {
+                let full = makeFullURL(from: path)
+                return .image(full)
+            } else {
+                return nil
+            }
+        }()
+
         let text: String
         if let content = dto.content, !content.isEmpty {
             text = content
         } else {
-            text = dto.files.isEmpty ? "" : "파일"
+            text = attachment == nil ? "" : "파일"
         }
 
         return ChatMessage(
@@ -181,9 +312,16 @@ final class ChatRoomStore: ObservableObject {
             content: text,
             senderId: dto.sender.userId,
             senderName: dto.sender.nick,
+            senderProfileImage: dto.sender.profileImage, // 추가
             createdAt: created,
-            isMine: isMine
+            isMine: isMine,
+            attachment: attachment
         )
+    }
+
+    private func makeFullURL(from path: String) -> URL {
+        let urlString = "\(NetworkConfig.baseURL)/v1\(path)"
+        return URL(string: urlString) ?? URL(fileURLWithPath: "/")
     }
 
     private func parseISODate(_ string: String) -> Date {
@@ -214,6 +352,9 @@ struct ChatRoomView: View {
     @EnvironmentObject var navigator: AppNavigator
     @FocusState private var isInputFocused: Bool
 
+    // PhotosPicker 선택 항목 상태
+    @State private var imageSelection: PhotosPickerItem? = nil
+
     init(roomId: String, participantName: String) {
         _store = StateObject(wrappedValue: ChatRoomStore(roomId: roomId, participantName: participantName))
     }
@@ -243,6 +384,97 @@ struct ChatRoomView: View {
         }
         .onDisappear {
             store.send(.onDisappear)
+        }
+        .confirmationDialog(
+            "첨부",
+            isPresented: Binding(
+                get: { store.state.showAttachmentSheet },
+                set: { newValue in
+                    if newValue == false {
+                        store.send(.attachmentSheetDismissed)
+                    }
+                }
+            ),
+            titleVisibility: .visible
+        ) {
+            Button("사진 첨부") {
+                store.send(.pickImage)
+            }
+            Button("취소", role: .cancel) { }
+        }
+        // 이미지 피커
+        .photosPicker(
+            isPresented: Binding(
+                get: { store.state.showImagePicker },
+                set: { newValue in
+                    if newValue == false {
+                        store.send(.imagePickerDismissed)
+                    }
+                }
+            ),
+            selection: Binding(
+                get: { imageSelection },
+                set: { newItem in
+                    imageSelection = newItem
+                    guard newItem != nil else { return }
+                    Task { await handlePickedImage() }
+                }
+            ),
+            matching: .images,
+            preferredItemEncoding: .automatic
+        )
+        .alert("전송하시겠습니까?", isPresented: Binding(
+            get: { store.state.showSendConfirmAlert },
+            set: { newValue in
+                if newValue == false {
+                    store.send(.hideSendConfirm)
+                } else {
+                    store.send(.showSendConfirm)
+                }
+            }
+        )) {
+            Button("취소", role: .cancel) {
+                store.send(.cancelSend)
+            }
+            Button("전송", role: .destructive) {
+                store.send(.confirmSend)
+            }
+        } message: {
+            Text(alertMessage)
+        }
+        // 이미지 전체 보기
+        .fullScreenCover(isPresented: Binding(
+            get: { store.state.showImageViewer },
+            set: { newValue in
+                if newValue == false { store.send(.hideImageViewer) }
+            }
+        )) {
+            if let url = store.state.selectedImageURL {
+                ImageViewer(url: url) {
+                    store.send(.hideImageViewer)
+                }
+            }
+        }
+    }
+
+    private var alertMessage: String {
+        switch store.state.pendingType {
+        case .image:
+            return "선택한 사진을 전송합니다."
+        case .none:
+            return ""
+        }
+    }
+
+    private func handlePickedImage() async {
+        guard let item = imageSelection else { return }
+        defer { imageSelection = nil }
+        do {
+            if let data = try await item.loadTransferable(type: Data.self) {
+                store.send(.imagePicked(data))
+            }
+        } catch {
+            print("이미지 로드 실패: \(error)")
         }
     }
 
@@ -301,17 +533,19 @@ struct ChatRoomView: View {
     private var messageListSection: some View {
         ScrollViewReader { proxy in
             ScrollView(showsIndicators: false) {
-                LazyVStack(spacing: 8) {
+                LazyVStack(spacing: 10) {
                     ForEach(store.state.messages) { message in
-                        MessageBubble(message: message)
-                            .id(message.id)
+                        MessageBubble(
+                            message: message,
+                            onTapImage: { url in store.send(.showImageViewer(url)) }
+                        )
+                        .id(message.id)
                     }
                 }
-                .padding(.horizontal, 16)
+                .padding(.horizontal, 12)
                 .padding(.vertical, 12)
             }
             .onAppear {
-                // 초기 로드 시 맨 아래로 스크롤
                 if let lastMessage = store.state.messages.last {
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                         withAnimation(.easeOut(duration: 0.3)) {
@@ -338,6 +572,7 @@ struct ChatRoomView: View {
 
             HStack(spacing: 12) {
                 Button {
+                    store.send(.attachmentButtonTapped)
                 } label: {
                     Image(systemName: "plus")
                         .font(.system(size: 20))
@@ -373,29 +608,123 @@ struct ChatRoomView: View {
 
 struct MessageBubble: View {
     let message: ChatMessage
+    let onTapImage: (URL) -> Void
+
+    private let maxBubbleWidth: CGFloat = 220
 
     var body: some View {
-        HStack(alignment: .bottom, spacing: 8) {
+        Group {
             if message.isMine {
-                Spacer(minLength: 60)
-                timeLabel
-                bubbleContent
+                HStack {
+                    Spacer(minLength: 60)
+                    HStack(alignment: .bottom, spacing: 6) {
+                        timeLabel
+                        bubbleContent
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .trailing)
             } else {
-                bubbleContent
-                timeLabel
-                Spacer(minLength: 60)
+                // 친구 메시지: 왼쪽 프로필, 오른쪽에 닉네임 + 버블/시간
+                HStack(alignment: .top, spacing: 8) {
+                    profileImage
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(message.senderName)
+                            .Body2()
+                            .foregroundColor(.gray2)
+
+                        HStack(alignment: .bottom, spacing: 6) {
+                            bubbleContent
+                            timeLabel
+                        }
+                    }
+                    Spacer(minLength: 40)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
         }
     }
 
+    private var profileImage: some View {
+        Group {
+            if let path = message.senderProfileImage, !path.isEmpty {
+                KFImage(URL(string: "\(NetworkConfig.baseURL)/v1\(path)"))
+                    .requestModifier(KFHeaders.modifier)
+                    .placeholder {
+                        Circle().fill(Color.gray3)
+                    }
+                    .cacheOriginalImage()
+                    .resizable()
+                    .scaledToFill()
+                    .frame(width: 32, height: 32)
+                    .clipShape(Circle())
+            } else {
+                Circle()
+                    .fill(Color.gray3)
+                    .frame(width: 32, height: 32)
+            }
+        }
+    }
+
+    @ViewBuilder
     private var bubbleContent: some View {
-        Text(message.content)
-            .Body1()
-            .foregroundColor(message.isMine ? .white : .gray1)
-            .padding(.horizontal, 14)
-            .padding(.vertical, 10)
+        switch message.attachment {
+        case .none:
+            textBubble
+        case .image(let url):
+            if message.isMine {
+                HStack(alignment: .bottom, spacing: 6) {
+                    mediaBubble {
+                        KFImage(url)
+                            .requestModifier(KFHeaders.modifier)
+                            .placeholder {
+                                RoundedRectangle(cornerRadius: 12).fill(Color.gray5)
+                                    .frame(width: maxBubbleWidth, height: maxBubbleWidth * 0.6)
+                            }
+                            .cacheOriginalImage()
+                            .resizable()
+                            .scaledToFill()
+                            .frame(width: maxBubbleWidth, height: maxBubbleWidth * 0.6)
+                            .clipped()
+                    }
+                    .onTapGesture { onTapImage(url) }
+                }
+            } else {
+                HStack(alignment: .bottom, spacing: 6) {
+                    mediaBubble {
+                        KFImage(url)
+                            .requestModifier(KFHeaders.modifier)
+                            .placeholder {
+                                RoundedRectangle(cornerRadius: 12).fill(Color.gray5)
+                                    .frame(width: maxBubbleWidth, height: maxBubbleWidth * 0.6)
+                            }
+                            .cacheOriginalImage()
+                            .resizable()
+                            .scaledToFill()
+                            .frame(width: maxBubbleWidth, height: maxBubbleWidth * 0.6)
+                            .clipped()
+                    }
+                    .onTapGesture { onTapImage(url) }
+                }
+            }
+        }
+    }
+
+    private var textBubble: some View {
+        HStack(alignment: .bottom, spacing: 0) {
+            Text(message.content)
+                .Body1()
+                .foregroundColor(message.isMine ? .white : .gray1)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 10)
+                .background(message.isMine ? Color.blue1 : Color.gray5)
+                .cornerRadius(16)
+        }
+    }
+
+    private func mediaBubble<Content: View>(@ViewBuilder content: () -> Content) -> some View {
+        content()
             .background(message.isMine ? Color.blue1 : Color.gray5)
-            .cornerRadius(16)
+            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
     }
 
     private var timeLabel: some View {
@@ -409,6 +738,38 @@ struct MessageBubble: View {
         formatter.dateFormat = "a h:mm"
         formatter.locale = Locale(identifier: "ko_KR")
         return formatter.string(from: date)
+    }
+}
+
+// MARK: - Full screen viewers
+
+struct ImageViewer: View {
+    let url: URL
+    let onClose: () -> Void
+
+    var body: some View {
+        ZStack {
+            Color.black.ignoresSafeArea()
+            KFImage(url)
+                .requestModifier(KFHeaders.modifier)
+                .placeholder { ProgressView().tint(.white) }
+                .cacheOriginalImage()
+                .resizable()
+                .scaledToFit()
+                .ignoresSafeArea()
+            VStack {
+                HStack {
+                    Button(action: onClose) {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.system(size: 24))
+                            .foregroundColor(.white.opacity(0.9))
+                    }
+                    Spacer()
+                }
+                .padding()
+                Spacer()
+            }
+        }
     }
 }
 
