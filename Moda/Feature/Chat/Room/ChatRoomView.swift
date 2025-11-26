@@ -14,6 +14,7 @@ struct ChatMessage: Identifiable {
     let content: String
     let senderId: String
     let senderName: String
+    let senderProfileImage: String? // 상대 프로필 표시용 추가
     let createdAt: Date
     let isMine: Bool
     let attachment: Attachment?
@@ -288,7 +289,6 @@ final class ChatRoomStore: ObservableObject {
         let myId = myUserId ?? ""
         let isMine = (dto.sender.userId == myId)
 
-        // attachment 판별: 이미지 외 확장자는 무시
         let attachment: ChatMessage.Attachment? = {
             guard let path = dto.files.first, !path.isEmpty else { return nil }
             let ext = (path as NSString).pathExtension.lowercased()
@@ -312,6 +312,7 @@ final class ChatRoomStore: ObservableObject {
             content: text,
             senderId: dto.sender.userId,
             senderName: dto.sender.nick,
+            senderProfileImage: dto.sender.profileImage, // 추가
             createdAt: created,
             isMine: isMine,
             attachment: attachment
@@ -532,7 +533,7 @@ struct ChatRoomView: View {
     private var messageListSection: some View {
         ScrollViewReader { proxy in
             ScrollView(showsIndicators: false) {
-                LazyVStack(spacing: 8) {
+                LazyVStack(spacing: 10) {
                     ForEach(store.state.messages) { message in
                         MessageBubble(
                             message: message,
@@ -541,7 +542,7 @@ struct ChatRoomView: View {
                         .id(message.id)
                     }
                 }
-                .padding(.horizontal, 16)
+                .padding(.horizontal, 12)
                 .padding(.vertical, 12)
             }
             .onAppear {
@@ -612,26 +613,56 @@ struct MessageBubble: View {
     private let maxBubbleWidth: CGFloat = 220
 
     var body: some View {
-        HStack {
+        Group {
             if message.isMine {
-                Spacer(minLength: 60)
-
-                HStack(spacing: 6) {
-                    timeLabel
-                    bubbleContent
+                HStack {
+                    Spacer(minLength: 60)
+                    HStack(alignment: .bottom, spacing: 6) {
+                        timeLabel
+                        bubbleContent
+                    }
                 }
-                .frame(maxWidth: maxBubbleWidth, alignment: .trailing)
+                .frame(maxWidth: .infinity, alignment: .trailing)
             } else {
-                HStack(spacing: 6) {
-                    bubbleContent
-                    timeLabel
-                }
-                .frame(maxWidth: maxBubbleWidth, alignment: .leading)
+                // 친구 메시지: 왼쪽 프로필, 오른쪽에 닉네임 + 버블/시간
+                HStack(alignment: .top, spacing: 8) {
+                    profileImage
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(message.senderName)
+                            .Body2()
+                            .foregroundColor(.gray2)
 
-                Spacer(minLength: 60)
+                        HStack(alignment: .bottom, spacing: 6) {
+                            bubbleContent
+                            timeLabel
+                        }
+                    }
+                    Spacer(minLength: 40)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
         }
-        .frame(maxWidth: .infinity, alignment: message.isMine ? .trailing : .leading)
+    }
+
+    private var profileImage: some View {
+        Group {
+            if let path = message.senderProfileImage, !path.isEmpty {
+                KFImage(URL(string: "\(NetworkConfig.baseURL)/v1\(path)"))
+                    .requestModifier(KFHeaders.modifier)
+                    .placeholder {
+                        Circle().fill(Color.gray3)
+                    }
+                    .cacheOriginalImage()
+                    .resizable()
+                    .scaledToFill()
+                    .frame(width: 32, height: 32)
+                    .clipShape(Circle())
+            } else {
+                Circle()
+                    .fill(Color.gray3)
+                    .frame(width: 32, height: 32)
+            }
+        }
     }
 
     @ViewBuilder
@@ -640,31 +671,54 @@ struct MessageBubble: View {
         case .none:
             textBubble
         case .image(let url):
-            mediaBubble {
-                KFImage(url)
-                    .requestModifier(KFHeaders.modifier)
-                    .placeholder {
-                        RoundedRectangle(cornerRadius: 12).fill(Color.gray5)
+            if message.isMine {
+                HStack(alignment: .bottom, spacing: 6) {
+                    mediaBubble {
+                        KFImage(url)
+                            .requestModifier(KFHeaders.modifier)
+                            .placeholder {
+                                RoundedRectangle(cornerRadius: 12).fill(Color.gray5)
+                                    .frame(width: maxBubbleWidth, height: maxBubbleWidth * 0.6)
+                            }
+                            .cacheOriginalImage()
+                            .resizable()
+                            .scaledToFill()
                             .frame(width: maxBubbleWidth, height: maxBubbleWidth * 0.6)
+                            .clipped()
                     }
-                    .cacheOriginalImage()
-                    .resizable()
-                    .scaledToFill()
-                    .frame(width: maxBubbleWidth, height: maxBubbleWidth * 0.6)
-                    .clipped()
+                    .onTapGesture { onTapImage(url) }
+                }
+            } else {
+                HStack(alignment: .bottom, spacing: 6) {
+                    mediaBubble {
+                        KFImage(url)
+                            .requestModifier(KFHeaders.modifier)
+                            .placeholder {
+                                RoundedRectangle(cornerRadius: 12).fill(Color.gray5)
+                                    .frame(width: maxBubbleWidth, height: maxBubbleWidth * 0.6)
+                            }
+                            .cacheOriginalImage()
+                            .resizable()
+                            .scaledToFill()
+                            .frame(width: maxBubbleWidth, height: maxBubbleWidth * 0.6)
+                            .clipped()
+                    }
+                    .onTapGesture { onTapImage(url) }
+                }
             }
-            .onTapGesture { onTapImage(url) }
         }
     }
 
     private var textBubble: some View {
-        Text(message.content)
-            .Body1()
-            .foregroundColor(message.isMine ? .white : .gray1)
-            .padding(.horizontal, 14)
-            .padding(.vertical, 10)
-            .background(message.isMine ? Color.blue1 : Color.gray5)
-            .cornerRadius(16)
+        HStack(alignment: .bottom, spacing: 0) {
+            Text(message.content)
+                .Body1()
+                .foregroundColor(message.isMine ? .white : .gray1)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 10)
+                .background(message.isMine ? Color.blue1 : Color.gray5)
+                .cornerRadius(16)
+        }
     }
 
     private func mediaBubble<Content: View>(@ViewBuilder content: () -> Content) -> some View {
@@ -677,7 +731,6 @@ struct MessageBubble: View {
         Text(formatTime(message.createdAt))
             .font(.system(size: 11))
             .foregroundColor(.gray3)
-            .alignmentGuide(.firstTextBaseline) { d in d[.firstTextBaseline] }
     }
 
     private func formatTime(_ date: Date) -> String {
