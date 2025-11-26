@@ -1,5 +1,5 @@
 {
-  "originHash" : "37edea30138258c7343ef0071ab394a0ea269d932cf214e42ee68627dbc3d83e",
+  "originHash" : "6b6808101533398d3db4066107dd917aa45ff257d75f66658c0ef56af9d543a4",
   "pins" : [
     {
       "identity" : "alamofire",
@@ -11,9 +11,9 @@
       }
     },
     {
-      "identity" : "iamport-ios",
+      "identity" : "iamport-ios?tab=readme-ov-file%20%eb%82%9c%20%ec%9d%b4%ea%b1%b0%20%ec%b6%94%ea%b0%80%ed%95%98%eb%a9%b4%20%ec%9d%b4%ea%b1%b0%20%eb%8b%a4%20%eb%93%a4%ec%96%b4%ec%98%a4%eb%8a%94%eb%8d%b0%20%eb%84%88%eb%84%a4%eb%8f%84%ea%b7%b8%eb%9f%ac%eb%8b%88?",
       "kind" : "remoteSourceControl",
-      "location" : "https://github.com/iamport/iamport-ios.git",
+      "location" : "https://github.com/iamport/iamport-ios?tab=readme-ov-file%20%EB%82%9C%20%EC%9D%B4%EA%B1%B0%20%EC%B6%94%EA%B0%80%ED%95%98%EB%A9%B4%20%EC%9D%B4%EA%B1%B0%20%EB%8B%A4%20%EB%93%A4%EC%96%B4%EC%98%A4%EB%8A%94%EB%8D%B0%20%EB%84%88%EB%84%A4%EB%8F%84%EA%B7%B8%EB%9F%AC%EB%8B%88?",
       "state" : {
         "revision" : "cfa5ca2bb0f2be4e51981f14fd20d32d6c9d3636",
         "version" : "1.4.7"
@@ -40,7 +40,7 @@
     {
       "identity" : "socket.io-client-swift",
       "kind" : "remoteSourceControl",
-      "location" : "https://github.com/socketio/socket.io-client-swift.git",
+      "location" : "https://github.com/socketio/socket.io-client-swift",
       "state" : {
         "branch" : "master",
         "revision" : "42da871d9369f290d6ec4930636c40672143905b"
