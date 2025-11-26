@@ -20,17 +20,18 @@ struct ClusterAnnotationView: View {
                 .frame(width: 58, height: 58)
 
             if !representativeImage.isEmpty {
-                KFImage(URL(string: "\(NetworkConfig.baseURL)/v1\(representativeImage)"))
-                    .requestModifier(KFHeaders.modifier)
-                    .placeholder {
-                        Circle()
-                            .fill(Color.blue1.opacity(0.3))
+                MediaImageView(
+                    mediaURL: representativeImage,
+                    contentMode: .fill,
+                    placeholder: {
+                        AnyView(
+                            Circle()
+                                .fill(Color.blue1.opacity(0.3))
+                        )
                     }
-                    .cacheOriginalImage()
-                    .resizable()
-                    .aspectRatio(contentMode: .fill)
-                    .frame(width: 47, height: 47)
-                    .clipShape(Circle())
+                )
+                .frame(width: 47, height: 47)
+                .clipShape(Circle())
             } else {
                 Circle()
                     .fill(Color.blue1.opacity(0.3))

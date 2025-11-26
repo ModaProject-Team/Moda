@@ -26,18 +26,18 @@ struct CustomAnnotationView: View {
                     .frame(width: 54, height: 54)
                     .shadow(color: .black.opacity(0.15), radius: 4, x: 0, y: 2)
 
-                KFImage(URL(string: "\(NetworkConfig.baseURL)/v1\(post.media)"))
-                    .requestModifier(KFHeaders.modifier)
-                    .placeholder {
-                        Image(systemName: "photo")
-                            .foregroundColor(.gray3)
+                MediaImageView(
+                    mediaURL: post.media,
+                    contentMode: .fill,
+                    placeholder: {
+                        AnyView(
+                            Image(systemName: "photo")
+                                .foregroundColor(.gray3)
+                        )
                     }
-                    .cacheOriginalImage()
-                    .fade(duration: 0.2)
-                    .resizable()
-                    .aspectRatio(contentMode: .fill)
-                    .frame(width: 44, height: 44)
-                    .clipShape(RoundedRectangle(cornerRadius: 13))
+                )
+                .frame(width: 44, height: 44)
+                .clipShape(RoundedRectangle(cornerRadius: 13))
             }
             .scaleEffect(isSelected ? 1.2 : 1.0)
             .animation(.spring(response: 0.3, dampingFraction: 0.6), value: isSelected)
