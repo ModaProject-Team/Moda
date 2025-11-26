@@ -7,8 +7,6 @@
 
 import SwiftUI
 import PhotosUI
-import AVFoundation
-import AVKit
 import Kingfisher
 
 struct ChatMessage: Identifiable {
@@ -22,7 +20,6 @@ struct ChatMessage: Identifiable {
 
     enum Attachment: Equatable {
         case image(URL)
-        case video(URL)
     }
 }
 
@@ -38,21 +35,17 @@ struct ChatRoomState {
 
     // PhotosPicker 표시 상태
     var showImagePicker: Bool = false
-    var showVideoPicker: Bool = false
 
     // Alert
     var showSendConfirmAlert: Bool = false
     var pendingImageData: Data? = nil
-    var pendingVideoURL: URL? = nil
     var pendingType: PendingType = .none
 
     // 미디어 풀스크린 뷰어
     var showImageViewer: Bool = false
-    var showVideoPlayer: Bool = false
     var selectedImageURL: URL? = nil
-    var selectedVideoURL: URL? = nil
 
-    enum PendingType { case image, video, none }
+    enum PendingType { case image, none }
 }
 
 enum ChatRoomIntent {
@@ -65,16 +58,13 @@ enum ChatRoomIntent {
     // 첨부
     case attachmentButtonTapped
     case pickImage
-    case pickVideo
     case attachmentSheetDismissed
 
     // 선택 완료
     case imagePicked(Data)
-    case videoPicked(URL)
 
     // 피커 닫힘
     case imagePickerDismissed
-    case videoPickerDismissed
 
     // Alert 표시/닫힘
     case showSendConfirm
@@ -87,8 +77,6 @@ enum ChatRoomIntent {
     // 미디어 프리뷰
     case showImageViewer(URL)
     case hideImageViewer
-    case showVideoPlayer(URL)
-    case hideVideoPlayer
 }
 
 final class ChatRoomStore: ObservableObject {
@@ -136,38 +124,20 @@ final class ChatRoomStore: ObservableObject {
             state.showAttachmentSheet = false
             state.showImagePicker = true
 
-        case .pickVideo:
-            state.showAttachmentSheet = false
-            state.showVideoPicker = true
-
         case .attachmentSheetDismissed:
             state.showAttachmentSheet = false
 
         case .imagePicked(let data):
             state.pendingImageData = data
-            state.pendingVideoURL = nil
             state.pendingType = .image
             Task { @MainActor in
                 state.showImagePicker = false
-                try? await Task.sleep(nanoseconds: 200_000_000) // 0.2s
-                state.showSendConfirmAlert = true
-            }
-
-        case .videoPicked(let url):
-            state.pendingVideoURL = url
-            state.pendingImageData = nil
-            state.pendingType = .video
-            Task { @MainActor in
-                state.showVideoPicker = false
-                try? await Task.sleep(nanoseconds: 200_000_000) // 0.2s
+                try? await Task.sleep(nanoseconds: 200_000_000)
                 state.showSendConfirmAlert = true
             }
 
         case .imagePickerDismissed:
             state.showImagePicker = false
-
-        case .videoPickerDismissed:
-            state.showVideoPicker = false
 
         case .showSendConfirm:
             state.showSendConfirmAlert = true
@@ -180,7 +150,6 @@ final class ChatRoomStore: ObservableObject {
 
         case .cancelSend:
             state.pendingImageData = nil
-            state.pendingVideoURL = nil
             state.pendingType = .none
             state.showSendConfirmAlert = false
 
@@ -191,14 +160,6 @@ final class ChatRoomStore: ObservableObject {
         case .hideImageViewer:
             state.showImageViewer = false
             state.selectedImageURL = nil
-
-        case .showVideoPlayer(let url):
-            state.selectedVideoURL = url
-            state.showVideoPlayer = true
-
-        case .hideVideoPlayer:
-            state.showVideoPlayer = false
-            state.selectedVideoURL = nil
         }
     }
 
@@ -289,7 +250,7 @@ final class ChatRoomStore: ObservableObject {
         }
     }
 
-    // MARK: - Send files
+    // MARK: - Send image files only
     private func sendPendingFileIfNeeded() async {
         await MainActor.run {
             state.showSendConfirmAlert = false
@@ -298,36 +259,23 @@ final class ChatRoomStore: ObservableObject {
         do {
             try await ensureMyUserId()
 
-            let uploadedFiles: [String]
-
             switch state.pendingType {
             case .image:
                 guard let data = state.pendingImageData else { return }
                 let files: [FileData] = [FileData(data: data, type: .image)]
                 let uploadResponse = try await chatAPI.uploadFiles(roomId: roomId, files: files)
-                uploadedFiles = uploadResponse.files
-
-            case .video:
-                guard let url = state.pendingVideoURL else { return }
-                let videoData = try Data(contentsOf: url)
-                let files: [FileData] = [FileData(data: videoData, type: .video)]
-                let uploadResponse = try await chatAPI.uploadFiles(roomId: roomId, files: files)
-                uploadedFiles = uploadResponse.files
+                let sent = try await chatAPI.sendMessage(roomId: roomId, content: nil, files: uploadResponse.files)
+                let mapped = mapToViewModel(sent)
+                await MainActor.run {
+                    if !self.state.messages.contains(where: { $0.id == mapped.id }) {
+                        self.state.messages.append(mapped)
+                    }
+                    self.state.pendingImageData = nil
+                    self.state.pendingType = .none
+                }
 
             case .none:
                 return
-            }
-
-            let sent = try await chatAPI.sendMessage(roomId: roomId, content: nil, files: uploadedFiles)
-            let mapped = mapToViewModel(sent)
-
-            await MainActor.run {
-                if !self.state.messages.contains(where: { $0.id == mapped.id }) {
-                    self.state.messages.append(mapped)
-                }
-                self.state.pendingImageData = nil
-                self.state.pendingVideoURL = nil
-                self.state.pendingType = .none
             }
         } catch {
             await setError(error)
@@ -340,17 +288,15 @@ final class ChatRoomStore: ObservableObject {
         let myId = myUserId ?? ""
         let isMine = (dto.sender.userId == myId)
 
-        // attachment 판별
+        // attachment 판별: 이미지 외 확장자는 무시
         let attachment: ChatMessage.Attachment? = {
             guard let path = dto.files.first, !path.isEmpty else { return nil }
-            let full = makeFullURL(from: path)
             let ext = (path as NSString).pathExtension.lowercased()
             if ["jpg", "jpeg", "png", "gif", "webp"].contains(ext) {
+                let full = makeFullURL(from: path)
                 return .image(full)
-            } else if ["mp4", "mov", "m4v"].contains(ext) {
-                return .video(full)
             } else {
-                return .image(full) // 기본은 이미지로 처리
+                return nil
             }
         }()
 
@@ -373,7 +319,6 @@ final class ChatRoomStore: ObservableObject {
     }
 
     private func makeFullURL(from path: String) -> URL {
-        // FeedComponents에서 "\(NetworkConfig.baseURL)/v1\(imageURL)" 형태 사용 중
         let urlString = "\(NetworkConfig.baseURL)/v1\(path)"
         return URL(string: urlString) ?? URL(fileURLWithPath: "/")
     }
@@ -408,7 +353,6 @@ struct ChatRoomView: View {
 
     // PhotosPicker 선택 항목 상태
     @State private var imageSelection: PhotosPickerItem? = nil
-    @State private var videoSelection: PhotosPickerItem? = nil
 
     init(roomId: String, participantName: String) {
         _store = StateObject(wrappedValue: ChatRoomStore(roomId: roomId, participantName: participantName))
@@ -455,9 +399,6 @@ struct ChatRoomView: View {
             Button("사진 첨부") {
                 store.send(.pickImage)
             }
-            Button("동영상 첨부") {
-                store.send(.pickVideo)
-            }
             Button("취소", role: .cancel) { }
         }
         // 이미지 피커
@@ -479,27 +420,6 @@ struct ChatRoomView: View {
                 }
             ),
             matching: .images,
-            preferredItemEncoding: .automatic
-        )
-        // 동영상 피커
-        .photosPicker(
-            isPresented: Binding(
-                get: { store.state.showVideoPicker },
-                set: { newValue in
-                    if newValue == false {
-                        store.send(.videoPickerDismissed)
-                    }
-                }
-            ),
-            selection: Binding(
-                get: { videoSelection },
-                set: { newItem in
-                    videoSelection = newItem
-                    guard newItem != nil else { return }
-                    Task { await handlePickedVideo() }
-                }
-            ),
-            matching: .videos,
             preferredItemEncoding: .automatic
         )
         .alert("전송하시겠습니까?", isPresented: Binding(
@@ -534,27 +454,12 @@ struct ChatRoomView: View {
                 }
             }
         }
-        // 비디오 재생
-        .fullScreenCover(isPresented: Binding(
-            get: { store.state.showVideoPlayer },
-            set: { newValue in
-                if newValue == false { store.send(.hideVideoPlayer) }
-            }
-        )) {
-            if let url = store.state.selectedVideoURL {
-                VideoPlayerViewFullScreen(url: url) {
-                    store.send(.hideVideoPlayer)
-                }
-            }
-        }
     }
 
     private var alertMessage: String {
         switch store.state.pendingType {
         case .image:
             return "선택한 사진을 전송합니다."
-        case .video:
-            return "선택한 동영상을 전송합니다."
         case .none:
             return ""
         }
@@ -569,22 +474,6 @@ struct ChatRoomView: View {
             }
         } catch {
             print("이미지 로드 실패: \(error)")
-        }
-    }
-
-    private func handlePickedVideo() async {
-        guard let item = videoSelection else { return }
-        defer { videoSelection = nil }
-        do {
-            if let fileURL = try await item.loadTransferable(type: URL.self) {
-                store.send(.videoPicked(fileURL))
-            } else if let data = try? await item.loadTransferable(type: Data.self) {
-                let tmpURL = FileManager.default.temporaryDirectory.appendingPathComponent("picked-\(UUID().uuidString).mp4")
-                try data.write(to: tmpURL)
-                store.send(.videoPicked(tmpURL))
-            }
-        } catch {
-            print("동영상 로드 실패: \(error)")
         }
     }
 
@@ -647,8 +536,7 @@ struct ChatRoomView: View {
                     ForEach(store.state.messages) { message in
                         MessageBubble(
                             message: message,
-                            onTapImage: { url in store.send(.showImageViewer(url)) },
-                            onTapVideo: { url in store.send(.showVideoPlayer(url)) }
+                            onTapImage: { url in store.send(.showImageViewer(url)) }
                         )
                         .id(message.id)
                     }
@@ -720,22 +608,30 @@ struct ChatRoomView: View {
 struct MessageBubble: View {
     let message: ChatMessage
     let onTapImage: (URL) -> Void
-    let onTapVideo: (URL) -> Void
 
     private let maxBubbleWidth: CGFloat = 220
 
     var body: some View {
-        HStack(alignment: .bottom, spacing: 8) {
+        HStack {
             if message.isMine {
                 Spacer(minLength: 60)
-                timeLabel
-                bubbleContent
+
+                HStack(spacing: 6) {
+                    timeLabel
+                    bubbleContent
+                }
+                .frame(maxWidth: maxBubbleWidth, alignment: .trailing)
             } else {
-                bubbleContent
-                timeLabel
+                HStack(spacing: 6) {
+                    bubbleContent
+                    timeLabel
+                }
+                .frame(maxWidth: maxBubbleWidth, alignment: .leading)
+
                 Spacer(minLength: 60)
             }
         }
+        .frame(maxWidth: .infinity, alignment: message.isMine ? .trailing : .leading)
     }
 
     @ViewBuilder
@@ -758,21 +654,6 @@ struct MessageBubble: View {
                     .clipped()
             }
             .onTapGesture { onTapImage(url) }
-
-        case .video(let url):
-            mediaBubble {
-                VideoThumbnailView(url: url, itemWidth: maxBubbleWidth)
-                    .frame(width: maxBubbleWidth, height: maxBubbleWidth * 0.6)
-                    .clipped()
-                    .overlay(
-                        Image(systemName: "play.circle.fill")
-                            .resizable()
-                            .frame(width: 44, height: 44)
-                            .foregroundColor(.white)
-                            .shadow(radius: 4)
-                    )
-            }
-            .onTapGesture { onTapVideo(url) }
         }
     }
 
@@ -784,7 +665,6 @@ struct MessageBubble: View {
             .padding(.vertical, 10)
             .background(message.isMine ? Color.blue1 : Color.gray5)
             .cornerRadius(16)
-            .frame(maxWidth: maxBubbleWidth, alignment: .leading)
     }
 
     private func mediaBubble<Content: View>(@ViewBuilder content: () -> Content) -> some View {
@@ -797,6 +677,7 @@ struct MessageBubble: View {
         Text(formatTime(message.createdAt))
             .font(.system(size: 11))
             .foregroundColor(.gray3)
+            .alignmentGuide(.firstTextBaseline) { d in d[.firstTextBaseline] }
     }
 
     private func formatTime(_ date: Date) -> String {
@@ -835,41 +716,6 @@ struct ImageViewer: View {
                 .padding()
                 Spacer()
             }
-        }
-    }
-}
-
-struct VideoPlayerViewFullScreen: View {
-    let url: URL
-    let onClose: () -> Void
-    @State private var player: AVPlayer? = nil
-
-    var body: some View {
-        ZStack {
-            Color.black.ignoresSafeArea()
-            if let player {
-                VideoPlayer(player: player)
-                    .ignoresSafeArea()
-                    .onAppear { player.play() }
-                    .onDisappear { player.pause() }
-            } else {
-                ProgressView().tint(.white)
-            }
-            VStack {
-                HStack {
-                    Button(action: onClose) {
-                        Image(systemName: "xmark.circle.fill")
-                            .font(.system(size: 24))
-                            .foregroundColor(.white.opacity(0.9))
-                    }
-                    Spacer()
-                }
-                .padding()
-                Spacer()
-            }
-        }
-        .onAppear {
-            player = AVPlayer(url: url)
         }
     }
 }
