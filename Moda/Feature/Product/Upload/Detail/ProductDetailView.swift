@@ -55,10 +55,8 @@ struct ProductDetailView: View {
         }
         .navigationBarHidden(true)
         .overlay(alignment: .top) {
-            // Gradient + Header
             if store.state.post != nil {
                 ZStack(alignment: .top) {
-                    // Gradient background
                     LinearGradient(
                         colors: [.black.opacity(0.5), .clear],
                         startPoint: .top,
@@ -230,7 +228,6 @@ struct ProductDetailView: View {
                                 }
                                 .padding(.bottom, 12)
                                 
-                                // Tab Indicator
                                 GeometryReader { tabGeometry in
                                     Rectangle()
                                         .fill(Color.black)
@@ -309,7 +306,6 @@ struct ProductDetailView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    // MARK: - Trade Location Tab
     private func tradeLocationTab(post: PostResponse) -> some View {
         VStack(alignment: .leading, spacing: 16) {
             if let locationName = post.value1, !locationName.isEmpty,
@@ -355,9 +351,8 @@ struct ProductDetailView: View {
         let isMyPost = store.state.isMyPost
 
         return HStack(spacing: 16) {
-            // 프로필 버튼 (항상 표시)
             Button {
-                // Navigate to seller profile
+                //TODO: Navigate to seller profile
             } label: {
                 if let profileImage = post.creator.profileImage, !profileImage.isEmpty {
                     KFImage(URL(string: "\(NetworkConfig.baseURL)/v1\(profileImage)"))
@@ -381,15 +376,12 @@ struct ProductDetailView: View {
                 .font(.system(size: 14))
                 .foregroundColor(.white.opacity(0.3))
 
-            // 거래 완료일 때
             if isPaymentCompleted {
                 Text("거래완료")
                     .font(.system(size: 14, weight: .semibold))
                     .foregroundColor(.white)
             }
-            // 내 게시글일 때
             else if isMyPost {
-                // 수정 버튼
                 Button {
                     // TODO: 수정 화면으로 이동
                 } label: {
@@ -400,7 +392,6 @@ struct ProductDetailView: View {
                     .foregroundColor(.white)
                 }
 
-                // 삭제 버튼
                 Button {
                     store.send(.showDeleteAlert)
                 } label: {
@@ -411,9 +402,8 @@ struct ProductDetailView: View {
                     .foregroundColor(.white)
                 }
             }
-            // 타인의 게시글일 때
+            
             else {
-                // 결제 버튼 (나눔 상품이 아닐 때만)
                 if !isFreeItem {
                     Button {
                         startPayment(post: post)
@@ -426,16 +416,14 @@ struct ProductDetailView: View {
                     }
                 }
 
-                // 채팅 버튼
                 Button {
-                    // Navigate to chat
+                    //TODO: Navigate to chat
                 } label: {
                     Image(systemName: "message.fill")
                         .font(.system(size: 16))
                         .foregroundColor(.white)
                 }
 
-                // 좋아요 버튼
                 Button {
                     store.send(.toggleLike)
                 } label: {
@@ -521,7 +509,6 @@ struct ProductDetailView: View {
                 await validatePayment(impUid: impUid)
             }
         } else {
-            // 결제 실패
             paymentMessage = "결제가 취소되었습니다."
             print(response.error_msg ?? "알 수 없는 오류")
             showPaymentAlert = true

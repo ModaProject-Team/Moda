@@ -23,11 +23,9 @@ final class MapStore: NSObject, ObservableObject {
 
     func send(_ intent: MapIntent) {
         switch intent {
-            //TODO: 현재 화면 중심 좌표 -> 지도가 변경될 때 게시물 재로드
         case .updateCameraPosition(let position):
             state.cameraPosition = position
 
-            //TODO: 지도 위치를 강제로 이동
         case .moveToLocation(let coordinate):
             state.cameraPosition = .region(
                 MKCoordinateRegion(
