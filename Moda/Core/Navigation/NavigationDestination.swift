@@ -75,8 +75,8 @@ enum NavigationDestination: Hashable {
     /// 설정 화면
     case settings
 
-    /// 물건 올리기 화면
-    case productUpload
+    /// 물건 올리기/수정 화면
+    case productUpload(editMode: Bool, postId: String?)
 
     /// 상품 상세 화면
     case productDetail(postId: String)
@@ -119,8 +119,8 @@ extension NavigationDestination {
             Text("Profile View")
         case .settings:
             SettingView()
-        case .productUpload:
-            ProductUploadView()
+        case .productUpload(let editMode, let postId):
+            ProductUploadView(editMode: editMode, postId: postId)
         case .productDetail(let postId):
             ProductDetailView(postId: postId)
 

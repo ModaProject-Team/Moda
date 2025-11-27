@@ -9,10 +9,19 @@ import SwiftUI
 import PhotosUI
 
 struct ProductUploadView: View {
-    
-    @StateObject private var store = ProductUploadStore()
+
+    let editMode: Bool
+    let postId: String?
+
+    @StateObject private var store: ProductUploadStore
     @EnvironmentObject var navigator: AppNavigator
     @State private var selectedItems: [PhotosPickerItem] = []
+
+    init(editMode: Bool = false, postId: String? = nil) {
+        self.editMode = editMode
+        self.postId = postId
+        self._store = StateObject(wrappedValue: ProductUploadStore(editMode: editMode, postId: postId))
+    }
 
     var body: some View {
         ZStack {
@@ -100,7 +109,7 @@ struct ProductUploadView: View {
 
             Spacer()
 
-            Text("내 물건 팔기")
+            Text(editMode ? "게시글 수정하기" : "내 물건 팔기")
                 .H1()
                 .foregroundColor(.gray1)
 
@@ -122,7 +131,6 @@ struct ProductUploadView: View {
         VStack(alignment: .leading, spacing: 12) {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 12) {
-                    // 사진 추가 버튼
                     PhotosPicker(
                         selection: $selectedItems,
                         maxSelectionCount: 5 - store.state.selectedMedia.count,
@@ -151,11 +159,10 @@ struct ProductUploadView: View {
                     }
                     .padding(.vertical, 8)
 
-                    // 선택된 미디어 표시
                     ForEach(Array(store.state.selectedMedia.enumerated()), id: \.offset) { index, media in
                         ZStack(alignment: .topTrailing) {
                             switch media {
-                            case .image(let image):
+                            case .image(let image, _):
                                 Image(uiImage: image)
                                     .resizable()
                                     .scaledToFill()
@@ -163,7 +170,7 @@ struct ProductUploadView: View {
                                     .cornerRadius(12)
                                     .clipped()
 
-                            case .video(_, let thumbnail):
+                            case .video(_, let thumbnail, _):
                                 ZStack {
                                     Image(uiImage: thumbnail)
                                         .resizable()

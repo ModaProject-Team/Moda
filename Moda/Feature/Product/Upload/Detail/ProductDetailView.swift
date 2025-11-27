@@ -391,7 +391,7 @@ struct ProductDetailView: View {
             }
             else if isMyPost {
                 Button {
-                    // TODO: 수정 화면으로 이동
+                    navigator.push(.productUpload(editMode: true, postId: post.postId))
                 } label: {
                     HStack(spacing: 4) {
                         Image(systemName: "pencil")
