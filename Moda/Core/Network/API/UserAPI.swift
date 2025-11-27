@@ -59,8 +59,9 @@ final class UserAPI: UserAPIProtocol {
         return response
     }
 
-    func loginWithKakao(idToken: String) async throws -> LoginResponse {
-        let endpoint = UserRouter.loginKakao(token: idToken)
+    // 서버 스펙: { "oauthToken": "<카카오 access token>" }
+    func loginWithKakao(oauthToken: String) async throws -> LoginResponse {
+        let endpoint = UserRouter.loginKakao(oauthToken: oauthToken)
         let response = try await networkService.request(
             endpoint: endpoint,
             responseType: LoginResponse.self
@@ -109,3 +110,4 @@ final class UserAPI: UserAPIProtocol {
         return response
     }
 }
+
