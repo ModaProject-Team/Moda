@@ -78,6 +78,9 @@ struct FeedView: View {
         .onReceive(NotificationCenter.default.publisher(for: .postPaymentCompleted)) { _ in
             store.send(.refresh)
         }
+        .onReceive(NotificationCenter.default.publisher(for: .postUpdated)) { _ in
+            store.send(.refresh)
+        }
     }
 
     private var logoSection: some View {

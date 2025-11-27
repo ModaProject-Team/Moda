@@ -280,6 +280,9 @@ final class ProductUploadStore: ObservableObject {
 
                 state.isUploading = false
                 state.uploadedPostId = postId
+
+                // 게시글 수정 완료 알림 전송
+                NotificationCenter.default.post(name: .postUpdated, object: nil)
             } else {
                 // 생성 모드
                 let response = try await postAPI.createPost(
@@ -299,6 +302,9 @@ final class ProductUploadStore: ObservableObject {
 
                 state.isUploading = false
                 state.uploadedPostId = response.postId
+
+                // 게시글 작성 완료 알림 전송
+                NotificationCenter.default.post(name: .postUpdated, object: nil)
             }
 
         } catch {

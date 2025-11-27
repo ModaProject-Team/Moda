@@ -15,6 +15,7 @@ extension Notification.Name {
     static let postDeleted = Notification.Name("postDeleted")
     static let postLikeUpdated = Notification.Name("postLikeUpdated")
     static let postPaymentCompleted = Notification.Name("postPaymentCompleted")
+    static let postUpdated = Notification.Name("postUpdated")
 }
 
 extension IamportPayment: @retroactive Identifiable {
