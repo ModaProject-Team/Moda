@@ -9,9 +9,9 @@ import SwiftUI
 import Kingfisher
 
 struct SettingView: View {
+    @EnvironmentObject var navigator: AppNavigator
     @State private var store = SettingStore()
     @State private var showProfileEdit = false
-    @State private var showLikedPosts = false
     @State private var showLogoutAlert = false
 
     var body: some View {
@@ -40,9 +40,6 @@ struct SettingView: View {
             store.send(.refresh)
         }) {
             ProfileEditView()
-        }
-        .fullScreenCover(isPresented: $showLikedPosts) {
-            LikedPostsView()
         }
         .alert("로그아웃", isPresented: $showLogoutAlert) {
             Button("취소", role: .cancel) { }
@@ -128,7 +125,7 @@ struct SettingView: View {
                 title: "찜 목록",
                 subtitle: "좋아요한 게시글"
             ) {
-                showLikedPosts = true
+                navigator.push(.likedPosts)
             }
 
             ActionCard(
@@ -209,4 +206,5 @@ struct ActionCard: View {
 
 #Preview {
     SettingView()
+        .environmentObject(AppNavigator.shared)
 }
