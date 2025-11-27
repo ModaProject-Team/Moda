@@ -8,8 +8,15 @@
 import SwiftUI
 
 enum MediaItem {
-    case image(UIImage)
-    case video(url: URL, thumbnail: UIImage)
+    case image(UIImage, serverURL: String? = nil)
+    case video(url: URL, thumbnail: UIImage, serverURL: String? = nil)
+
+    var serverURL: String? {
+        switch self {
+        case .image(_, let serverURL), .video(_, _, let serverURL):
+            return serverURL
+        }
+    }
 }
 
 struct ProductUploadState {
@@ -30,6 +37,10 @@ struct ProductUploadState {
     var latitude: Double?
     var longitude: Double?
     var showLocationSelection: Bool = false
+
+    // Edit mode data
+    var originalPostId: String?
+    var originalFiles: [String] = []
 
     // 작성 완료 버튼 활성화 조건
     var isFormValid: Bool {

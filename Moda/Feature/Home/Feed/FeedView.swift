@@ -24,7 +24,6 @@ struct FeedView: View {
                 VStack(spacing: 16) {
                     logoSection
                     categoryFilterSection
-//                    userInfoCard
                     ScrollView(showsIndicators: false) {
                         VStack(spacing: 20) {
                             ProductGridView(
@@ -77,6 +76,9 @@ struct FeedView: View {
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: .postPaymentCompleted)) { _ in
+            store.send(.refresh)
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .postUpdated)) { _ in
             store.send(.refresh)
         }
     }
@@ -140,57 +142,13 @@ struct FeedView: View {
         }
     }
 
-    /*
-    private var userInfoCard: some View {
-        VStack(spacing: 14) {
-            HStack(spacing: 12) {
-                Circle()
-                    .fill(Color.gray3)
-                    .frame(width: 48, height: 48)
-
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(store.state.userName)
-                        .H1()
-                        .foregroundColor(.gray1)
-
-                    Text("프로필")
-                        .Body1()
-                        .foregroundColor(.gray2)
-                }
-
-                Spacer()
-            }
-
-            HStack(spacing: 10) {
-                QuickActionButton(icon: "arrow.up.circle.fill", title: "올리기") {
-                    navigator.push(.productUpload)
-                }
-                QuickActionButton(icon: "heart.fill", title: "찜 목록") {
-                }
-                QuickActionButton(icon: "clock.fill", title: "거래내역") {
-                }
-            }
-        }
-        .padding(18)
-        .background(
-            RoundedRectangle(cornerRadius: 20, style: .continuous)
-                .fill(Color.gray5)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 20, style: .continuous)
-                .stroke(Color.gray4, lineWidth: 0.5)
-        )
-        .padding(.horizontal, 16)
-    }
-     */
-
     private var uploadButton: some View {
         VStack {
             Spacer()
             HStack {
                 Spacer()
                 Button {
-                    navigator.push(.productUpload)
+                    navigator.push(.productUpload(editMode: false, postId: nil))
                 } label: {
                     HStack(spacing: 8) {
                         Image(systemName: "plus")

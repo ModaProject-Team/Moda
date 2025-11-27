@@ -15,6 +15,7 @@ extension Notification.Name {
     static let postDeleted = Notification.Name("postDeleted")
     static let postLikeUpdated = Notification.Name("postLikeUpdated")
     static let postPaymentCompleted = Notification.Name("postPaymentCompleted")
+    static let postUpdated = Notification.Name("postUpdated")
 }
 
 extension IamportPayment: @retroactive Identifiable {
@@ -391,7 +392,7 @@ struct ProductDetailView: View {
             }
             else if isMyPost {
                 Button {
-                    // TODO: 수정 화면으로 이동
+                    navigator.push(.productUpload(editMode: true, postId: post.postId))
                 } label: {
                     HStack(spacing: 4) {
                         Image(systemName: "pencil")
