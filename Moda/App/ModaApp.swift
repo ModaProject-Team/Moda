@@ -6,12 +6,33 @@
 //
 
 import SwiftUI
+import KakaoSDKCommon
+import KakaoSDKAuth
 
 @main
 struct ModaApp: App {
-    @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     @StateObject private var navigator = AppNavigator.shared
-    
+
+    init() {
+        if Thread.isMainThread {
+            initializeKakaoSDK()
+        } else {
+            DispatchQueue.main.sync {
+                initializeKakaoSDK()
+            }
+        }
+    }
+
+    @MainActor
+    private func initializeKakaoSDK() {
+        let appKey = Bundle.main.object(forInfoDictionaryKey: "KakaoKey") as? String
+        if let appKey, !appKey.isEmpty {
+            KakaoSDK.initSDK(appKey: appKey)
+        } else {
+            assertionFailure("Kakao App Key is missing")
+        }
+    }
+
     var body: some Scene {
         WindowGroup {
             NavigationStack(path: $navigator.path) {

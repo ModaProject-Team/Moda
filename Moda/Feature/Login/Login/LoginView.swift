@@ -154,7 +154,7 @@ struct LoginView: View {
     private var socialLoginSection: some View {
         HStack(spacing: 24) {
             Button {
-                // TODO: 카카오 로그인 구현
+                store.send(.kakaoLoginTapped)
             } label: {
                 Image(systemName: "message.fill")
                     .font(.system(size: 20))
@@ -199,3 +199,4 @@ struct LoginView: View {
     LoginView()
         .environmentObject(AppNavigator.shared)
 }
+

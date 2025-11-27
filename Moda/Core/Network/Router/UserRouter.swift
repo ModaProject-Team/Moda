@@ -20,7 +20,7 @@ enum UserRouter {
     case login(email: String, password: String)
 
     /// 카카오 로그인
-    case loginKakao(token: String)
+    case loginKakao(oauthToken: String)
 
     /// 애플 로그인
     case loginApple(token: String)
@@ -102,7 +102,7 @@ extension UserRouter: Endpoint {
                 "password": password
             ]
         case .loginKakao(let token), .loginApple(let token):
-            return ["idToken": token]
+            return ["oauthToken": token]
         default:
             return nil
         }

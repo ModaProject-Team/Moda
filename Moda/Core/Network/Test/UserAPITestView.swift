@@ -184,7 +184,7 @@ final class UserAPITestStore: ObservableObject {
 
         do {
             let response = try await networkService.request(
-                endpoint: UserRouter.loginKakao(token: "test_kakao_token"),
+                endpoint: UserRouter.loginKakao(oauthToken: "test_kakao_token"),
                 responseType: LoginResponse.self
             )
 
