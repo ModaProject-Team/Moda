@@ -133,7 +133,7 @@ struct SettingView: View {
 
             ActionCard(
                 icon: "clock.fill",
-                iconColor: .blue1,
+                iconColor: .green1,
                 title: "거래 내역",
                 subtitle: "나의 거래 기록"
             ) {
@@ -141,7 +141,7 @@ struct SettingView: View {
 
             ActionCard(
                 icon: "rectangle.portrait.and.arrow.right",
-                iconColor: .red,
+                iconColor: .blue1,
                 title: "로그아웃",
                 subtitle: "계정 로그아웃"
             ) {

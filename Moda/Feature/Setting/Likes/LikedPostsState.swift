@@ -21,6 +21,7 @@ struct LikedPost: Identifiable {
     let title: String
     let price: Int
     let mediaURL: URL?
+    let mediaPath: String? // 원본 파일 경로 (확장자 확인용)
     let profileImageURL: URL?
     let nickname: String
     var isLiked: Bool

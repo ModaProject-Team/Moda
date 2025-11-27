@@ -103,23 +103,33 @@ private struct LikedPostItemView: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            if let url = post.mediaURL {
-                KFImage(url)
-                    .requestModifier(KFHeaders.modifier)
-                    .placeholder {
-                        RoundedRectangle(cornerRadius: 12, style: .continuous)
-                            .fill(Color.gray5)
-                    }
-                    .cacheOriginalImage()
-                    .fade(duration: 0.2)
-                    .resizable()
-                    .aspectRatio(contentMode: .fill)
+            ZStack {
+                if let mediaPath = post.mediaPath {
+                    MediaImageView(
+                        mediaURL: mediaPath,
+                        contentMode: .fill,
+                        placeholder: {
+                            AnyView(
+                                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                    .fill(Color.gray5)
+                            )
+                        }
+                    )
                     .frame(width: 80, height: 80)
                     .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-            } else {
-                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .fill(Color.gray5)
-                    .frame(width: 80, height: 80)
+
+                    // 동영상인 경우 재생 아이콘 표시
+                    if mediaPath.isVideoFile {
+                        Image(systemName: "play.circle.fill")
+                            .font(.system(size: 24))
+                            .foregroundColor(.white)
+                            .shadow(color: .black.opacity(0.3), radius: 2)
+                    }
+                } else {
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .fill(Color.gray5)
+                        .frame(width: 80, height: 80)
+                }
             }
 
             VStack(alignment: .leading, spacing: 4) {
