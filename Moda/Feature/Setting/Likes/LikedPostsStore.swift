@@ -57,8 +57,9 @@ final class LikedPostsStore {
                 )
 
                 let newPosts = response.data.map { dto -> LikedPost in
+                    let firstFile = dto.files.first
                     let mediaURL: URL? = {
-                        guard let firstFile = dto.files.first else { return nil }
+                        guard let firstFile = firstFile else { return nil }
                         return URL(string: NetworkConfig.baseURL + "/v1/" + firstFile)
                     }()
 
@@ -75,6 +76,7 @@ final class LikedPostsStore {
                         title: dto.title,
                         price: Int(dto.price ?? 0),
                         mediaURL: mediaURL,
+                        mediaPath: firstFile,
                         profileImageURL: profileImageURL,
                         nickname: dto.creator.nick,
                         isLiked: isLiked

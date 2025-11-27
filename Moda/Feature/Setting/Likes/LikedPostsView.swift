@@ -9,56 +9,53 @@ import SwiftUI
 import Kingfisher
 
 struct LikedPostsView: View {
-    @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject var navigator: AppNavigator
     @State private var store = LikedPostsStore()
 
     var body: some View {
-        NavigationStack {
-            ZStack {
-                Color.white.ignoresSafeArea()
+        ZStack {
+            Color.white.ignoresSafeArea()
 
-                if store.state.isLoading && store.state.posts.isEmpty {
-                    shimmerList
-                } else if store.state.posts.isEmpty {
-                    emptyStateView
-                } else {
-                    ScrollView {
-                        LazyVStack(spacing: 12) {
-                            ForEach(Array(store.state.posts.enumerated()), id: \.element.id) { index, post in
-                                LikedPostItemView(
-                                    post: post,
-                                    onLikeTapped: { store.send(.toggleLike(post.id)) },
-                                    onTapped: { store.send(.postTapped(post.id)) }
-                                )
-
+            if store.state.isLoading && store.state.posts.isEmpty {
+                shimmerList
+            } else if store.state.posts.isEmpty {
+                emptyStateView
+            } else {
+                ScrollView {
+                    LazyVStack(spacing: 12) {
+                        ForEach(Array(store.state.posts.enumerated()), id: \.element.id) { index, post in
+                            LikedPostItemView(
+                                post: post,
+                                onLikeTapped: { store.send(.toggleLike(post.id)) },
+                                onTapped: { navigator.push(.productDetail(postId: post.id)) }
+                            )
+                            .onAppear {
                                 if index >= store.state.posts.count - 4 {
-                                    Color.clear
-                                        .onAppear {
-                                            store.send(.loadMore)
-                                        }
+                                    store.send(.loadMore)
                                 }
                             }
                         }
-                        .padding(.horizontal, 16)
-                        .padding(.top, 16)
-                        .padding(.bottom, 100)
                     }
-                    .refreshable {
-                        store.send(.refresh)
-                    }
+                    .padding(.horizontal, 16)
+                    .padding(.top, 16)
+                    .padding(.bottom, 100)
+                }
+                .refreshable {
+                    store.send(.refresh)
                 }
             }
-            .navigationTitle("찜 목록")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
-                    Button {
-                        dismiss()
-                    } label: {
-                        Image(systemName: "xmark")
-                            .font(.system(size: 18))
-                            .foregroundColor(.gray1)
-                    }
+        }
+        .navigationTitle("찜 목록")
+        .navigationBarTitleDisplayMode(.inline)
+        .navigationBarBackButtonHidden(true)
+        .toolbar {
+            ToolbarItem(placement: .topBarLeading) {
+                Button {
+                    navigator.pop()
+                } label: {
+                    Image(systemName: "chevron.left")
+                        .font(.system(size: 18))
+                        .foregroundColor(.gray1)
                 }
             }
         }
@@ -103,23 +100,33 @@ private struct LikedPostItemView: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            if let url = post.mediaURL {
-                KFImage(url)
-                    .requestModifier(KFHeaders.modifier)
-                    .placeholder {
-                        RoundedRectangle(cornerRadius: 12, style: .continuous)
-                            .fill(Color.gray5)
-                    }
-                    .cacheOriginalImage()
-                    .fade(duration: 0.2)
-                    .resizable()
-                    .aspectRatio(contentMode: .fill)
+            ZStack {
+                if let mediaPath = post.mediaPath {
+                    MediaImageView(
+                        mediaURL: mediaPath,
+                        contentMode: .fill,
+                        placeholder: {
+                            AnyView(
+                                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                    .fill(Color.gray5)
+                            )
+                        }
+                    )
                     .frame(width: 80, height: 80)
                     .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-            } else {
-                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .fill(Color.gray5)
-                    .frame(width: 80, height: 80)
+
+                    // 동영상인 경우 재생 아이콘 표시
+                    if mediaPath.isVideoFile {
+                        Image(systemName: "play.circle.fill")
+                            .font(.system(size: 24))
+                            .foregroundColor(.white)
+                            .shadow(color: .black.opacity(0.3), radius: 2)
+                    }
+                } else {
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .fill(Color.gray5)
+                        .frame(width: 80, height: 80)
+                }
             }
 
             VStack(alignment: .leading, spacing: 4) {
@@ -237,4 +244,5 @@ private struct LikedPostShimmerView: View {
 
 #Preview {
     LikedPostsView()
+        .environmentObject(AppNavigator.shared)
 }

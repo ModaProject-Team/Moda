@@ -81,6 +81,9 @@ enum NavigationDestination: Hashable {
     /// 상품 상세 화면
     case productDetail(postId: String)
 
+    /// 찜 목록 화면
+    case likedPosts
+
     // MARK: FriendTab
     /// 친구 검색 화면
     case friendSearch(friends: [People])
@@ -123,6 +126,8 @@ extension NavigationDestination {
             ProductUploadView(editMode: editMode, postId: postId)
         case .productDetail(let postId):
             ProductDetailView(postId: postId)
+        case .likedPosts:
+            LikedPostsView()
 
         //MARK: FriendTab
         case .friendSearch(let friends):
