@@ -523,7 +523,7 @@ struct ProductDetailView: View {
                 if isPaymentCompleted {
                     HStack(spacing: 4) {
                         Image(systemName: "heart.fill")
-                            .font(.system(size: 14))
+                            .font(.system(size: 16))
                             .foregroundColor(.pink1)
                         Text("\(store.state.likeCount)")
                             .Body2()
@@ -537,7 +537,7 @@ struct ProductDetailView: View {
                 else if isMyPost {
                     HStack(spacing: 4) {
                         Image(systemName: "heart.fill")
-                            .font(.system(size: 14))
+                            .font(.system(size: 16))
                             .foregroundColor(.pink1)
                         Text("\(store.state.likeCount)")
                             .Body2()
@@ -588,7 +588,7 @@ struct ProductDetailView: View {
                         navigateToChat(post: post)
                     } label: {
                         Image(systemName: "message.fill")
-                            .font(.system(size: 18))
+                            .font(.system(size: 16))
                             .foregroundColor(.white)
                     }
                 }
