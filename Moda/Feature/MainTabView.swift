@@ -7,25 +7,6 @@
 
 import SwiftUI
 
-struct MainTabViewState {
-    var selectedTab: TabItem = .home
-}
-
-enum MainTabViewIntent {
-    case tabSelected(TabItem)
-}
-
-final class MainTabViewStore: ObservableObject {
-    @Published private(set) var state = MainTabViewState()
-
-    func send(_ intent: MainTabViewIntent) {
-        switch intent {
-        case .tabSelected(let tab):
-            state.selectedTab = tab
-        }
-    }
-}
-
 struct MainTabView: View {
     @StateObject private var store = MainTabViewStore()
     @EnvironmentObject var navigator: AppNavigator

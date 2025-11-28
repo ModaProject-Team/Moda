@@ -8,64 +8,6 @@
 import SwiftUI
 import Observation
 
-private struct FriendSearchState {
-    var query: String = ""
-    var results: [People] = []
-}
-
-private enum FriendSearchAction {
-    case queryChanged(String)
-    case clearTapped
-}
-
-@MainActor
-@Observable
-private final class FriendSearchStore {
-    private(set) var state = FriendSearchState()
-    // 상위에서 주입된 원본 목록
-    private var sourceFriends: [People] = []
-
-    init(sourceFriends: [People] = []) {
-        self.sourceFriends = sourceFriends
-    }
-
-    func send(_ action: FriendSearchAction) {
-        switch action {
-        case .clearTapped:
-            handleClearTapped()
-
-        case .queryChanged(let text):
-            handleQueryChanged(text)
-        }
-    }
-
-    private func handleClearTapped() {
-        state.query = ""
-        state.results = []
-    }
-
-    private func handleQueryChanged(_ text: String) {
-        state.query = text
-        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        if trimmed.isEmpty {
-            state.results = []
-        } else {
-            applyFilter()
-        }
-    }
-
-    private func applyFilter() {
-        let trimmed = state.query.trimmingCharacters(in: .whitespacesAndNewlines)
-        if trimmed.isEmpty {
-            state.results = []
-        } else {
-            state.results = sourceFriends.filter {
-                $0.name.localizedCaseInsensitiveContains(trimmed)
-            }
-        }
-    }
-}
-
 struct FriendSearchView: View {
     @State private var store: FriendSearchStore
     @FocusState private var isSearching: Bool
