@@ -55,7 +55,7 @@ struct SettingView: View {
         VStack(spacing: 14) {
             HStack(spacing: 12) {
                 profileImageView
-                    .frame(width: 48, height: 48)
+                    .frame(width: 52, height: 52)
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(store.state.nickname)
@@ -79,14 +79,6 @@ struct SettingView: View {
             }
         }
         .padding(16)
-        .background(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .fill(Color.gray5)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .stroke(Color.gray4, lineWidth: 0.5)
-        )
         .onTapGesture {
             showProfileEdit = true
         }
@@ -103,16 +95,16 @@ struct SettingView: View {
                     .cacheOriginalImage()
                     .resizable()
                     .scaledToFill()
-                    .frame(width: 48, height: 48)
+                    .frame(width: 52, height: 52)
                     .clipShape(Circle())
             } else {
                 ZStack {
                     Circle().fill(Color.gray3)
                     Image(systemName: "person.fill")
-                        .font(.system(size: 20))
+                        .font(.system(size: 22))
                         .foregroundStyle(.white)
                 }
-                .frame(width: 48, height: 48)
+                .frame(width: 52, height: 52)
             }
         }
     }
@@ -169,10 +161,10 @@ struct ActionCard: View {
                 ZStack {
                     Circle()
                         .fill(iconColor.opacity(0.1))
-                        .frame(width: 40, height: 40)
+                        .frame(width: 52, height: 52)
 
                     Image(systemName: icon)
-                        .font(.system(size: 18))
+                        .font(.system(size: 22))
                         .foregroundColor(iconColor)
                 }
 
@@ -193,14 +185,6 @@ struct ActionCard: View {
                     .foregroundColor(.gray2)
             }
             .padding(14)
-            .background(
-                RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .fill(Color.gray5)
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .stroke(Color.gray4, lineWidth: 0.5)
-            )
         }
     }
 }

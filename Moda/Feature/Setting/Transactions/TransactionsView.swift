@@ -24,7 +24,7 @@ struct TransactionsView: View {
                 emptyStateView
             } else {
                 ScrollView {
-                    LazyVStack(spacing: 12) {
+                    LazyVStack(spacing: 0) {
                         ForEach(Array(store.state.transactions.enumerated()), id: \.element.id) { index, transaction in
                             TransactionItemView(
                                 transaction: transaction,
@@ -37,8 +37,6 @@ struct TransactionsView: View {
                             }
                         }
                     }
-                    .padding(.horizontal, 16)
-                    .padding(.top, 16)
                     .padding(.bottom, 100)
                 }
                 .refreshable {
@@ -71,13 +69,11 @@ struct TransactionsView: View {
 
     private var shimmerList: some View {
         ScrollView {
-            LazyVStack(spacing: 12) {
+            LazyVStack(spacing: 0) {
                 ForEach(0..<5, id: \.self) { _ in
                     TransactionShimmerView()
                 }
             }
-            .padding(.horizontal, 16)
-            .padding(.top, 16)
         }
     }
 
@@ -181,15 +177,8 @@ private struct TransactionItemView: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .padding(16)
-        .background(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .fill(Color.gray5)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .stroke(Color.gray4, lineWidth: 0.5)
-        )
+        .padding(.horizontal, 16)
+        .padding(.vertical, 14)
         .contentShape(Rectangle())
         .onTapGesture {
             onTapped()
@@ -232,15 +221,8 @@ private struct TransactionShimmerView: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .padding(16)
-        .background(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .fill(Color.gray5)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .stroke(Color.gray4, lineWidth: 0.5)
-        )
+        .padding(.horizontal, 16)
+        .padding(.vertical, 14)
     }
 }
 
