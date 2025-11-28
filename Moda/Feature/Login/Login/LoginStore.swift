@@ -42,7 +42,7 @@ final class LoginStore: ObservableObject {
 
         Task {
             do {
-                let response = try await userAPI.login(
+                try await userAPI.login(
                     email: email,
                     password: password
                 )
@@ -79,7 +79,7 @@ final class LoginStore: ObservableObject {
                 let kakaoAccessToken = oauthToken.accessToken
 
                 // 우리 서버 소셜 로그인
-                let response = try await userAPI.loginWithKakao(oauthToken: kakaoAccessToken)
+                try await userAPI.loginWithKakao(oauthToken: kakaoAccessToken)
 
                 await MainActor.run {
                     state.isLoading = false
