@@ -491,17 +491,10 @@ struct ChatRoomView: View {
             Spacer()
 
             Text(store.state.participantName)
-                .H1()
+                .H2()
                 .foregroundColor(.gray1)
 
             Spacer()
-
-            Button {
-            } label: {
-                Image(systemName: "ellipsis")
-                    .font(.system(size: 18))
-                    .foregroundColor(.gray1)
-            }
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
