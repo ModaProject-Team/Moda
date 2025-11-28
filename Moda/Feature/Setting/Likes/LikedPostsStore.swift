@@ -68,7 +68,7 @@ final class LikedPostsStore {
                         return URL(string: NetworkConfig.baseURL + "/v1/" + profilePath)
                     }()
 
-                    let currentUserId = UserDefaults.standard.string(forKey: "userId")
+                    let currentUserId = UserDefaultsManager.shared.userId
                     let isLiked = dto.likes.contains(currentUserId ?? "")
 
                     return LikedPost(

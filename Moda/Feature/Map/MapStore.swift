@@ -206,7 +206,7 @@ final class MapStore: NSObject, ObservableObject {
                 guard let geolocation = postResponse.geolocation else { return nil }
 
                 // 현재 사용자가 좋아요 했는지 확인
-                let currentUserId = UserDefaults.standard.string(forKey: "userId") ?? ""
+                let currentUserId = UserDefaultsManager.shared.userId ?? ""
                 let isLiked = postResponse.likes.contains(currentUserId)
 
                 return PostAnnotation(

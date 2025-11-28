@@ -46,7 +46,7 @@ final class SettingStore {
                     state.profileImageURL = url
                 }
 
-                let userId = UserDefaults.standard.string(forKey: "userId") ?? ""
+                let userId = UserDefaultsManager.shared.userId ?? ""
                 let posts = try await postAPI.getUserPosts(
                     userId: userId,
                     next: nil,

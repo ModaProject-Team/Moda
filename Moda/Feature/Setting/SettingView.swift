@@ -116,7 +116,7 @@ struct SettingView: View {
 
     private func logout() {
         TokenManager.shared.clearToken()
-        UserDefaults.standard.removeObject(forKey: "userId")
+        UserDefaultsManager.shared.clearUserData()
         AppNavigator.shared.popToRoot()
         AppNavigator.shared.isLoggedIn = false
     }

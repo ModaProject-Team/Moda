@@ -197,7 +197,7 @@ private final class ProfileDetailStore {
                 category: nil
             )
 
-            let currentUserId = UserDefaults.standard.string(forKey: "userId")
+            let currentUserId = UserDefaultsManager.shared.userId
             var newPosts = response.data.map { $0.toDomain().toPostCard(currentUserId: currentUserId) }
 
             // 최신순 정렬
@@ -238,7 +238,7 @@ private final class ProfileDetailStore {
                 category: nil
             )
 
-            let currentUserId = UserDefaults.standard.string(forKey: "userId")
+            let currentUserId = UserDefaultsManager.shared.userId
             var newPosts = response.data.map { $0.toDomain().toPostCard(currentUserId: currentUserId) }
             newPosts.sort { $0.createdAt > $1.createdAt }
 

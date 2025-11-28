@@ -55,6 +55,7 @@ final class UserAPI: UserAPIProtocol {
             accessToken: response.accessToken,
             refreshToken: response.refreshToken
         )
+        UserDefaultsManager.shared.userId = response.userId
 
         return response
     }
@@ -71,6 +72,7 @@ final class UserAPI: UserAPIProtocol {
             accessToken: response.accessToken,
             refreshToken: response.refreshToken
         )
+        UserDefaultsManager.shared.userId = response.userId
 
         return response
     }
@@ -86,6 +88,7 @@ final class UserAPI: UserAPIProtocol {
             accessToken: response.accessToken,
             refreshToken: response.refreshToken
         )
+        UserDefaultsManager.shared.userId = response.userId
 
         return response
     }

@@ -134,7 +134,7 @@ final class FeedViewStore: NSObject, ObservableObject {
                 category: nil
             )
 
-            let currentUserId = UserDefaults.standard.string(forKey: "userId")
+            let currentUserId = UserDefaultsManager.shared.userId
             var newProducts = response.data.map { $0.toDomain().toPostCard(currentUserId: currentUserId) }
 
             // 최신순 정렬

@@ -160,7 +160,7 @@ struct CommentRow: View {
     @State private var showDeleteAlert = false
 
     private var isMyComment: Bool {
-        let currentUserId = UserDefaults.standard.string(forKey: "userId") ?? ""
+        guard let currentUserId = UserDefaultsManager.shared.userId else { return false }
         return comment.creator.userId == currentUserId
     }
 
@@ -251,7 +251,7 @@ struct ReplyRow: View {
     @State private var showDeleteAlert = false
 
     private var isMyReply: Bool {
-        let currentUserId = UserDefaults.standard.string(forKey: "userId") ?? ""
+        guard let currentUserId = UserDefaultsManager.shared.userId else { return false }
         return reply.creator.userId == currentUserId
     }
 

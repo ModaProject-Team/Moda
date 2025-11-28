@@ -50,12 +50,6 @@ final class LoginStore: ObservableObject {
                 await MainActor.run {
                     state.isLoading = false
                     state.isLoginSuccessful = true
-
-                    TokenManager.shared.saveToken(
-                        accessToken: response.accessToken,
-                        refreshToken: response.refreshToken
-                    )
-                    UserDefaults.standard.set(response.userId, forKey: "userId")
                 }
             } catch let error as NetworkError {
                 await MainActor.run {
@@ -90,12 +84,6 @@ final class LoginStore: ObservableObject {
                 await MainActor.run {
                     state.isLoading = false
                     state.isLoginSuccessful = true
-
-                    TokenManager.shared.saveToken(
-                        accessToken: response.accessToken,
-                        refreshToken: response.refreshToken
-                    )
-                    UserDefaults.standard.set(response.userId, forKey: "userId")
                 }
             } catch {
                 await MainActor.run {

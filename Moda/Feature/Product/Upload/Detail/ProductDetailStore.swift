@@ -53,7 +53,7 @@ final class ProductDetailStore: ObservableObject {
             state.post = response
 
             // 좋아요 상태 초기화
-            let currentUserId = UserDefaults.standard.string(forKey: "userId") ?? ""
+            let currentUserId = UserDefaultsManager.shared.userId ?? ""
             state.isLiked = response.likes.contains(currentUserId)
             state.likeCount = response.likes.count
 
