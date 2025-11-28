@@ -94,6 +94,9 @@ enum PostRouter {
 
     /// 결제 검증
     case validatePayment(impUid: String, postId: String)
+
+    /// 거래 내역 조회
+    case getPaymentList(next: String?, limit: String?)
 }
 
 extension PostRouter: Endpoint {
@@ -105,6 +108,8 @@ extension PostRouter: Endpoint {
         switch self {
         case .validatePayment:
             return "/v1/payments/validation"
+        case .getPaymentList:
+            return "/v1/payments/me"
         default:
             let basePath = "/v1/posts"
             let subPath: String
@@ -294,6 +299,12 @@ extension PostRouter: Endpoint {
                 }
             }
             return items
+
+        case .getPaymentList(let next, let limit):
+            var items: [URLQueryItem] = []
+            if let next = next { items.append(URLQueryItem(name: "next", value: next)) }
+            if let limit = limit { items.append(URLQueryItem(name: "limit", value: limit)) }
+            return items.isEmpty ? nil : items
 
         default:
             return nil

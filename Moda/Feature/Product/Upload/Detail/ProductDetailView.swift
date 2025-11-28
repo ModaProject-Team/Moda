@@ -16,6 +16,7 @@ extension Notification.Name {
     static let postLikeUpdated = Notification.Name("postLikeUpdated")
     static let postPaymentCompleted = Notification.Name("postPaymentCompleted")
     static let postUpdated = Notification.Name("postUpdated")
+    static let paymentResponse = Notification.Name("paymentResponse")
 }
 
 extension IamportPayment: @retroactive Identifiable {
@@ -125,7 +126,6 @@ struct ProductDetailView: View {
                 currentPayment = nil
                 handlePaymentResponse(response)
             }
-            .ignoresSafeArea()
         }
         .fullScreenCover(item: Binding(
             get: { selectedVideoURL.map { VideoURLWrapper(url: $0) } },
