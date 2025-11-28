@@ -15,6 +15,7 @@ final class FeedViewStore: NSObject, ObservableObject {
     @Published private(set) var state = FeedViewState()
 
     private let postAPI: PostAPIProtocol
+    private let userProfileAPI: UserProfileAPIProtocol
     private var cancellables = Set<AnyCancellable>()
 
     private let searchSubject = PassthroughSubject<String, Never>()
@@ -28,8 +29,12 @@ final class FeedViewStore: NSObject, ObservableObject {
         return manager
     }()
 
-    init(postAPI: PostAPIProtocol = PostAPI.shared) {
+    init(
+        postAPI: PostAPIProtocol = PostAPI.shared,
+        userProfileAPI: UserProfileAPIProtocol = UserProfileAPI.shared
+    ) {
         self.postAPI = postAPI
+        self.userProfileAPI = userProfileAPI
         super.init()
         setupCombineBindings()
     }
@@ -57,7 +62,10 @@ final class FeedViewStore: NSObject, ObservableObject {
         switch intent {
         case .onAppear:
             if state.products.isEmpty {
-                Task { await loadPosts(refresh: true) }
+                Task {
+                    await loadMutualFriends()
+                    await loadPosts(refresh: true)
+                }
             }
 
         case .loadMore:
@@ -65,7 +73,10 @@ final class FeedViewStore: NSObject, ObservableObject {
             Task { await loadPosts(refresh: false) }
 
         case .refresh:
-            Task { await loadPosts(refresh: true) }
+            Task {
+                await loadMutualFriends()
+                await loadPosts(refresh: true)
+            }
 
         case .selectCategory(let category):
             state.selectedCategory = category
@@ -113,6 +124,25 @@ final class FeedViewStore: NSObject, ObservableObject {
     }
 
     // MARK: - API Calls
+    private func loadMutualFriends() async {
+        do {
+            let myProfile = try await userProfileAPI.getMyProfile()
+
+            let followerIds = Set(myProfile.followers.map { $0.userId })
+            let followingIds = Set(myProfile.following.map { $0.userId })
+            var mutualIds = followerIds.intersection(followingIds)
+
+            // 본인도 친구 목록에 포함 (내 게시글도 볼 수 있도록)
+            if let currentUserId = UserDefaultsManager.shared.userId {
+                mutualIds.insert(currentUserId)
+            }
+
+            state.mutualFriendIds = mutualIds
+        } catch {
+            state.errorMessage = error.localizedDescription
+        }
+    }
+
     private func loadPosts(refresh: Bool) async {
         if refresh {
             state.nextCursor = ""
@@ -135,6 +165,11 @@ final class FeedViewStore: NSObject, ObservableObject {
 
             let currentUserId = UserDefaultsManager.shared.userId
             var newProducts = response.data.map { $0.toDomain().toPostCard(currentUserId: currentUserId) }
+
+            // 맞팔 친구의 게시글만 필터링
+            newProducts = newProducts.filter { post in
+                state.mutualFriendIds.contains(post.creator.userId)
+            }
 
             // 최신순 정렬
             newProducts.sort { $0.createdAt > $1.createdAt }
