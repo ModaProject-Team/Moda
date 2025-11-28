@@ -81,4 +81,7 @@ protocol PostAPIProtocol {
 
     /// 제목 검색
     func searchPosts(title: String, category: [String]?) async throws -> TitleSearchResponse
+
+    /// 거래 내역 조회
+    func getPaymentList(next: String?, limit: String?) async throws -> PaymentListResponse
 }

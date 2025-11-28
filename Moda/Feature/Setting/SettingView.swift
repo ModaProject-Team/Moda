@@ -134,6 +134,7 @@ struct SettingView: View {
                 title: "거래 내역",
                 subtitle: "나의 거래 기록"
             ) {
+                navigator.push(.transactions)
             }
 
             ActionCard(

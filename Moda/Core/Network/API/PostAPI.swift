@@ -229,4 +229,14 @@ final class PostAPI: PostAPIProtocol {
 
         return response
     }
+
+    func getPaymentList(next: String? = nil, limit: String? = nil) async throws -> PaymentListResponse {
+        let endpoint = PostRouter.getPaymentList(next: next, limit: limit)
+        let response = try await networkService.request(
+            endpoint: endpoint,
+            responseType: PaymentListResponse.self
+        )
+
+        return response
+    }
 }

@@ -1,5 +1,5 @@
 {
-  "originHash" : "335d2225b665e1a371e99ce2c0abf4a5a79bda920f973bf60934dac03692d932",
+  "originHash" : "5fa4ccdd982192b0fbd56a17748c86112cd1f39de8960479b967307fc3547ead",
   "pins" : [
     {
       "identity" : "alamofire",
@@ -49,7 +49,7 @@
     {
       "identity" : "socket.io-client-swift",
       "kind" : "remoteSourceControl",
-      "location" : "https://github.com/socketio/socket.io-client-swift",
+      "location" : "https://github.com/socketio/socket.io-client-swift.git",
       "state" : {
         "branch" : "master",
         "revision" : "42da871d9369f290d6ec4930636c40672143905b"
