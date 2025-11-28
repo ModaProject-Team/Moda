@@ -60,7 +60,6 @@ final class ProductUploadStore: ObservableObject {
             // 기존 파일들을 MediaItem으로 변환하여 UI에 표시
             await loadExistingMedia(files: post.files)
         } catch {
-            print("게시글 로드 실패: \(error)")
             state.uploadError = "게시글을 불러올 수 없습니다."
         }
     }
@@ -80,19 +79,18 @@ final class ProductUploadStore: ObservableObject {
                     request.setValue(KFHeaders.authorization, forHTTPHeaderField: "Authorization")
                     
                     do {
-                        let (data, response) = try await URLSession.shared.data(for: request)
+                        let (data, _) = try await URLSession.shared.data(for: request)
                         
                         if let image = UIImage(data: data) {
                             mediaItems.append(.image(image, serverURL: fileURL))
                         }
                     } catch {
-                        print("다운로드 실패: \(error)")
                     }
                 }
             } else if fileURL.isVideoFile {
                 if let url = URL(string: fullURL) {
                     do {
-                        let (tempURL, response) = try await downloadFileWithAuth(from: url)
+                        let (tempURL, _) = try await downloadFileWithAuth(from: url)
 
                         // 임시 파일을 Documents 디렉토리에 .mp4 확장자로 복사
                         let permanentURL = URL.documentsDirectory.appending(path: "downloaded-\(UUID().uuidString).mp4")
@@ -105,7 +103,6 @@ final class ProductUploadStore: ObservableObject {
                             mediaItems.append(.video(url: permanentURL, thumbnail: thumbnail, serverURL: fileURL))
                         }
                     } catch {
-                        print("동영상 다운로드 실패: \(error)")
                     }
                 }
             }
@@ -207,7 +204,6 @@ final class ProductUploadStore: ObservableObject {
             let cgImage = try imageGenerator.copyCGImage(at: .zero, actualTime: nil)
             return UIImage(cgImage: cgImage)
         } catch {
-            print("썸네일 생성 실패: \(error)")
             return nil
         }
     }
@@ -262,7 +258,7 @@ final class ProductUploadStore: ObservableObject {
             // 2. 게시글 생성 또는 수정
             if editMode, let postId = state.originalPostId {
                 // 수정 모드
-                let _ = try await postAPI.updatePost(
+                _ = try await postAPI.updatePost(
                     postId: postId,
                     category: "sell",
                     title: state.title,
@@ -310,7 +306,6 @@ final class ProductUploadStore: ObservableObject {
         } catch {
             state.isUploading = false
             state.uploadError = error.localizedDescription
-            print("게시글 \(editMode ? "수정" : "등록") 실패: \(error)")
         }
     }
 }

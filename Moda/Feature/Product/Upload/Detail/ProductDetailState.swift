@@ -19,7 +19,7 @@ struct ProductDetailState {
 
     var isMyPost: Bool {
         guard let post = post else { return false }
-        let currentUserId = UserDefaults.standard.string(forKey: "userId") ?? ""
+        let currentUserId = UserDefaultsManager.shared.userId ?? ""
         return post.creator.userId == currentUserId
     }
 }

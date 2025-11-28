@@ -6,13 +6,12 @@
 //
 
 import SwiftUI
-import Kingfisher
 
 struct SettingView: View {
     @EnvironmentObject var navigator: AppNavigator
     @State private var store = SettingStore()
-    @State private var showProfileEdit = false
     @State private var showLogoutAlert = false
+    @State private var showWithdrawAlert = false
 
     var body: some View {
         ZStack {
@@ -22,24 +21,19 @@ struct SettingView: View {
             VStack(spacing: 0) {
                 TabHeaderView(title: "프로필")
 
-                profileCardSection
-                    .padding(.top, 16)
-                    .padding(.horizontal, 16)
+                ScrollView(showsIndicators: false) {
+                    VStack(spacing: 0) {
+                        profileCardSection
 
-                actionCardsSection
-                    .padding(.top, 20)
-                    .padding(.horizontal, 16)
-
-                Spacer()
+                        actionCardsSection
+                            .padding(.top, 20)
+                    }
+                    .padding(.bottom, 100)
+                }
             }
         }
         .task {
             store.send(.onAppear)
-        }
-        .fullScreenCover(isPresented: $showProfileEdit, onDismiss: {
-            store.send(.refresh)
-        }) {
-            ProfileEditView()
         }
         .alert("로그아웃", isPresented: $showLogoutAlert) {
             Button("취소", role: .cancel) { }
@@ -49,15 +43,25 @@ struct SettingView: View {
         } message: {
             Text("로그아웃 하시겠습니까?")
         }
+        .alert("회원 탈퇴", isPresented: $showWithdrawAlert) {
+            Button("취소", role: .cancel) { }
+            Button("탈퇴", role: .destructive) {
+                store.send(.withdrawTapped)
+            }
+        } message: {
+            Text("회원 탈퇴 시 작성한 게시글, 댓글/대댓글, 팔로우 내역 등 모든 데이터가 삭제됩니다.\n\n정말 탈퇴하시겠습니까?")
+        }
     }
 
     private var profileCardSection: some View {
-        VStack(spacing: 14) {
+        Button {
+            navigator.push(.profileEdit)
+        } label: {
             HStack(spacing: 12) {
                 profileImageView
-                    .frame(width: 48, height: 48)
+                    .frame(width: 52, height: 52)
 
-                VStack(alignment: .leading, spacing: 2) {
+                VStack(alignment: .leading, spacing: 4) {
                     Text(store.state.nickname)
                         .H2()
                         .foregroundColor(.gray1)
@@ -66,60 +70,25 @@ struct SettingView: View {
                         .Body2()
                         .foregroundColor(.gray2)
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
 
-                Spacer()
-
-                Button {
-                    showProfileEdit = true
-                } label: {
-                    Image(systemName: "chevron.right")
-                        .font(.system(size: 14, weight: .semibold))
-                        .foregroundColor(.gray2)
-                }
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundColor(.gray2)
             }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 14)
         }
-        .padding(16)
-        .background(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .fill(Color.gray5)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .stroke(Color.gray4, lineWidth: 0.5)
-        )
-        .onTapGesture {
-            showProfileEdit = true
-        }
+        .buttonStyle(.plain)
     }
 
     private var profileImageView: some View {
-        Group {
-            if let url = store.state.profileImageURL {
-                KFImage(url)
-                    .requestModifier(KFHeaders.modifier)
-                    .placeholder {
-                        Circle().fill(Color.gray3)
-                    }
-                    .cacheOriginalImage()
-                    .resizable()
-                    .scaledToFill()
-                    .frame(width: 48, height: 48)
-                    .clipShape(Circle())
-            } else {
-                ZStack {
-                    Circle().fill(Color.gray3)
-                    Image(systemName: "person.fill")
-                        .font(.system(size: 20))
-                        .foregroundStyle(.white)
-                }
-                .frame(width: 48, height: 48)
-            }
-        }
+        ProfileImageView(imageURL: store.state.profileImageURL, size: 52)
     }
 
     private var actionCardsSection: some View {
-        VStack(spacing: 10) {
-            ActionCard(
+        VStack(spacing: 0) {
+            ActionListItem(
                 icon: "heart.fill",
                 iconColor: .pink1,
                 title: "찜 목록",
@@ -128,7 +97,7 @@ struct SettingView: View {
                 navigator.push(.likedPosts)
             }
 
-            ActionCard(
+            ActionListItem(
                 icon: "clock.fill",
                 iconColor: .green1,
                 title: "거래 내역",
@@ -137,7 +106,7 @@ struct SettingView: View {
                 navigator.push(.transactions)
             }
 
-            ActionCard(
+            ActionListItem(
                 icon: "rectangle.portrait.and.arrow.right",
                 iconColor: .blue1,
                 title: "로그아웃",
@@ -145,18 +114,27 @@ struct SettingView: View {
             ) {
                 showLogoutAlert = true
             }
+
+            ActionListItem(
+                icon: "person.fill.xmark",
+                iconColor: .gray3,
+                title: "회원 탈퇴",
+                subtitle: "계정 삭제"
+            ) {
+                showWithdrawAlert = true
+            }
         }
     }
 
     private func logout() {
         TokenManager.shared.clearToken()
-        UserDefaults.standard.removeObject(forKey: "userId")
+        UserDefaultsManager.shared.clearUserData()
         AppNavigator.shared.popToRoot()
         AppNavigator.shared.isLoggedIn = false
     }
 }
 
-struct ActionCard: View {
+struct ActionListItem: View {
     let icon: String
     let iconColor: Color
     let title: String
@@ -169,39 +147,32 @@ struct ActionCard: View {
                 ZStack {
                     Circle()
                         .fill(iconColor.opacity(0.1))
-                        .frame(width: 40, height: 40)
+                        .frame(width: 52, height: 52)
 
                     Image(systemName: icon)
-                        .font(.system(size: 18))
+                        .font(.system(size: 22))
                         .foregroundColor(iconColor)
                 }
 
-                VStack(alignment: .leading, spacing: 2) {
+                VStack(alignment: .leading, spacing: 4) {
                     Text(title)
-                        .Body1()
+                        .H2()
                         .foregroundColor(.gray1)
 
                     Text(subtitle)
                         .Body2()
                         .foregroundColor(.gray2)
                 }
-
-                Spacer()
+                .frame(maxWidth: .infinity, alignment: .leading)
 
                 Image(systemName: "chevron.right")
-                    .font(.system(size: 12, weight: .semibold))
+                    .font(.system(size: 14, weight: .semibold))
                     .foregroundColor(.gray2)
             }
-            .padding(14)
-            .background(
-                RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .fill(Color.gray5)
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .stroke(Color.gray4, lineWidth: 0.5)
-            )
+            .padding(.horizontal, 16)
+            .padding(.vertical, 14)
         }
+        .buttonStyle(.plain)
     }
 }
 

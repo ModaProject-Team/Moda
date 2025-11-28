@@ -7,65 +7,6 @@
 
 import SwiftUI
 import Observation
-import Kingfisher
-
-private struct FriendSearchState {
-    var query: String = ""
-    var results: [People] = []
-}
-
-private enum FriendSearchAction {
-    case queryChanged(String)
-    case clearTapped
-}
-
-@MainActor
-@Observable
-private final class FriendSearchStore {
-    private(set) var state = FriendSearchState()
-    // 상위에서 주입된 원본 목록
-    private var sourceFriends: [People] = []
-
-    init(sourceFriends: [People] = []) {
-        self.sourceFriends = sourceFriends
-    }
-
-    func send(_ action: FriendSearchAction) {
-        switch action {
-        case .clearTapped:
-            handleClearTapped()
-
-        case .queryChanged(let text):
-            handleQueryChanged(text)
-        }
-    }
-
-    private func handleClearTapped() {
-        state.query = ""
-        state.results = []
-    }
-
-    private func handleQueryChanged(_ text: String) {
-        state.query = text
-        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        if trimmed.isEmpty {
-            state.results = []
-        } else {
-            applyFilter()
-        }
-    }
-
-    private func applyFilter() {
-        let trimmed = state.query.trimmingCharacters(in: .whitespacesAndNewlines)
-        if trimmed.isEmpty {
-            state.results = []
-        } else {
-            state.results = sourceFriends.filter {
-                $0.name.localizedCaseInsensitiveContains(trimmed)
-            }
-        }
-    }
-}
 
 struct FriendSearchView: View {
     @State private var store: FriendSearchStore
@@ -102,6 +43,7 @@ struct FriendSearchView: View {
                 }
             }
         }
+        .enableSwipeBack()
         .task {
             try? await Task.sleep(for: .milliseconds(250))
             await MainActor.run {
@@ -111,27 +53,21 @@ struct FriendSearchView: View {
     }
 
     private var searchBarSection: some View {
-        HStack(spacing: 8) {
-            FriendSearchBar(
-                text: Binding(
-                    get: { store.state.query },
-                    set: { store.send(.queryChanged($0)) }
-                ),
-                isFocused: _isSearching,
-                onClear: { store.send(.clearTapped) }
-            )
-            .padding(.vertical, 8)
-
-            Button("취소") {
-                store.send(.clearTapped)
-                isSearching = false
-                dismiss()
-            }
-            .font(.custom("SUIT-Medium", size: 14))
-            .foregroundColor(.gray1)
-        }
+        FriendSearchBar(
+            text: Binding(
+                get: { store.state.query },
+                set: { store.send(.queryChanged($0)) }
+            ),
+            isFocused: _isSearching,
+            onClear: { store.send(.clearTapped) }
+        )
         .padding(.horizontal, 16)
         .background(Color.white)
+    }
+
+    private var emptySearchView: some View {
+        EmptyStateView(message: "친구를 검색해보세요")
+            .frame(height: UIScreen.main.bounds.height - 300)
     }
 
     private var searchResultsSection: some View {
@@ -148,7 +84,7 @@ struct FriendSearchView: View {
                 .padding(.vertical, 12)
 
                 if store.state.results.isEmpty {
-                    EmptyStateView(keyword: store.state.query)
+                    SearchEmptyView(keyword: store.state.query)
                 } else {
                     LazyVStack(spacing: 0) {
                         ForEach(store.state.results) { person in
@@ -169,10 +105,9 @@ private struct FriendSearchBar: View {
 
     var body: some View {
         HStack(spacing: 8) {
-            Image(systemName: "magnifyingglass")
-                .foregroundStyle(.secondary)
-
             TextField("검색", text: $text)
+                .font(.system(size: 16))
+                .foregroundColor(.gray1)
                 .textInputAutocapitalization(.none)
                 .disableAutocorrection(true)
                 .focused($isFocused)
@@ -183,15 +118,20 @@ private struct FriendSearchBar: View {
                     onClear()
                 } label: {
                     Image(systemName: "xmark.circle.fill")
-                        .foregroundStyle(.gray.opacity(0.6))
+                        .font(.system(size: 18))
+                        .foregroundColor(.gray2)
                 }
             }
+
+            Image(systemName: "magnifyingglass")
+                .font(.system(size: 18))
+                .foregroundColor(.gray2)
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 10)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
         .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(Color(.systemGray5))
+            RoundedRectangle(cornerRadius: 25, style: .continuous)
+                .fill(Color.gray5)
         )
     }
 }
@@ -201,8 +141,7 @@ private struct FriendRowView: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            ProfileImageView(people: people)
-                .frame(width: 52, height: 52)
+            ProfileImageView(imageURL: people.profileImageURL, size: 52)
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(people.name)
@@ -225,60 +164,17 @@ private struct FriendRowView: View {
     }
 }
 
-private struct ProfileImageView: View {
-    let people: People
 
-    var body: some View {
-        if let url = people.profileImageURL {
-            KFImage(url)
-                .requestModifier(KFHeaders.modifier)
-                .placeholder { placeholder }
-                .cacheOriginalImage()
-                .fade(duration: 0.2)
-                .cancelOnDisappear(true)
-                .resizable()
-                .scaledToFill()
-                .clipShape(Circle())
-        } else {
-            ZStack {
-                Circle().fill(Color.gray3)
-                Image(systemName: "person.fill")
-                    .foregroundColor(.white)
-            }
-            .clipShape(Circle())
-        }
-    }
-
-    private var placeholder: some View {
-        Circle().fill(Color.gray3)
-    }
-}
-
-private struct EmptyStateView: View {
+private struct SearchEmptyView: View {
     let keyword: String
 
     var body: some View {
-        VStack(spacing: 12) {
-            Spacer()
+        let subtitle = keyword.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            ? nil
+            : "\"\(keyword)\"에 대한 친구를 찾지 못했어요"
 
-            Image(systemName: "person.2.slash")
-                .font(.system(size: 48))
-                .foregroundColor(.gray3)
-
-            Text("검색 결과가 없어요")
-                .Body1()
-                .foregroundColor(.gray2)
-
-            if !keyword.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                Text("\"\(keyword)\"에 대한 친구를 찾지 못했어요")
-                    .Body2()
-                    .foregroundColor(.gray3)
-            }
-
-            Spacer()
-        }
-        .frame(maxWidth: .infinity)
-        .frame(height: UIScreen.main.bounds.height - 300)
+        EmptyStateView(message: "검색 결과가 없어요", subtitle: subtitle)
+            .frame(height: UIScreen.main.bounds.height - 300)
     }
 }
 

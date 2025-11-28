@@ -55,6 +55,7 @@ final class UserAPI: UserAPIProtocol {
             accessToken: response.accessToken,
             refreshToken: response.refreshToken
         )
+        UserDefaultsManager.shared.userId = response.userId
 
         return response
     }
@@ -71,12 +72,13 @@ final class UserAPI: UserAPIProtocol {
             accessToken: response.accessToken,
             refreshToken: response.refreshToken
         )
+        UserDefaultsManager.shared.userId = response.userId
 
         return response
     }
 
     func loginWithApple(idToken: String) async throws -> LoginResponse {
-        let endpoint = UserRouter.loginApple(token: idToken)
+        let endpoint = UserRouter.loginApple(idToken: idToken)
         let response = try await networkService.request(
             endpoint: endpoint,
             responseType: LoginResponse.self
@@ -86,6 +88,7 @@ final class UserAPI: UserAPIProtocol {
             accessToken: response.accessToken,
             refreshToken: response.refreshToken
         )
+        UserDefaultsManager.shared.userId = response.userId
 
         return response
     }

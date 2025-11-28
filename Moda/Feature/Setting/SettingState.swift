@@ -14,4 +14,5 @@ struct SettingState {
 
     var isLoading: Bool = false
     var errorMessage: String? = nil
+    var isWithdrawing: Bool = false
 }

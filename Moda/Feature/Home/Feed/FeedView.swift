@@ -26,6 +26,9 @@ struct FeedView: View {
                     categoryFilterSection
                     ScrollView(showsIndicators: false) {
                         VStack(spacing: 20) {
+                            BannerCarouselView()
+                                .padding(.top, 8)
+
                             ProductGridView(
                                 products: store.state.displayProducts,
                                 itemWidth: itemWidth,
@@ -85,10 +88,16 @@ struct FeedView: View {
 
     private var logoSection: some View {
         HStack(spacing: 8) {
-            Image("AppIcon")
-                .resizable()
-                .scaledToFit()
-                .frame(height: 48)
+            HStack(spacing: 0) {
+                Image("AppIcon")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(height: 40)
+
+                Text("모다")
+                    .Logo()
+                    .offset(x: -4)
+            }
 
             searchBar
         }
@@ -96,33 +105,15 @@ struct FeedView: View {
     }
 
     private var searchBar: some View {
-        HStack(spacing: 8) {
-            TextField("게시글 검색", text: Binding(
+        SearchBarView(
+            text: Binding(
                 get: { store.state.searchText },
                 set: { store.send(.search($0)) }
-            ))
-            .font(.system(size: 16))
-            .foregroundColor(.gray1)
-
-            if !store.state.searchText.isEmpty {
-                Button {
-                    store.send(.clearSearch)
-                } label: {
-                    Image(systemName: "xmark.circle.fill")
-                        .font(.system(size: 18))
-                        .foregroundColor(.gray2)
-                }
+            ),
+            placeholder: "게시글 검색",
+            onClear: {
+                store.send(.clearSearch)
             }
-
-            Image(systemName: "magnifyingglass")
-                .font(.system(size: 18))
-                .foregroundColor(.gray2)
-        }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 12)
-        .background(
-            RoundedRectangle(cornerRadius: 25, style: .continuous)
-                .fill(Color.gray5)
         )
     }
 

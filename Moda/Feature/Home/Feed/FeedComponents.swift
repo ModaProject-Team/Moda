@@ -60,6 +60,7 @@ struct PostCardView: View {
         VStack(alignment: .leading, spacing: 0) {
             imageSection
             profileSection
+            statsSection
             infoSection
         }
         .frame(width: itemWidth, alignment: .leading)
@@ -92,21 +93,39 @@ struct PostCardView: View {
                 .foregroundColor(.gray1)
 
             Spacer()
-
-            Button(action: onLikeTapped) {
-                HStack(spacing: 4) {
-                    Image(systemName: product.isLiked ? "heart.fill" : "heart")
-                        .font(.system(size: 16, weight: .semibold))
-                        .foregroundColor(product.isLiked ? .pink1 : .gray1)
-
-                    Text("\(product.likeCount)")
-                        .Body1()
-                        .foregroundColor(.gray1)
-                }
-            }
         }
         .padding(.top, 8)
         .padding(.bottom, 4)
+    }
+
+    private var statsSection: some View {
+        HStack(spacing: 12) {
+            Button(action: onLikeTapped) {
+                HStack(spacing: 4) {
+                    Image(systemName: "heart.fill")
+                        .font(.system(size: 16))
+                        .foregroundColor(product.isLiked ? .pink1 : .gray3)
+
+                    Text("\(product.likeCount)")
+                        .Body2()
+                        .foregroundColor(.gray1)
+                }
+            }
+
+            HStack(spacing: 4) {
+                Image(systemName: "bubble.right.fill")
+                    .font(.system(size: 16))
+                    .foregroundColor(.gray3)
+
+                Text("\(product.commentCount)")
+                    .Body2()
+                    .foregroundColor(.gray1)
+            }
+
+            Spacer()
+        }
+        .padding(.top, 6)
+        .padding(.bottom, 2)
     }
 
     private var imageSection: some View {
@@ -220,6 +239,119 @@ struct CategoryChip: View {
                 .padding(.vertical, 10)
                 .background(isSelected ? Color.gray1 : Color.gray5)
                 .clipShape(Capsule())
+        }
+    }
+}
+
+struct BannerCarouselView: View {
+    @State private var currentPage = 0
+    private let timer = Timer.publish(every: 3, on: .main, in: .common).autoconnect()
+
+    private let banners: [BannerItem] = [
+        BannerItem(
+            title: "친구와 함께하는\n안전한 거래",
+            subtitle: "친구와 함께 안심하고 거래해보세요",
+            iconName: "check",
+            backgroundColor: Color.green1,
+            accentColor: Color.green1.opacity(0.7),
+            textColor: Color(hex: "#2D7A3E")
+        ),
+        BannerItem(
+            title: "내 주변\n물건 찾기",
+            subtitle: "가까운 곳의 물건을 편하게 찾아보세요",
+            iconName: "location",
+            backgroundColor: Color(hex: "#FFB5B5"),
+            accentColor: Color(hex: "#FFB5B5").opacity(0.7),
+            textColor: Color(hex: "#C93A3A")
+        ),
+        BannerItem(
+            title: "실시간\n채팅 거래",
+            subtitle: "채팅으로 빠르게 소통해보세요",
+            iconName: "chat",
+            backgroundColor: Color.blue1,
+            accentColor: Color.blue1.opacity(0.7),
+            textColor: Color(hex: "#2E5C9A")
+        )
+    ]
+
+    var body: some View {
+        VStack(spacing: 0) {
+            TabView(selection: $currentPage) {
+                ForEach(Array(banners.enumerated()), id: \.offset) { index, banner in
+                    BannerCardView(banner: banner)
+                        .tag(index)
+                }
+            }
+            .tabViewStyle(PageTabViewStyle(indexDisplayMode: .never))
+            .frame(height: 110)
+            .onReceive(timer) { _ in
+                withAnimation {
+                    currentPage = (currentPage + 1) % banners.count
+                }
+            }
+
+            HStack(spacing: 6) {
+                ForEach(0..<banners.count, id: \.self) { index in
+                    Circle()
+                        .fill(currentPage == index ? Color.gray1 : Color.gray3)
+                        .frame(width: 6, height: 6)
+                }
+            }
+            .padding(.top, 12)
+        }
+    }
+}
+
+struct BannerItem {
+    let title: String
+    let subtitle: String
+    let iconName: String
+    let backgroundColor: Color
+    let accentColor: Color
+    let textColor: Color
+}
+
+struct BannerCardView: View {
+    let banner: BannerItem
+
+    var body: some View {
+        ZStack {
+            Rectangle()
+                .fill(
+                    LinearGradient(
+                        colors: [
+                            banner.backgroundColor.opacity(0.4),
+                            banner.backgroundColor.opacity(0.6),
+                            banner.backgroundColor.opacity(0.85),
+                            banner.backgroundColor
+                        ],
+                        startPoint: .leading,
+                        endPoint: .trailing
+                    )
+                )
+
+            HStack(spacing: 0) {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(banner.title)
+                        .font(.custom("Partial Sans KR", size: 20))
+                        .foregroundColor(banner.textColor)
+                        .lineLimit(2)
+
+                    Text(banner.subtitle)
+                        .Body2()
+                        .foregroundColor(banner.textColor.opacity(0.8))
+                }
+                .padding(.leading, 24)
+
+                Spacer()
+
+                Image(banner.iconName)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(width: 100, height: 100)
+                    .padding(.trailing, banner.iconName == "check" ? 12 : (banner.iconName == "location" ? 8 : 24))
+            }
+            .padding(.vertical, 16)
         }
     }
 }

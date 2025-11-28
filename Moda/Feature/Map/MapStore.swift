@@ -175,6 +175,17 @@ final class MapStore: NSObject, ObservableObject {
             if let index = state.clusterSheetPosts.firstIndex(where: { $0.id == postId }) {
                 state.clusterSheetPosts[index].like = isLiked
             }
+
+        case .refresh:
+            // 현재 지도 중심 위치에서 게시물 다시 불러오기
+            if let center = state.mapCenterCoordinate {
+                let maxDistance = state.currentSpan.latitudeDelta * 111000 / 2
+                send(.fetchPostsByLocation(
+                    longitude: center.longitude,
+                    latitude: center.latitude,
+                    maxDistance: maxDistance
+                ))
+            }
         }
     }
 
@@ -187,7 +198,6 @@ final class MapStore: NSObject, ObservableObject {
                 state.posts[index].like = isLiked
             }
         } catch {
-            print("좋아요 요청 실패: \(error.localizedDescription)")
         }
     }
 
@@ -207,7 +217,7 @@ final class MapStore: NSObject, ObservableObject {
                 guard let geolocation = postResponse.geolocation else { return nil }
 
                 // 현재 사용자가 좋아요 했는지 확인
-                let currentUserId = UserDefaults.standard.string(forKey: "userId") ?? ""
+                let currentUserId = UserDefaultsManager.shared.userId ?? ""
                 let isLiked = postResponse.likes.contains(currentUserId)
 
                 return PostAnnotation(
@@ -227,12 +237,9 @@ final class MapStore: NSObject, ObservableObject {
             state.isLoadingPosts = false
             state.hasLoadedInitialPosts = true
 
-            print("위치 기반 게시글 조회 성공: \(posts.count)개")
-
         } catch {
             state.isLoadingPosts = false
             state.postLoadError = error.localizedDescription
-            print("위치 기반 게시글 조회 실패: \(error.localizedDescription)")
         }
     }
 
@@ -266,10 +273,6 @@ extension MapStore: CLLocationManagerDelegate {
             await MainActor.run {
                 state.isLocationServicesEnabled = isEnabled
                 state.authorizationStatus = authStatus
-
-                print("시스템 위치 서비스: \(state.isLocationServicesEnabled)")
-                print("앱 위치 권한: \(state.authorizationStatus.rawValue)")
-                print("CLAuthorizationStatus - notDetermined: 0, restricted: 1, denied: 2, authorizedAlways: 3, authorizedWhenInUse: 4")
 
                 // 시스템 위치 서비스가 꺼져있을 때 Alert 표시
                 if !isEnabled {
@@ -312,7 +315,6 @@ extension MapStore: CLLocationManagerDelegate {
                 locationManager.stopUpdatingLocation()
 
                 // 위치 기반 게시글 조회 (5km 반경)
-                print("현재 위치: \(coordinate.latitude), \(coordinate.longitude)")
                 send(.fetchPostsByLocation(
                     longitude: coordinate.longitude,
                     latitude: coordinate.latitude,
@@ -326,8 +328,6 @@ extension MapStore: CLLocationManagerDelegate {
     nonisolated func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
         Task {
             await MainActor.run {
-                print("위치 업데이트 실패: \(error.localizedDescription)")
-
                 state.cameraPosition = MapState.initialCameraPosition
                 state.showLocationUpdateFailedAlert = true
 

@@ -56,7 +56,6 @@ final class FeedViewStore: NSObject, ObservableObject {
     func send(_ intent: FeedIntent) {
         switch intent {
         case .onAppear:
-            setupLocationManager()
             if state.products.isEmpty {
                 Task { await loadPosts(refresh: true) }
             }
@@ -134,7 +133,7 @@ final class FeedViewStore: NSObject, ObservableObject {
                 category: nil
             )
 
-            let currentUserId = UserDefaults.standard.string(forKey: "userId")
+            let currentUserId = UserDefaultsManager.shared.userId
             var newProducts = response.data.map { $0.toDomain().toPostCard(currentUserId: currentUserId) }
 
             // 최신순 정렬
@@ -159,7 +158,6 @@ final class FeedViewStore: NSObject, ObservableObject {
 
         } catch {
             state.errorMessage = error.localizedDescription
-            print("피드 로드 실패: \(error.localizedDescription)")
         }
 
         state.isLoading = false
@@ -199,7 +197,6 @@ final class FeedViewStore: NSObject, ObservableObject {
                     state.products[index].likeCount = max(0, state.products[index].likeCount - 1)
                 }
             }
-            print("좋아요 요청 실패: \(error.localizedDescription)")
         }
     }
 
@@ -213,11 +210,11 @@ extension FeedViewStore: CLLocationManagerDelegate {
     nonisolated func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
         Task { @MainActor in
             let status = manager.authorizationStatus
+            // 이미 권한이 허용된 경우에만 위치 업데이트
             if status == .authorizedWhenInUse || status == .authorizedAlways {
                 manager.startUpdatingLocation()
-            } else if status == .notDetermined {
-                manager.requestWhenInUseAuthorization()
             }
+            // .notDetermined 상태에서는 권한 요청하지 않음 (지도 탭에서만 요청)
         }
     }
 

@@ -7,28 +7,10 @@
 
 import SwiftUI
 
-struct MainTabViewState {
-    var selectedTab: TabItem = .home
-}
-
-enum MainTabViewIntent {
-    case tabSelected(TabItem)
-}
-
-final class MainTabViewStore: ObservableObject {
-    @Published private(set) var state = MainTabViewState()
-
-    func send(_ intent: MainTabViewIntent) {
-        switch intent {
-        case .tabSelected(let tab):
-            state.selectedTab = tab
-        }
-    }
-}
-
 struct MainTabView: View {
     @StateObject private var store = MainTabViewStore()
     @EnvironmentObject var navigator: AppNavigator
+    @State private var mapViewId = UUID()
 
     var body: some View {
         ZStack(alignment: .bottom) {
@@ -38,6 +20,10 @@ struct MainTabView: View {
                 selectedTab: store.state.selectedTab,
                 onTabSelected: { tab in
                     store.send(.tabSelected(tab))
+                    // 지도 탭을 선택할 때마다 새로운 ID 부여 (처음 한 번만 권한 요청하도록)
+                    if tab == .map && !store.state.hasMapBeenShown {
+                        mapViewId = UUID()
+                    }
                 }
             )
             .edgesIgnoringSafeArea(.bottom)
@@ -52,6 +38,12 @@ struct MainTabView: View {
             FeedView()
         case .map:
             MapView()
+                .id(mapViewId)
+                .onAppear {
+                    if !store.state.hasMapBeenShown {
+                        store.send(.mapShown)
+                    }
+                }
         case .friends:
             FriendListView()
         case .chat:

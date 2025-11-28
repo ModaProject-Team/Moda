@@ -23,7 +23,7 @@ struct ClusterSheetView: View {
     var body: some View {
         NavigationView {
             ScrollView {
-                LazyVStack(spacing: 0) {
+                LazyVStack(spacing: 12) {
                     ForEach(posts) { post in
                         ClusterPostListItemView(
                             post: post,
@@ -32,14 +32,10 @@ struct ClusterSheetView: View {
                                 onPostTapped(post.id)
                             }
                         )
-
-                        if post.id != posts.last?.id {
-                            Divider()
-                                .padding(.horizontal, 16)
-                        }
                     }
                 }
-                .padding(.top, 8)
+                .padding(.top, 16)
+                .padding(.horizontal, 16)
             }
         }
         .presentationDetents([.height(300), .large])

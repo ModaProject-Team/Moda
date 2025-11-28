@@ -13,4 +13,5 @@ enum SettingIntent {
     case profileEditTapped
     case likedPostsTapped
     case logoutTapped
+    case withdrawTapped
 }

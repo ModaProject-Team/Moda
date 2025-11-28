@@ -42,12 +42,7 @@ struct EmailSignUpView: View {
             }
 
             if store.state.isLoading {
-                Color.black.opacity(0.3)
-                    .ignoresSafeArea()
-
-                ProgressView()
-                    .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                    .scaleEffect(1.5)
+                LoadingOverlay()
             }
         }
         .navigationBarBackButtonHidden(true)
@@ -61,6 +56,7 @@ struct EmailSignUpView: View {
                 }
             }
         }
+        .enableSwipeBack()
         .alert("회원가입 실패", isPresented: $showErrorAlert) {
             Button("확인", role: .cancel) { }
         } message: {

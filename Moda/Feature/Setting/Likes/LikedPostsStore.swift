@@ -68,7 +68,7 @@ final class LikedPostsStore {
                         return URL(string: NetworkConfig.baseURL + "/v1/" + profilePath)
                     }()
 
-                    let currentUserId = UserDefaults.standard.string(forKey: "userId")
+                    let currentUserId = UserDefaultsManager.shared.userId
                     let isLiked = dto.likes.contains(currentUserId ?? "")
 
                     return LikedPost(
@@ -95,7 +95,6 @@ final class LikedPostsStore {
                 state.hasMore = !response.nextCursor.isEmpty && response.nextCursor != "0"
             } catch {
                 state.errorMessage = error.localizedDescription
-                print("좋아요 게시글 로드 실패: \(error)")
             }
             state.isLoading = false
         }
@@ -113,7 +112,6 @@ final class LikedPostsStore {
             } catch {
                 // 롤백
                 state.posts[index].isLiked.toggle()
-                print("좋아요 요청 실패: \(error)")
             }
         }
     }

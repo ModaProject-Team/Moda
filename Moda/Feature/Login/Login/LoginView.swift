@@ -59,12 +59,7 @@ struct LoginView: View {
             }
 
             if store.state.isLoading {
-                Color.black.opacity(0.3)
-                    .ignoresSafeArea()
-
-                ProgressView()
-                    .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                    .scaleEffect(1.5)
+                LoadingOverlay()
             }
         }
         .alert("로그인 실패", isPresented: $showErrorAlert) {
@@ -93,9 +88,9 @@ struct LoginView: View {
 
             Text("모다")
                 .Logo()
-                .foregroundColor(.gray1)
+                .offset(y: -8)
 
-            Text("친구들과 함께하는 중고거래")
+            Text("친구와 함께하는 안전한 거래")
                 .Body1()
                 .foregroundColor(.gray2)
         }
@@ -184,7 +179,7 @@ struct LoginView: View {
                 .foregroundColor(.gray2)
 
             Button {
-                navigator.push(.signUp)
+                navigator.push(.emailSignUp)
             } label: {
                 Text("회원가입")
                     .Body2()

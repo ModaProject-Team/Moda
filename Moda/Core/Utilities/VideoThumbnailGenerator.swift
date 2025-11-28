@@ -43,7 +43,6 @@ final class VideoThumbnailGenerator {
             let cgImage = try await imageGenerator.image(at: time).image
             return UIImage(cgImage: cgImage)
         } catch {
-            print("썸네일 생성 실패: \(error.localizedDescription)")
             throw VideoThumbnailError.thumbnailGenerationFailed
         }
     }

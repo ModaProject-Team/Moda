@@ -107,15 +107,14 @@ final class ImageCompressor {
     /// 이미지 크기를 줄인 후 JPEG로 압축
     private func resizeAndCompress(_ image: UIImage, maxSizeInBytes: Int) -> Data? {
         var scale: CGFloat = 0.8
-        var currentImage = image
 
         while scale > 0.3 {
             let newSize = CGSize(
-                width: currentImage.size.width * scale,
-                height: currentImage.size.height * scale
+                width: image.size.width * scale,
+                height: image.size.height * scale
             )
 
-            if let resized = resize(image: currentImage, to: newSize),
+            if let resized = resize(image: image, to: newSize),
                let data = compressJPEG(resized, maxSizeInBytes: maxSizeInBytes) {
                 return data
             }

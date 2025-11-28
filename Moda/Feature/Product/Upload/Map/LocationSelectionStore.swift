@@ -239,7 +239,6 @@ extension LocationSelectionStore: CLLocationManagerDelegate {
     nonisolated func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
         Task {
             await MainActor.run {
-                print("위치 업데이트 실패: \(error.localizedDescription)")
                 state.showLocationUpdateFailedAlert = true
                 locationManager.stopUpdatingLocation()
             }

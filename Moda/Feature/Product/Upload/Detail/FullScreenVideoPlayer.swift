@@ -123,7 +123,6 @@ struct FullScreenVideoPlayer: View {
                 self.isDownloading = false
             }
         } catch {
-            print("동영상 다운로드 실패: \(error.localizedDescription)")
             await MainActor.run {
                 self.isDownloading = false
             }

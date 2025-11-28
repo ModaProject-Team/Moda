@@ -23,78 +23,75 @@ struct ClusterPostListItemView: View {
 
     var body: some View {
         HStack(spacing: 12) {
-
             if !post.media.isEmpty {
                 MediaImageView(
                     mediaURL: post.media,
                     contentMode: .fill,
                     placeholder: {
                         AnyView(
-                            RoundedRectangle(cornerRadius: 8)
-                                .fill(Color.gray.opacity(0.3))
+                            RoundedRectangle(cornerRadius: 12)
+                                .fill(Color.gray5)
                         )
                     }
                 )
                 .frame(width: 80, height: 80)
-                .clipShape(RoundedRectangle(cornerRadius: 8))
+                .clipShape(RoundedRectangle(cornerRadius: 12))
             } else {
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(Color.gray.opacity(0.3))
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(Color.gray5)
                     .frame(width: 80, height: 80)
             }
-            
+
             VStack(alignment: .leading, spacing: 6) {
-                
                 Text(post.title)
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundColor(.black)
+                    .H2()
+                    .foregroundColor(.gray1)
                     .lineLimit(2)
-                
-                Text("\(post.price)원")
-                    .font(.system(size: 15, weight: .bold))
+
+                Text("\(post.price.formatted())원")
+                    .Body1()
                     .foregroundColor(.blue1)
 
                 Spacer()
-                
+
                 HStack(spacing: 6) {
                     if !post.profileImage.isEmpty {
                         KFImage(URL(string: "\(NetworkConfig.baseURL)/v1\(post.profileImage)"))
                             .requestModifier(KFHeaders.modifier)
                             .placeholder {
                                 Circle()
-                                    .fill(Color.gray.opacity(0.3))
+                                    .fill(Color.gray5)
                             }
                             .cacheOriginalImage()
                             .resizable()
                             .aspectRatio(contentMode: .fill)
-                            .frame(width: 20, height: 20)
+                            .frame(width: 18, height: 18)
                             .clipShape(Circle())
                     } else {
                         Circle()
-                            .fill(Color.gray.opacity(0.3))
-                            .frame(width: 20, height: 20)
+                            .fill(Color.gray5)
+                            .frame(width: 18, height: 18)
                     }
 
                     Text(post.nickname)
-                        .font(.system(size: 13))
-                        .foregroundColor(.gray)
+                        .Body2()
+                        .foregroundColor(.gray2)
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            
+
             Button {
                 isLiked.toggle()
                 onLikeTapped(post.id, isLiked)
             } label: {
                 Image(systemName: isLiked ? "heart.fill" : "heart")
-                    .font(.system(size: 20))
-                    .foregroundColor(isLiked ? .pink1 : .gray)
+                    .font(.system(size: 18))
+                    .foregroundColor(isLiked ? .pink1 : .gray3)
             }
-            .padding(.trailing, 8)
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 12)
+        .padding(16)
         .background(Color.white)
+        .cornerRadius(16)
         .contentShape(Rectangle())
         .onTapGesture {
             onTapped()

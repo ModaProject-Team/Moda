@@ -215,7 +215,7 @@ final class UserAPITestStore: ObservableObject {
 
         do {
             let response = try await networkService.request(
-                endpoint: UserRouter.loginApple(token: "test_apple_token"),
+                endpoint: UserRouter.loginApple(idToken: "test_apple_token"),
                 responseType: LoginResponse.self
             )
 

@@ -75,4 +75,7 @@ enum MapIntent {
 
     /// 외부에서 좋아요 상태 업데이트
     case updateLikeFromExternal(postId: String, isLiked: Bool)
+
+    /// 지도 새로고침 (게시물 삭제/수정 시)
+    case refresh
 }

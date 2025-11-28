@@ -22,7 +22,7 @@ struct LikedPostsView: View {
                 emptyStateView
             } else {
                 ScrollView {
-                    LazyVStack(spacing: 12) {
+                    LazyVStack(spacing: 0) {
                         ForEach(Array(store.state.posts.enumerated()), id: \.element.id) { index, post in
                             LikedPostItemView(
                                 post: post,
@@ -36,8 +36,6 @@ struct LikedPostsView: View {
                             }
                         }
                     }
-                    .padding(.horizontal, 16)
-                    .padding(.top, 16)
                     .padding(.bottom, 100)
                 }
                 .refreshable {
@@ -59,6 +57,7 @@ struct LikedPostsView: View {
                 }
             }
         }
+        .enableSwipeBack()
         .task {
             store.send(.onAppear)
         }
@@ -66,13 +65,11 @@ struct LikedPostsView: View {
 
     private var shimmerList: some View {
         ScrollView {
-            LazyVStack(spacing: 12) {
+            LazyVStack(spacing: 0) {
                 ForEach(0..<5, id: \.self) { _ in
                     LikedPostShimmerView()
                 }
             }
-            .padding(.horizontal, 16)
-            .padding(.top, 16)
         }
     }
 
@@ -174,15 +171,8 @@ private struct LikedPostItemView: View {
                     .foregroundColor(post.isLiked ? .pink1 : .gray2)
             }
         }
-        .padding(16)
-        .background(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .fill(Color.gray5)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .stroke(Color.gray4, lineWidth: 0.5)
-        )
+        .padding(.horizontal, 16)
+        .padding(.vertical, 14)
         .contentShape(Rectangle())
         .onTapGesture {
             onTapped()
@@ -230,15 +220,8 @@ private struct LikedPostShimmerView: View {
                 .frame(width: 24, height: 24)
                 .shimmer()
         }
-        .padding(16)
-        .background(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .fill(Color.gray5)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .stroke(Color.gray4, lineWidth: 0.5)
-        )
+        .padding(.horizontal, 16)
+        .padding(.vertical, 14)
     }
 }
 

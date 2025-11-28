@@ -50,12 +50,6 @@ final class LoginStore: ObservableObject {
                 await MainActor.run {
                     state.isLoading = false
                     state.isLoginSuccessful = true
-
-                    TokenManager.shared.saveToken(
-                        accessToken: response.accessToken,
-                        refreshToken: response.refreshToken
-                    )
-                    UserDefaults.standard.set(response.userId, forKey: "userId")
                 }
             } catch let error as NetworkError {
                 await MainActor.run {
@@ -90,12 +84,6 @@ final class LoginStore: ObservableObject {
                 await MainActor.run {
                     state.isLoading = false
                     state.isLoginSuccessful = true
-
-                    TokenManager.shared.saveToken(
-                        accessToken: response.accessToken,
-                        refreshToken: response.refreshToken
-                    )
-                    UserDefaults.standard.set(response.userId, forKey: "userId")
                 }
             } catch {
                 await MainActor.run {
@@ -139,7 +127,7 @@ final class LoginStore: ObservableObject {
                 // Apple User ID 저장 (자격 증명 상태 확인용)
                 UserDefaults.standard.set(result.userIdentifier, forKey: "appleUserId")
 
-                // 서버에 identityToken 전달하여 로그인
+                // 서버에 identityToken만 전달하여 로그인
                 let response = try await userAPI.loginWithApple(idToken: result.identityToken)
 
                 await MainActor.run {
@@ -186,15 +174,17 @@ final class LoginStore: ObservableObject {
 
     private func loginWithKakaoTalkAsync() async throws -> OAuthToken {
         try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<OAuthToken, Error>) in
-            UserApi.shared.loginWithKakaoTalk { token, error in
-                if let token = token {
-                    continuation.resume(returning: token)
-                } else {
-                    continuation.resume(throwing: error ?? NSError(
-                        domain: "KakaoLogin",
-                        code: -1,
-                        userInfo: [NSLocalizedDescriptionKey: "카카오톡 로그인에 실패했습니다"]
-                    ))
+            DispatchQueue.main.async {
+                UserApi.shared.loginWithKakaoTalk { token, error in
+                    if let token = token {
+                        continuation.resume(returning: token)
+                    } else {
+                        continuation.resume(throwing: error ?? NSError(
+                            domain: "KakaoLogin",
+                            code: -1,
+                            userInfo: [NSLocalizedDescriptionKey: "카카오톡 로그인에 실패했습니다"]
+                        ))
+                    }
                 }
             }
         }
@@ -202,15 +192,17 @@ final class LoginStore: ObservableObject {
 
     private func loginWithKakaoAccountAsync() async throws -> OAuthToken {
         try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<OAuthToken, Error>) in
-            UserApi.shared.loginWithKakaoAccount { token, error in
-                if let token = token {
-                    continuation.resume(returning: token)
-                } else {
-                    continuation.resume(throwing: error ?? NSError(
-                        domain: "KakaoLogin",
-                        code: -1,
-                        userInfo: [NSLocalizedDescriptionKey: "카카오계정 로그인에 실패했습니다"]
-                    ))
+            DispatchQueue.main.async {
+                UserApi.shared.loginWithKakaoAccount { token, error in
+                    if let token = token {
+                        continuation.resume(returning: token)
+                    } else {
+                        continuation.resume(throwing: error ?? NSError(
+                            domain: "KakaoLogin",
+                            code: -1,
+                            userInfo: [NSLocalizedDescriptionKey: "카카오계정 로그인에 실패했습니다"]
+                        ))
+                    }
                 }
             }
         }

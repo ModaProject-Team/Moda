@@ -23,7 +23,7 @@ enum UserRouter {
     case loginKakao(oauthToken: String)
 
     /// 애플 로그인
-    case loginApple(token: String)
+    case loginApple(idToken: String)
 
     /// 회원 탈퇴
     case withdraw
@@ -101,8 +101,13 @@ extension UserRouter: Endpoint {
                 "email": email,
                 "password": password
             ]
-        case .loginKakao(let token), .loginApple(let token):
+        case .loginKakao(let token):
             return ["oauthToken": token]
+        case .loginApple(let idToken):
+            // 서버 스펙: idToken 필드 사용
+            let params = ["idToken": idToken]
+            print("🍎 Apple Login Request Body: \(params)")
+            return params
         default:
             return nil
         }

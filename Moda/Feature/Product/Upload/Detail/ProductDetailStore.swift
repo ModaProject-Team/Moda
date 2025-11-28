@@ -53,7 +53,7 @@ final class ProductDetailStore: ObservableObject {
             state.post = response
 
             // 좋아요 상태 초기화
-            let currentUserId = UserDefaults.standard.string(forKey: "userId") ?? ""
+            let currentUserId = UserDefaultsManager.shared.userId ?? ""
             state.isLiked = response.likes.contains(currentUserId)
             state.likeCount = response.likes.count
 
@@ -73,7 +73,6 @@ final class ProductDetailStore: ObservableObject {
             NotificationCenter.default.post(name: .postDeleted, object: nil)
         } catch {
             state.isDeleting = false
-            print("게시글 삭제 실패: \(error.localizedDescription)")
         }
     }
 
@@ -95,7 +94,6 @@ final class ProductDetailStore: ObservableObject {
             // 실패 시 롤백
             state.isLiked = !newLikeStatus
             state.likeCount += newLikeStatus ? -1 : 1
-            print("좋아요 요청 실패: \(error.localizedDescription)")
         }
     }
 
