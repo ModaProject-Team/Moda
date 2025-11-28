@@ -56,7 +56,6 @@ final class FeedViewStore: NSObject, ObservableObject {
     func send(_ intent: FeedIntent) {
         switch intent {
         case .onAppear:
-            setupLocationManager()
             if state.products.isEmpty {
                 Task { await loadPosts(refresh: true) }
             }
@@ -211,11 +210,11 @@ extension FeedViewStore: CLLocationManagerDelegate {
     nonisolated func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
         Task { @MainActor in
             let status = manager.authorizationStatus
+            // 이미 권한이 허용된 경우에만 위치 업데이트
             if status == .authorizedWhenInUse || status == .authorizedAlways {
                 manager.startUpdatingLocation()
-            } else if status == .notDetermined {
-                manager.requestWhenInUseAuthorization()
             }
+            // .notDetermined 상태에서는 권한 요청하지 않음 (지도 탭에서만 요청)
         }
     }
 

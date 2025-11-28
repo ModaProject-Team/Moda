@@ -14,6 +14,8 @@ final class MainTabViewStore: ObservableObject {
         switch intent {
         case .tabSelected(let tab):
             state.selectedTab = tab
+        case .mapShown:
+            state.hasMapBeenShown = true
         }
     }
 }

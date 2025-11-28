@@ -9,4 +9,5 @@ import Foundation
 
 struct MainTabViewState {
     var selectedTab: TabItem = .home
+    var hasMapBeenShown: Bool = false
 }
