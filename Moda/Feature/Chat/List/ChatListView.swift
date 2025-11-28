@@ -227,9 +227,6 @@ struct ChatListView: View {
                     ChatRoomCell(room: room) {
                         navigator.push(.chatRoom(roomId: room.id, participantName: room.participantName))
                     }
-
-                    Divider()
-                        .padding(.leading, 76)
                 }
             }
             .padding(.bottom, 100)

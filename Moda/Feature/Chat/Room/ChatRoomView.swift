@@ -561,8 +561,6 @@ struct ChatRoomView: View {
 
     private var inputSection: some View {
         VStack(spacing: 0) {
-            Divider()
-
             HStack(spacing: 12) {
                 Button {
                     store.send(.attachmentButtonTapped)
