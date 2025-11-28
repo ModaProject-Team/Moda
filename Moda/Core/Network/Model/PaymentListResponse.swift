@@ -59,4 +59,10 @@ struct PaymentListResponse: Decodable {
         case data
         case nextCursor = "next_cursor"
     }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        data = try container.decode([PaymentTransaction].self, forKey: .data)
+        nextCursor = try container.decodeIfPresent(String.self, forKey: .nextCursor) ?? "0"
+    }
 }

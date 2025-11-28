@@ -18,6 +18,8 @@ struct TransactionsView: View {
 
             if store.state.isLoading && store.state.transactions.isEmpty {
                 shimmerList
+            } else if let errorMessage = store.state.errorMessage {
+                errorView(message: errorMessage)
             } else if store.state.transactions.isEmpty {
                 emptyStateView
             } else {
@@ -61,6 +63,10 @@ struct TransactionsView: View {
         .task {
             store.send(.onAppear)
         }
+        .onReceive(NotificationCenter.default.publisher(for: .postPaymentCompleted)) { _ in
+            print("🔔 결제 완료 notification 수신 - 거래 내역 새로고침")
+            store.send(.refresh)
+        }
     }
 
     private var shimmerList: some View {
@@ -90,6 +96,33 @@ struct TransactionsView: View {
                 .foregroundColor(.gray3)
         }
     }
+
+    private func errorView(message: String) -> some View {
+        VStack(spacing: 16) {
+            Image(systemName: "exclamationmark.triangle")
+                .font(.system(size: 48))
+                .foregroundColor(.red)
+
+            Text("오류가 발생했습니다")
+                .H2()
+                .foregroundColor(.gray1)
+
+            Text(message)
+                .Body2()
+                .foregroundColor(.gray2)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 32)
+
+            Button("다시 시도") {
+                store.send(.refresh)
+            }
+            .padding(.horizontal, 24)
+            .padding(.vertical, 12)
+            .background(Color.blue1)
+            .foregroundColor(.white)
+            .cornerRadius(8)
+        }
+    }
 }
 
 private struct TransactionItemView: View {
@@ -98,19 +131,16 @@ private struct TransactionItemView: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            if let thumbnailURL = transaction.thumbnailURL, let url = URL(string: thumbnailURL) {
-                KFImage(url)
-                    .requestModifier(KFHeaders.modifier)
-                    .placeholder {
-                        RoundedRectangle(cornerRadius: 12, style: .continuous)
-                            .fill(Color.gray5)
-                    }
-                    .cacheOriginalImage()
-                    .fade(duration: 0.2)
-                    .resizable()
-                    .aspectRatio(contentMode: .fill)
-                    .frame(width: 80, height: 80)
-                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+            if let thumbnailURL = transaction.thumbnailURL {
+                // 썸네일 URL에서 /v1 이후 경로 추출 (MediaImageView가 요구하는 형식)
+                let mediaPath = thumbnailURL.replacingOccurrences(of: NetworkConfig.baseURL + "/v1", with: "")
+
+                MediaImageView(
+                    mediaURL: mediaPath,
+                    contentMode: .fill
+                )
+                .frame(width: 80, height: 80)
+                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
             } else {
                 RoundedRectangle(cornerRadius: 12, style: .continuous)
                     .fill(Color.gray5)
