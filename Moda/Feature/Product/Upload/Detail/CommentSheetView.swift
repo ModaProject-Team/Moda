@@ -100,7 +100,7 @@ struct CommentSheetView: View {
 
     private var inputSection: some View {
         VStack(spacing: 0) {
-            if let replyingTo = store.state.replyingToCommentId {
+            if store.state.replyingToCommentId != nil {
                 HStack {
                     Text("답글 작성 중")
                         .Body2()

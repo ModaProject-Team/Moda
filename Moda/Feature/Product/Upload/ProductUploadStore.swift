@@ -80,7 +80,7 @@ final class ProductUploadStore: ObservableObject {
                     request.setValue(KFHeaders.authorization, forHTTPHeaderField: "Authorization")
                     
                     do {
-                        let (data, response) = try await URLSession.shared.data(for: request)
+                        let (data, _) = try await URLSession.shared.data(for: request)
                         
                         if let image = UIImage(data: data) {
                             mediaItems.append(.image(image, serverURL: fileURL))
@@ -92,7 +92,7 @@ final class ProductUploadStore: ObservableObject {
             } else if fileURL.isVideoFile {
                 if let url = URL(string: fullURL) {
                     do {
-                        let (tempURL, response) = try await downloadFileWithAuth(from: url)
+                        let (tempURL, _) = try await downloadFileWithAuth(from: url)
 
                         // 임시 파일을 Documents 디렉토리에 .mp4 확장자로 복사
                         let permanentURL = URL.documentsDirectory.appending(path: "downloaded-\(UUID().uuidString).mp4")
@@ -262,7 +262,7 @@ final class ProductUploadStore: ObservableObject {
             // 2. 게시글 생성 또는 수정
             if editMode, let postId = state.originalPostId {
                 // 수정 모드
-                let _ = try await postAPI.updatePost(
+                _ = try await postAPI.updatePost(
                     postId: postId,
                     category: "sell",
                     title: state.title,
