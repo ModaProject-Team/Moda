@@ -90,7 +90,7 @@ struct LoginView: View {
                 .Logo()
                 .foregroundColor(.gray1)
 
-            Text("친구들과 함께하는 중고거래")
+            Text("친구와 함께하는 안전한 거래")
                 .Body1()
                 .foregroundColor(.gray2)
         }
