@@ -20,6 +20,7 @@ struct PostCard: Identifiable {
     let latitude: Double?
     let longitude: Double?
     let locationName: String?
+    let commentCount: Int
 
     struct Creator {
         let userId: String
@@ -162,6 +163,7 @@ extension Post {
             latitude: geolocation?.latitude,
             longitude: geolocation?.longitude,
             locationName: value1,
+            commentCount: commentCount ?? 0,
             likeCount: likes.count
         )
 
@@ -205,6 +207,7 @@ extension PostCard {
                 latitude: 37.517682,
                 longitude: 126.886417,
                 locationName: "문래역 1번 출구",
+                commentCount: 5,
                 likeCount: 2
             ),
             PostCard(
@@ -224,6 +227,7 @@ extension PostCard {
                 latitude: 37.517682,
                 longitude: 126.886417,
                 locationName: "강남역 2번 출구",
+                commentCount: 12,
                 isLiked: true,
                 likeCount: 3
             ),
@@ -244,6 +248,7 @@ extension PostCard {
                 latitude: 37.517682,
                 longitude: 126.886417,
                 locationName: nil,
+                commentCount: 3,
                 likeCount: 2
             ),
             PostCard(
@@ -263,6 +268,7 @@ extension PostCard {
                 latitude: 37.517682,
                 longitude: 126.886417,
                 locationName: "신촌역 앞",
+                commentCount: 0,
                 likeCount: 1
             ),
             PostCard(
@@ -282,6 +288,7 @@ extension PostCard {
                 latitude: 37.517682,
                 longitude: 126.886417,
                 locationName: "홍대입구역",
+                commentCount: 23,
                 isLiked: true,
                 likeCount: 5
             ),
@@ -302,6 +309,7 @@ extension PostCard {
                 latitude: 37.517682,
                 longitude: 126.886417,
                 locationName: "여의도역 3번 출구",
+                commentCount: 7,
                 likeCount: 3
             )
         ]

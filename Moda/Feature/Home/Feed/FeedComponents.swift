@@ -60,6 +60,7 @@ struct PostCardView: View {
         VStack(alignment: .leading, spacing: 0) {
             imageSection
             profileSection
+            statsSection
             infoSection
         }
         .frame(width: itemWidth, alignment: .leading)
@@ -92,7 +93,13 @@ struct PostCardView: View {
                 .foregroundColor(.gray1)
 
             Spacer()
+        }
+        .padding(.top, 8)
+        .padding(.bottom, 4)
+    }
 
+    private var statsSection: some View {
+        HStack(spacing: 12) {
             Button(action: onLikeTapped) {
                 HStack(spacing: 4) {
                     Image(systemName: product.isLiked ? "heart.fill" : "heart")
@@ -100,13 +107,25 @@ struct PostCardView: View {
                         .foregroundColor(product.isLiked ? .pink1 : .gray1)
 
                     Text("\(product.likeCount)")
-                        .Body1()
+                        .Body2()
                         .foregroundColor(.gray1)
                 }
             }
+
+            HStack(spacing: 4) {
+                Image(systemName: "bubble.right")
+                    .font(.system(size: 16))
+                    .foregroundColor(.gray1)
+
+                Text("\(product.commentCount)")
+                    .Body2()
+                    .foregroundColor(.gray1)
+            }
+
+            Spacer()
         }
-        .padding(.top, 8)
-        .padding(.bottom, 4)
+        .padding(.top, 6)
+        .padding(.bottom, 2)
     }
 
     private var imageSection: some View {
