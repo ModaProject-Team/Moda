@@ -33,11 +33,8 @@ struct FriendAddView: View {
         .navigationBarBackButtonHidden(true)
         .toolbar {
             ToolbarItem(placement: .navigationBarLeading) {
-                Button {
+                BackButton {
                     dismiss()
-                } label: {
-                    Image(systemName: "chevron.left")
-                        .foregroundColor(.gray1)
                 }
             }
         }
@@ -137,7 +134,7 @@ struct FriendAddView: View {
     private var emptySearchSection: some View {
         VStack(spacing: 12) {
             Spacer()
-            Image(systemName: "person.crop.circle.badge.magnifyingglass")
+            Image(systemName: "magnifyingglass")
                 .font(.system(size: 48))
                 .foregroundColor(.gray3)
             Text("친구를 검색해 보세요")
@@ -170,15 +167,27 @@ struct FriendAddView: View {
 
     private var searchResultsList: some View {
         ScrollView(showsIndicators: false) {
-            LazyVStack(spacing: 0) {
-                ForEach(store.state.results) { item in
-                    Button {
-                        store.send(.rowTapped(item))
-                        isSearching = false
-                    } label: {
-                        FriendRow(item: item)
+            VStack(spacing: 0) {
+                HStack {
+                    Text("검색 결과 \(store.state.results.count)")
+                        .Body2()
+                        .foregroundColor(.gray2)
+
+                    Spacer()
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 12)
+
+                LazyVStack(spacing: 0) {
+                    ForEach(store.state.results) { item in
+                        Button {
+                            store.send(.rowTapped(item))
+                            isSearching = false
+                        } label: {
+                            FriendRow(item: item)
+                        }
+                        .buttonStyle(.plain)
                     }
-                    .buttonStyle(.plain)
                 }
             }
             .padding(.bottom, 100)
@@ -194,29 +203,41 @@ private struct FriendIDSearchBar: View {
     let onClear: () -> Void
 
     var body: some View {
-        VStack(spacing: 6) {
-            HStack(alignment: .firstTextBaseline) {
-                TextField("닉네임", text: $text)
-                    .textInputAutocapitalization(.none)
-                    .disableAutocorrection(true)
-                    .focused($isFocused)
-                    .submitLabel(.search)
-                    .onSubmit {
-                        onSubmit()
-                    }
+        HStack(spacing: 8) {
+            TextField("검색", text: $text)
+                .font(.system(size: 16))
+                .foregroundColor(.gray1)
+                .textInputAutocapitalization(.none)
+                .disableAutocorrection(true)
+                .focused($isFocused)
+                .submitLabel(.search)
+                .onSubmit {
+                    onSubmit()
+                }
 
-                Text("\(text.count)/\(maxLength)")
-                    .monospacedDigit()
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
+            if !text.isEmpty {
+                Button {
+                    text = ""
+                    onClear()
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.system(size: 18))
+                        .foregroundColor(.gray2)
+                }
             }
-            // 언더라인
-            Rectangle()
-                .fill(Color.primary.opacity(0.2))
-                .frame(height: 1)
+
+            Image(systemName: "magnifyingglass")
+                .font(.system(size: 18))
+                .foregroundColor(.gray2)
         }
         .padding(.horizontal, 16)
-        .padding(.top, 12)
+        .padding(.vertical, 12)
+        .background(
+            RoundedRectangle(cornerRadius: 25, style: .continuous)
+                .fill(Color.gray5)
+        )
+        .padding(.horizontal, 16)
+        .background(Color.white)
     }
 }
 
@@ -228,63 +249,69 @@ private struct FriendSelectedCard: View {
     let onCloseTap: () -> Void
 
     var body: some View {
-        RoundedRectangle(cornerRadius: 16, style: .continuous)
-            .fill(Color(uiColor: .secondarySystemBackground))
-            .overlay(
-                VStack(spacing: 14) {
-                    // 프로필 이미지
-                    ProfileImageView(imageURL: item.profileImageURL, size: 72)
+        VStack(spacing: 20) {
+            ProfileImageView(imageURL: item.profileImageURL, size: 100)
 
-                    VStack(spacing: 4) {
-                        Text(item.nickname)
-                            .font(.headline)
-                        Text("ID: \(item.id)")
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
-                    }
+            VStack(spacing: 8) {
+                Text(item.nickname)
+                    .H1()
+                    .foregroundColor(.gray1)
 
-                    Button {
-                        onButtonTap()
-                    } label: {
-                        ZStack {
-                            if isLoading {
-                                ProgressView()
-                                    .tint(.white)
-                            } else {
-                                Text(buttonTitle)
-                                    .font(.headline.weight(.semibold))
-                            }
-                        }
-                        .foregroundStyle(.white)
-                        .frame(maxWidth: 140)
-                        .frame(height: 48)
-                        .background(
-                            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                .fill(Color.orange)
-                        )
-                    }
-                    .buttonStyle(.plain)
-                    .disabled(isLoading)
+                if let statusMessage = item.statusMessage, !statusMessage.isEmpty {
+                    Text(statusMessage)
+                        .Body2()
+                        .foregroundColor(.gray2)
+                        .lineLimit(2)
+                        .multilineTextAlignment(.center)
+                } else {
+                    Text("상태 메시지가 없습니다")
+                        .Body2()
+                        .foregroundColor(.gray3)
                 }
-                .padding(.vertical, 16)
-                .padding(.horizontal, 12)
-            )
-            // 카드 우상단 X 버튼
-            .overlay(alignment: .topTrailing) {
-                Button {
-                    onCloseTap()
-                } label: {
-                    Image(systemName: "xmark")
-                        .font(.system(size: 12, weight: .bold))
-                        .foregroundStyle(.secondary)
-                        .padding(8)
-                        .background(
-                            Circle().fill(Color.black.opacity(0.08))
-                        )
-                }
-                .buttonStyle(.plain)
-                .padding(8) // 카드 모서리와 간격
             }
+
+            Button {
+                onButtonTap()
+            } label: {
+                ZStack {
+                    if isLoading {
+                        ProgressView()
+                            .tint(.white)
+                    } else {
+                        Text(buttonTitle)
+                            .H2()
+                            .foregroundColor(.white)
+                    }
+                }
+                .frame(maxWidth: .infinity)
+                .frame(height: 50)
+                .background(
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(Color.blue1)
+                )
+            }
+            .disabled(isLoading)
+        }
+        .padding(24)
+        .background(
+            RoundedRectangle(cornerRadius: 20)
+                .fill(Color.white)
+                .shadow(color: Color.black.opacity(0.05), radius: 10, x: 0, y: 2)
+        )
+        .overlay(alignment: .topTrailing) {
+            Button {
+                onCloseTap()
+            } label: {
+                Image(systemName: "xmark")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundColor(.gray2)
+                    .padding(8)
+                    .background(
+                        Circle().fill(Color.gray4)
+                    )
+            }
+            .padding(12)
+        }
     }
 }
 
@@ -292,22 +319,36 @@ private struct FriendRow: View {
     let item: FriendSearchItem
 
     var body: some View {
-        HStack(spacing: 12) {
-            ProfileImageView(imageURL: item.profileImageURL, size: 52)
+        HStack(spacing: 14) {
+            ProfileImageView(imageURL: item.profileImageURL, size: 56)
 
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: 6) {
                 Text(item.nickname)
                     .H2()
                     .foregroundColor(.gray1)
-                Text(item.id)
-                    .Body2()
-                    .foregroundColor(.gray2)
+
+                if let statusMessage = item.statusMessage, !statusMessage.isEmpty {
+                    Text(statusMessage)
+                        .Body2()
+                        .foregroundColor(.gray2)
+                        .lineLimit(1)
+                } else {
+                    Text("상태 메시지 없음")
+                        .Body2()
+                        .foregroundColor(.gray3)
+                        .lineLimit(1)
+                }
             }
 
             Spacer()
+
+            Image(systemName: "chevron.right")
+                .font(.system(size: 14))
+                .foregroundColor(.gray3)
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 14)
+        .background(Color.white)
     }
 }
 

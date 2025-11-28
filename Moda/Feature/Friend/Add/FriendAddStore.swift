@@ -81,16 +81,37 @@ final class FriendAddStore {
 
                 if Task.isCancelled { return }
 
-                var items: [FriendSearchItem] = response.data.map { dto in
-                    FriendSearchItem(
-                        id: dto.userId,
-                        nickname: dto.nick,
-                        profileImageURL: URL(string: "\(NetworkConfig.baseURL)/v1\(dto.profileImage ?? "")")
-                    )
-                }
+                var items: [FriendSearchItem] = []
 
-                if let myId = self.myUserId {
-                    items.removeAll { $0.id == myId }
+                // 각 사용자의 프로필 정보를 가져와서 상태메시지 포함
+                for dto in response.data {
+                    if Task.isCancelled { return }
+
+                    // 내 ID는 제외
+                    if let myId = self.myUserId, dto.userId == myId {
+                        continue
+                    }
+
+                    // 프로필 정보 가져오기
+                    do {
+                        let profile = try await userProfileAPI.getUserProfile(userId: dto.userId)
+                        let item = FriendSearchItem(
+                            id: dto.userId,
+                            nickname: dto.nick,
+                            profileImageURL: URL(string: "\(NetworkConfig.baseURL)/v1\(dto.profileImage ?? "")"),
+                            statusMessage: profile.info1
+                        )
+                        items.append(item)
+                    } catch {
+                        // 프로필 정보 가져오기 실패 시 기본 정보만 표시
+                        let item = FriendSearchItem(
+                            id: dto.userId,
+                            nickname: dto.nick,
+                            profileImageURL: URL(string: "\(NetworkConfig.baseURL)/v1\(dto.profileImage ?? "")"),
+                            statusMessage: nil
+                        )
+                        items.append(item)
+                    }
                 }
 
                 state.results = items
@@ -113,6 +134,7 @@ final class FriendAddStore {
             guard let self else { return }
             do {
                 let profile = try await userProfileAPI.getUserProfile(userId: item.id)
+
                 if let myId = self.myUserId {
                     let isFriend = profile.followers.contains { $0.userId == myId }
                     state.selectedIsFriend = isFriend

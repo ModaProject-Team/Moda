@@ -32,14 +32,13 @@ struct FriendSearchView: View {
                 }
             }
         }
+        .navigationTitle("친구 검색하기")
+        .navigationBarTitleDisplayMode(.inline)
         .navigationBarBackButtonHidden(true)
         .toolbar {
             ToolbarItem(placement: .navigationBarLeading) {
-                Button {
+                BackButton {
                     dismiss()
-                } label: {
-                    Image(systemName: "chevron.left")
-                        .foregroundColor(.gray1)
                 }
             }
         }
