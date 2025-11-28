@@ -57,6 +57,7 @@ struct ProfileEditView: View {
                     .disabled(store.state.isSaving)
                 }
             }
+            .enableSwipeBack()
             .overlay {
                 if store.state.isSaving {
                     Color.black.opacity(0.3)

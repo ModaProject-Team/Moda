@@ -57,6 +57,7 @@ struct LikedPostsView: View {
                 }
             }
         }
+        .enableSwipeBack()
         .task {
             store.send(.onAppear)
         }

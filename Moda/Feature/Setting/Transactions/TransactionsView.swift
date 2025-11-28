@@ -58,6 +58,7 @@ struct TransactionsView: View {
                 }
             }
         }
+        .enableSwipeBack()
         .task {
             store.send(.onAppear)
         }

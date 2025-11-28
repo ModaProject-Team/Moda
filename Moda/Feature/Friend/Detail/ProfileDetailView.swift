@@ -84,6 +84,7 @@ struct ProfileDetailView: View {
                 }
             }
         }
+        .enableSwipeBack()
         .overlay(alignment: .bottomTrailing) {
             if store.state.isCurrentUser {
                 FloatingUploadButton(title: "물건 올리기") {

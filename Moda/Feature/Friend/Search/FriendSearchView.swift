@@ -43,6 +43,7 @@ struct FriendSearchView: View {
                 }
             }
         }
+        .enableSwipeBack()
         .task {
             try? await Task.sleep(for: .milliseconds(250))
             await MainActor.run {

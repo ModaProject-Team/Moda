@@ -41,6 +41,7 @@ struct FriendAddView: View {
                 }
             }
         }
+        .enableSwipeBack()
         .task {
             store.send(.onAppear)
             try? await Task.sleep(for: .milliseconds(250))
