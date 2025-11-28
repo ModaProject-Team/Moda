@@ -11,6 +11,7 @@ struct SettingView: View {
     @EnvironmentObject var navigator: AppNavigator
     @State private var store = SettingStore()
     @State private var showLogoutAlert = false
+    @State private var showWithdrawAlert = false
 
     var body: some View {
         ZStack {
@@ -41,6 +42,14 @@ struct SettingView: View {
             }
         } message: {
             Text("로그아웃 하시겠습니까?")
+        }
+        .alert("회원 탈퇴", isPresented: $showWithdrawAlert) {
+            Button("취소", role: .cancel) { }
+            Button("탈퇴", role: .destructive) {
+                store.send(.withdrawTapped)
+            }
+        } message: {
+            Text("회원 탈퇴 시 작성한 게시글, 댓글/대댓글, 팔로우 내역 등 모든 데이터가 삭제됩니다.\n\n정말 탈퇴하시겠습니까?")
         }
     }
 
@@ -104,6 +113,15 @@ struct SettingView: View {
                 subtitle: "계정 로그아웃"
             ) {
                 showLogoutAlert = true
+            }
+
+            ActionListItem(
+                icon: "person.fill.xmark",
+                iconColor: .gray3,
+                title: "회원 탈퇴",
+                subtitle: "계정 삭제"
+            ) {
+                showWithdrawAlert = true
             }
         }
     }

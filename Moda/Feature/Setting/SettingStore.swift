@@ -14,13 +14,16 @@ final class SettingStore {
 
     private let userProfileAPI: UserProfileAPIProtocol
     private let postAPI: PostAPIProtocol
+    private let userAPI: UserAPIProtocol
 
     init(
         userProfileAPI: UserProfileAPIProtocol = UserProfileAPI.shared,
-        postAPI: PostAPIProtocol = PostAPI.shared
+        postAPI: PostAPIProtocol = PostAPI.shared,
+        userAPI: UserAPIProtocol = UserAPI.shared
     ) {
         self.userProfileAPI = userProfileAPI
         self.postAPI = postAPI
+        self.userAPI = userAPI
     }
 
     func send(_ intent: SettingIntent) {
@@ -31,6 +34,8 @@ final class SettingStore {
             loadData()
         case .profileEditTapped, .likedPostsTapped, .logoutTapped:
             break
+        case .withdrawTapped:
+            Task { await withdraw() }
         }
     }
 
@@ -64,5 +69,20 @@ final class SettingStore {
             }
             state.isLoading = false
         }
+    }
+
+    private func withdraw() async {
+        state.isWithdrawing = true
+        do {
+            _ = try await userAPI.withdraw()
+
+            TokenManager.shared.clearToken()
+            UserDefaultsManager.shared.clearUserData()
+            AppNavigator.shared.popToRoot()
+            AppNavigator.shared.isLoggedIn = false
+        } catch {
+            state.errorMessage = error.localizedDescription
+        }
+        state.isWithdrawing = false
     }
 }
