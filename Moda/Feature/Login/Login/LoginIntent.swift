@@ -10,5 +10,6 @@ import Foundation
 enum LoginIntent {
     case loginButtonTapped(email: String, password: String)
     case kakaoLoginTapped
+    case appleLoginTapped
 }
 

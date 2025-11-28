@@ -165,7 +165,7 @@ struct LoginView: View {
             }
 
             Button {
-                // TODO: 애플 로그인 구현
+                store.send(.appleLoginTapped)
             } label: {
                 Image(systemName: "apple.logo")
                     .font(.system(size: 20))
