@@ -170,9 +170,11 @@ private struct FriendSearchBar: View {
     var body: some View {
         HStack(spacing: 8) {
             Image(systemName: "magnifyingglass")
+                .font(.system(size: 16))
                 .foregroundStyle(.secondary)
 
             TextField("검색", text: $text)
+                .font(.system(size: 16))
                 .textInputAutocapitalization(.none)
                 .disableAutocorrection(true)
                 .focused($isFocused)
@@ -183,15 +185,16 @@ private struct FriendSearchBar: View {
                     onClear()
                 } label: {
                     Image(systemName: "xmark.circle.fill")
+                        .font(.system(size: 16))
                         .foregroundStyle(.gray.opacity(0.6))
                 }
             }
         }
         .padding(.horizontal, 12)
-        .padding(.vertical, 10)
+        .padding(.vertical, 8)
         .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(Color(.systemGray5))
+            RoundedRectangle(cornerRadius: 10)
+                .fill(Color.gray5)
         )
     }
 }
@@ -260,10 +263,6 @@ private struct EmptyStateView: View {
     var body: some View {
         VStack(spacing: 12) {
             Spacer()
-
-            Image(systemName: "person.2.slash")
-                .font(.system(size: 48))
-                .foregroundColor(.gray3)
 
             Text("검색 결과가 없어요")
                 .Body1()
