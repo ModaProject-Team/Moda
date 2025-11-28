@@ -179,7 +179,7 @@ struct LoginView: View {
                 .foregroundColor(.gray2)
 
             Button {
-                navigator.push(.signUp)
+                navigator.push(.emailSignUp)
             } label: {
                 Text("회원가입")
                     .Body2()

@@ -60,9 +60,6 @@ enum NavigationDestination: Hashable {
     /// 로그인 화면
     case login
 
-    /// 회원가입 화면
-    case signUp
-
     /// 이메일 회원가입 화면
     case emailSignUp
 
@@ -118,8 +115,6 @@ extension NavigationDestination {
         switch self {
         case .login:
             LoginView()
-        case .signUp:
-            SignUpView()
         case .emailSignUp:
             EmailSignUpView()
         case .home:
