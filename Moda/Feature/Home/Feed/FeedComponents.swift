@@ -96,7 +96,7 @@ struct PostCardView: View {
             Button(action: onLikeTapped) {
                 HStack(spacing: 4) {
                     Image(systemName: product.isLiked ? "heart.fill" : "heart")
-                        .font(.system(size: 16, weight: .semibold))
+                        .font(.system(size: 16))
                         .foregroundColor(product.isLiked ? .pink1 : .gray1)
 
                     Text("\(product.likeCount)")

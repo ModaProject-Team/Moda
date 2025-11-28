@@ -6,7 +6,6 @@
 //
 
 import SwiftUI
-import Kingfisher
 import Observation
 
 // MARK: - Model (View 전용 표시 모델)
@@ -213,21 +212,8 @@ struct FriendListView: View {
     }
 
     private var emptyFriendsSection: some View {
-        VStack(spacing: 12) {
-            Spacer()
-
-            Image(systemName: "person.2")
-                .font(.system(size: 48))
-                .foregroundColor(.gray3)
-
-            Text("아직 친구가 없어요")
-                .Body1()
-                .foregroundColor(.gray2)
-
-            Spacer()
-        }
-        .frame(maxWidth: .infinity)
-        .frame(height: UIScreen.main.bounds.height - 300)
+        EmptyStateView(message: "아직 친구가 없어요")
+            .frame(height: UIScreen.main.bounds.height - 300)
     }
 }
 
@@ -248,8 +234,7 @@ private struct MyProfileCell: View {
     }
 
     private var profileImageSection: some View {
-        ProfileImageView(people: people)
-            .frame(width: 52, height: 52)
+        ProfileImageView(imageURL: people.profileImageURL, size: 52)
     }
 
     private var contentSection: some View {
@@ -311,8 +296,7 @@ private struct FriendCell: View {
     }
 
     private var profileImageSection: some View {
-        ProfileImageView(people: people)
-            .frame(width: 52, height: 52)
+        ProfileImageView(imageURL: people.profileImageURL, size: 52)
     }
 
     private var contentSection: some View {
@@ -332,34 +316,6 @@ private struct FriendCell: View {
     }
 }
 
-private struct ProfileImageView: View {
-    let people: People
-
-    var body: some View {
-        if let url = people.profileImageURL {
-            KFImage(url)
-                .requestModifier(KFHeaders.modifier)
-                .placeholder { placeholder }
-                .cacheOriginalImage()
-                .fade(duration: 0.2)
-                .cancelOnDisappear(true)
-                .resizable()
-                .scaledToFill()
-                .clipShape(Circle())
-        } else {
-            // 이미지 불러와지지 않을때 임시 이미지.
-            ZStack {
-                Circle().fill(Color.gray.opacity(0.2))
-                Image(systemName: "person.fill")
-            }
-            .clipShape(Circle())
-        }
-    }
-
-    private var placeholder: some View {
-        Circle().fill(Color.gray.opacity(0.2))
-    }
-}
 
 #Preview {
     NavigationStack {

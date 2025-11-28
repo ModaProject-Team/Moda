@@ -50,19 +50,20 @@ struct ProductUploadView: View {
 
             // 업로드 중 전체 화면 오버레이
             if store.state.isUploading {
-                Color.black.opacity(0.4)
-                    .ignoresSafeArea()
-                    .onTapGesture { }
+                ZStack {
+                    LoadingOverlay()
 
-                VStack(spacing: 16) {
-                    ProgressView()
-                        .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                        .scaleEffect(1.5)
+                    VStack(spacing: 16) {
+                        ProgressView()
+                            .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                            .scaleEffect(1.5)
 
-                    Text("업로드 중...")
-                        .H2()
-                        .foregroundColor(.white)
+                        Text("업로드 중...")
+                            .H2()
+                            .foregroundColor(.white)
+                    }
                 }
+                .onTapGesture { }
             }
         }
         .navigationBarHidden(true)

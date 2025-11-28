@@ -7,7 +7,6 @@
 
 import SwiftUI
 import Observation
-import Kingfisher
 
 private struct FriendSearchItem: Identifiable, Hashable {
     let id: String          // userId
@@ -458,8 +457,7 @@ private struct FriendSelectedCard: View {
             .overlay(
                 VStack(spacing: 14) {
                     // 프로필 이미지
-                    ProfileImageView(url: item.profileImageURL)
-                        .frame(width: 72, height: 72)
+                    ProfileImageView(imageURL: item.profileImageURL, size: 72)
 
                     VStack(spacing: 4) {
                         Text(item.nickname)
@@ -519,8 +517,7 @@ private struct FriendRow: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            ProfileImageView(url: item.profileImageURL)
-                .frame(width: 52, height: 52)
+            ProfileImageView(imageURL: item.profileImageURL, size: 52)
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(item.nickname)
@@ -538,33 +535,6 @@ private struct FriendRow: View {
     }
 }
 
-private struct ProfileImageView: View {
-    let url: URL?
-
-    var body: some View {
-        if let url {
-            KFImage(url)
-                .requestModifier(KFHeaders.modifier)
-                .placeholder { placeholder }
-                .cacheOriginalImage()
-                .fade(duration: 0.2)
-                .cancelOnDisappear(true)
-                .resizable()
-                .scaledToFill()
-                .clipShape(Circle())
-        } else {
-            placeholder
-        }
-    }
-
-    private var placeholder: some View {
-        ZStack {
-            Circle().fill(Color.gray3)
-            Image(systemName: "person.fill")
-                .foregroundColor(.white)
-        }
-    }
-}
 
 #Preview {
     NavigationStack {

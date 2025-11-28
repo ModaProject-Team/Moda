@@ -6,7 +6,6 @@
 //
 
 import SwiftUI
-import Kingfisher
 
 struct SettingView: View {
     @EnvironmentObject var navigator: AppNavigator
@@ -22,15 +21,15 @@ struct SettingView: View {
             VStack(spacing: 0) {
                 TabHeaderView(title: "프로필")
 
-                profileCardSection
-                    .padding(.top, 16)
-                    .padding(.horizontal, 16)
+                ScrollView(showsIndicators: false) {
+                    VStack(spacing: 0) {
+                        profileCardSection
 
-                actionCardsSection
-                    .padding(.top, 20)
-                    .padding(.horizontal, 16)
-
-                Spacer()
+                        actionCardsSection
+                            .padding(.top, 20)
+                    }
+                    .padding(.bottom, 100)
+                }
             }
         }
         .task {
@@ -52,12 +51,14 @@ struct SettingView: View {
     }
 
     private var profileCardSection: some View {
-        VStack(spacing: 14) {
+        Button {
+            showProfileEdit = true
+        } label: {
             HStack(spacing: 12) {
                 profileImageView
                     .frame(width: 52, height: 52)
 
-                VStack(alignment: .leading, spacing: 2) {
+                VStack(alignment: .leading, spacing: 4) {
                     Text(store.state.nickname)
                         .H2()
                         .foregroundColor(.gray1)
@@ -66,52 +67,25 @@ struct SettingView: View {
                         .Body2()
                         .foregroundColor(.gray2)
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
 
-                Spacer()
-
-                Button {
-                    showProfileEdit = true
-                } label: {
-                    Image(systemName: "chevron.right")
-                        .font(.system(size: 14, weight: .semibold))
-                        .foregroundColor(.gray2)
-                }
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundColor(.gray2)
             }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 14)
         }
-        .padding(16)
-        .onTapGesture {
-            showProfileEdit = true
-        }
+        .buttonStyle(.plain)
     }
 
     private var profileImageView: some View {
-        Group {
-            if let url = store.state.profileImageURL {
-                KFImage(url)
-                    .requestModifier(KFHeaders.modifier)
-                    .placeholder {
-                        Circle().fill(Color.gray3)
-                    }
-                    .cacheOriginalImage()
-                    .resizable()
-                    .scaledToFill()
-                    .frame(width: 52, height: 52)
-                    .clipShape(Circle())
-            } else {
-                ZStack {
-                    Circle().fill(Color.gray3)
-                    Image(systemName: "person.fill")
-                        .font(.system(size: 22))
-                        .foregroundStyle(.white)
-                }
-                .frame(width: 52, height: 52)
-            }
-        }
+        ProfileImageView(imageURL: store.state.profileImageURL, size: 52)
     }
 
     private var actionCardsSection: some View {
-        VStack(spacing: 10) {
-            ActionCard(
+        VStack(spacing: 0) {
+            ActionListItem(
                 icon: "heart.fill",
                 iconColor: .pink1,
                 title: "찜 목록",
@@ -120,7 +94,7 @@ struct SettingView: View {
                 navigator.push(.likedPosts)
             }
 
-            ActionCard(
+            ActionListItem(
                 icon: "clock.fill",
                 iconColor: .green1,
                 title: "거래 내역",
@@ -129,7 +103,7 @@ struct SettingView: View {
                 navigator.push(.transactions)
             }
 
-            ActionCard(
+            ActionListItem(
                 icon: "rectangle.portrait.and.arrow.right",
                 iconColor: .blue1,
                 title: "로그아웃",
@@ -148,7 +122,7 @@ struct SettingView: View {
     }
 }
 
-struct ActionCard: View {
+struct ActionListItem: View {
     let icon: String
     let iconColor: Color
     let title: String
@@ -168,24 +142,25 @@ struct ActionCard: View {
                         .foregroundColor(iconColor)
                 }
 
-                VStack(alignment: .leading, spacing: 2) {
+                VStack(alignment: .leading, spacing: 4) {
                     Text(title)
-                        .Body1()
+                        .H2()
                         .foregroundColor(.gray1)
 
                     Text(subtitle)
                         .Body2()
                         .foregroundColor(.gray2)
                 }
-
-                Spacer()
+                .frame(maxWidth: .infinity, alignment: .leading)
 
                 Image(systemName: "chevron.right")
-                    .font(.system(size: 12, weight: .semibold))
+                    .font(.system(size: 14, weight: .semibold))
                     .foregroundColor(.gray2)
             }
-            .padding(14)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 14)
         }
+        .buttonStyle(.plain)
     }
 }
 

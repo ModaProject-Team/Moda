@@ -59,12 +59,7 @@ struct LoginView: View {
             }
 
             if store.state.isLoading {
-                Color.black.opacity(0.3)
-                    .ignoresSafeArea()
-
-                ProgressView()
-                    .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                    .scaleEffect(1.5)
+                LoadingOverlay()
             }
         }
         .alert("로그인 실패", isPresented: $showErrorAlert) {

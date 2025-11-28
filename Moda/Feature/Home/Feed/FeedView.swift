@@ -96,33 +96,15 @@ struct FeedView: View {
     }
 
     private var searchBar: some View {
-        HStack(spacing: 8) {
-            TextField("게시글 검색", text: Binding(
+        SearchBarView(
+            text: Binding(
                 get: { store.state.searchText },
                 set: { store.send(.search($0)) }
-            ))
-            .font(.system(size: 16))
-            .foregroundColor(.gray1)
-
-            if !store.state.searchText.isEmpty {
-                Button {
-                    store.send(.clearSearch)
-                } label: {
-                    Image(systemName: "xmark.circle.fill")
-                        .font(.system(size: 18))
-                        .foregroundColor(.gray2)
-                }
+            ),
+            placeholder: "게시글 검색",
+            onClear: {
+                store.send(.clearSearch)
             }
-
-            Image(systemName: "magnifyingglass")
-                .font(.system(size: 18))
-                .foregroundColor(.gray2)
-        }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 12)
-        .background(
-            RoundedRectangle(cornerRadius: 25, style: .continuous)
-                .fill(Color.gray5)
         )
     }
 

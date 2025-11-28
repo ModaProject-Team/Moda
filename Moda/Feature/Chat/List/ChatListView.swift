@@ -6,7 +6,6 @@
 //
 
 import SwiftUI
-import Kingfisher
 
 struct ChatRoom: Identifiable {
     let id: String
@@ -203,13 +202,7 @@ struct ChatListView: View {
         VStack(spacing: 12) {
             Spacer()
 
-            Image(systemName: "bubble.left.and.bubble.right")
-                .font(.system(size: 48))
-                .foregroundColor(.gray3)
-
-            Text("아직 대화가 없어요")
-                .Body1()
-                .foregroundColor(.gray2)
+            EmptyStateView(message: "아직 대화가 없어요")
 
             Button("새로고침") {
                 store.send(.refresh)
@@ -255,24 +248,14 @@ struct ChatRoomCell: View {
     }
 
     private var profileImageSection: some View {
-        Group {
+        let imageURL: URL? = {
             if let path = room.participantProfileImage, !path.isEmpty {
-                KFImage(URL(string: "\(NetworkConfig.baseURL)/v1\(path)"))
-                    .requestModifier(KFHeaders.modifier)
-                    .placeholder {
-                        Circle().fill(Color.gray3)
-                    }
-                    .cacheOriginalImage()
-                    .resizable()
-                    .scaledToFill()
-                    .frame(width: 52, height: 52)
-                    .clipShape(Circle())
-            } else {
-                Circle()
-                    .fill(Color.gray3)
-                    .frame(width: 52, height: 52)
+                return URL(string: "\(NetworkConfig.baseURL)/v1\(path)")
             }
-        }
+            return nil
+        }()
+
+        return ProfileImageView(imageURL: imageURL, size: 52)
     }
 
     private var contentSection: some View {
