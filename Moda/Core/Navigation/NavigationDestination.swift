@@ -87,6 +87,9 @@ enum NavigationDestination: Hashable {
     /// 거래 내역 화면
     case transactions
 
+    /// 프로필 편집 화면
+    case profileEdit
+
     // MARK: FriendTab
     /// 친구 검색 화면
     case friendSearch(friends: [People])
@@ -133,6 +136,8 @@ extension NavigationDestination {
             LikedPostsView()
         case .transactions:
             TransactionsView()
+        case .profileEdit:
+            ProfileEditView()
 
         //MARK: FriendTab
         case .friendSearch(let friends):

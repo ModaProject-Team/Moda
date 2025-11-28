@@ -9,14 +9,12 @@ import SwiftUI
 import PhotosUI
 import Kingfisher
 
-@MainActor
 struct ProfileEditView: View {
-    @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject var navigator: AppNavigator
     @State private var store = ProfileEditStore()
 
     var body: some View {
-        NavigationStack {
-            ZStack {
+        ZStack {
                 Color.white.ignoresSafeArea()
 
                 if store.state.isLoading {
@@ -38,13 +36,16 @@ struct ProfileEditView: View {
             }
             .navigationTitle("프로필 편집")
             .navigationBarTitleDisplayMode(.inline)
+            .navigationBarBackButtonHidden(true)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
-                    Button("취소") {
-                        dismiss()
+                    Button {
+                        navigator.pop()
+                    } label: {
+                        Image(systemName: "chevron.left")
+                            .font(.system(size: 18))
+                            .foregroundColor(.gray1)
                     }
-                    .font(.body.weight(.semibold))
-                    .foregroundColor(.blue1)
                 }
 
                 ToolbarItem(placement: .topBarTrailing) {
@@ -67,7 +68,7 @@ struct ProfileEditView: View {
             }
             .onChange(of: store.state.shouldDismiss) { _, shouldDismiss in
                 if shouldDismiss {
-                    dismiss()
+                    navigator.pop()
                 }
             }
             .alert("오류", isPresented: Binding(
@@ -80,10 +81,9 @@ struct ProfileEditView: View {
             } message: {
                 Text(store.state.errorMessage ?? "")
             }
-        }
-        .task {
-            store.send(.onAppear)
-        }
+            .task {
+                store.send(.onAppear)
+            }
     }
 
     private var profileImageSection: some View {

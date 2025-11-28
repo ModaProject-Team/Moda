@@ -10,7 +10,6 @@ import SwiftUI
 struct SettingView: View {
     @EnvironmentObject var navigator: AppNavigator
     @State private var store = SettingStore()
-    @State private var showProfileEdit = false
     @State private var showLogoutAlert = false
 
     var body: some View {
@@ -35,11 +34,6 @@ struct SettingView: View {
         .task {
             store.send(.onAppear)
         }
-        .fullScreenCover(isPresented: $showProfileEdit, onDismiss: {
-            store.send(.refresh)
-        }) {
-            ProfileEditView()
-        }
         .alert("로그아웃", isPresented: $showLogoutAlert) {
             Button("취소", role: .cancel) { }
             Button("로그아웃", role: .destructive) {
@@ -52,7 +46,7 @@ struct SettingView: View {
 
     private var profileCardSection: some View {
         Button {
-            showProfileEdit = true
+            navigator.push(.profileEdit)
         } label: {
             HStack(spacing: 12) {
                 profileImageView
