@@ -159,6 +159,11 @@ struct CommentRow: View {
     let onDelete: (String) -> Void
     @State private var showDeleteAlert = false
 
+    private var isMyComment: Bool {
+        let currentUserId = UserDefaults.standard.string(forKey: "userId") ?? ""
+        return comment.creator.userId == currentUserId
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(alignment: .top, spacing: 12) {
@@ -201,18 +206,22 @@ struct CommentRow: View {
 
                         Spacer()
 
-                        Button("답글", systemImage: "arrowshape.turn.up.left") {
-                            onReply(comment.commentId)
-                        }
-                        .font(.system(size: 14))
-                        .foregroundColor(.gray2)
-
                         Button {
-                            showDeleteAlert = true
+                            onReply(comment.commentId)
                         } label: {
-                            Image(systemName: "trash")
+                            Image(systemName: "arrowshape.turn.up.left")
                                 .font(.system(size: 14))
                                 .foregroundColor(.gray2)
+                        }
+
+                        if isMyComment {
+                            Button {
+                                showDeleteAlert = true
+                            } label: {
+                                Image(systemName: "trash")
+                                    .font(.system(size: 14))
+                                    .foregroundColor(.gray2)
+                            }
                         }
                     }
 
@@ -240,6 +249,11 @@ struct ReplyRow: View {
     let reply: Reply
     let onDelete: (String) -> Void
     @State private var showDeleteAlert = false
+
+    private var isMyReply: Bool {
+        let currentUserId = UserDefaults.standard.string(forKey: "userId") ?? ""
+        return reply.creator.userId == currentUserId
+    }
 
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
@@ -287,11 +301,14 @@ struct ReplyRow: View {
 
                     Spacer()
 
-                    Button {
-                        showDeleteAlert = true
-                    } label: {
-                        Image(systemName: "ellipsis")
-                            .foregroundColor(.gray2)
+                    if isMyReply {
+                        Button {
+                            showDeleteAlert = true
+                        } label: {
+                            Image(systemName: "trash")
+                                .font(.system(size: 14))
+                                .foregroundColor(.gray2)
+                        }
                     }
                 }
 
