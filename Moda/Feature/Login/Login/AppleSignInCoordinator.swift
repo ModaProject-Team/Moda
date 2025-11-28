@@ -12,6 +12,7 @@ import SwiftUI
 ///
 /// ASAuthorizationController의 delegate를 처리하고
 /// async/await 패턴으로 결과를 반환합니다.
+@MainActor
 final class AppleSignInCoordinator: NSObject {
 
     /// Apple Sign In 결과
@@ -32,17 +33,14 @@ final class AppleSignInCoordinator: NSObject {
         return try await withCheckedThrowingContinuation { continuation in
             self.continuation = continuation
 
-            // 메인 스레드에서 실행
-            DispatchQueue.main.async {
-                let appleIDProvider = ASAuthorizationAppleIDProvider()
-                let request = appleIDProvider.createRequest()
-                request.requestedScopes = [.fullName, .email]
+            let appleIDProvider = ASAuthorizationAppleIDProvider()
+            let request = appleIDProvider.createRequest()
+            request.requestedScopes = [.fullName, .email]
 
-                let authorizationController = ASAuthorizationController(authorizationRequests: [request])
-                authorizationController.delegate = self
-                authorizationController.presentationContextProvider = self
-                authorizationController.performRequests()
-            }
+            let authorizationController = ASAuthorizationController(authorizationRequests: [request])
+            authorizationController.delegate = self
+            authorizationController.presentationContextProvider = self
+            authorizationController.performRequests()
         }
     }
 

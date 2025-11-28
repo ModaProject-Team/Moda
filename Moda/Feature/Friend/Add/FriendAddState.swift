@@ -11,6 +11,7 @@ struct FriendSearchItem: Identifiable, Hashable {
     let id: String
     let nickname: String
     let profileImageURL: URL?
+    let statusMessage: String?
 }
 
 struct FriendAddState {
