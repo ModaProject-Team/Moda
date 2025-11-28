@@ -78,7 +78,7 @@ final class UserAPI: UserAPIProtocol {
     }
 
     func loginWithApple(idToken: String) async throws -> LoginResponse {
-        let endpoint = UserRouter.loginApple(token: idToken)
+        let endpoint = UserRouter.loginApple(idToken: idToken)
         let response = try await networkService.request(
             endpoint: endpoint,
             responseType: LoginResponse.self

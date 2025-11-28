@@ -32,14 +32,17 @@ final class AppleSignInCoordinator: NSObject {
         return try await withCheckedThrowingContinuation { continuation in
             self.continuation = continuation
 
-            let appleIDProvider = ASAuthorizationAppleIDProvider()
-            let request = appleIDProvider.createRequest()
-            request.requestedScopes = [.fullName, .email]
+            // 메인 스레드에서 실행
+            DispatchQueue.main.async {
+                let appleIDProvider = ASAuthorizationAppleIDProvider()
+                let request = appleIDProvider.createRequest()
+                request.requestedScopes = [.fullName, .email]
 
-            let authorizationController = ASAuthorizationController(authorizationRequests: [request])
-            authorizationController.delegate = self
-            authorizationController.presentationContextProvider = self
-            authorizationController.performRequests()
+                let authorizationController = ASAuthorizationController(authorizationRequests: [request])
+                authorizationController.delegate = self
+                authorizationController.presentationContextProvider = self
+                authorizationController.performRequests()
+            }
         }
     }
 
@@ -96,11 +99,22 @@ extension AppleSignInCoordinator: ASAuthorizationControllerDelegate {
         if nsError.code == ASAuthorizationError.canceled.rawValue {
             continuation?.resume(throwing: NSError(
                 domain: "AppleSignIn",
-                code: ASAuthorizationError.canceled.rawValue,
+                code: 1001,
                 userInfo: [NSLocalizedDescriptionKey: "Apple 로그인이 취소되었습니다"]
             ))
+        } else if nsError.code == ASAuthorizationError.unknown.rawValue {
+            // Unknown 에러 (1000)
+            continuation?.resume(throwing: NSError(
+                domain: "AppleSignIn",
+                code: 1000,
+                userInfo: [NSLocalizedDescriptionKey: "Apple 로그인에 실패했습니다. 설정에서 Sign In with Apple이 활성화되어 있는지 확인해주세요."]
+            ))
         } else {
-            continuation?.resume(throwing: error)
+            continuation?.resume(throwing: NSError(
+                domain: "AppleSignIn",
+                code: nsError.code,
+                userInfo: [NSLocalizedDescriptionKey: error.localizedDescription]
+            ))
         }
 
         continuation = nil
@@ -112,10 +126,24 @@ extension AppleSignInCoordinator: ASAuthorizationControllerPresentationContextPr
 
     func presentationAnchor(for controller: ASAuthorizationController) -> ASPresentationAnchor {
         // 현재 활성화된 window를 반환
-        guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
-              let window = windowScene.windows.first else {
-            fatalError("No window available")
+        if let windowScene = UIApplication.shared.connectedScenes
+            .compactMap({ $0 as? UIWindowScene })
+            .first(where: { $0.activationState == .foregroundActive }),
+           let window = windowScene.windows.first(where: { $0.isKeyWindow }) ?? windowScene.windows.first {
+            return window
         }
-        return window
+
+        // Fallback: 첫 번째 window 반환
+        if let window = UIApplication.shared.connectedScenes
+            .compactMap({ $0 as? UIWindowScene })
+            .flatMap({ $0.windows })
+            .first(where: { $0.isKeyWindow }) ?? UIApplication.shared.connectedScenes
+            .compactMap({ $0 as? UIWindowScene })
+            .flatMap({ $0.windows })
+            .first {
+            return window
+        }
+
+        fatalError("No window available for Apple Sign In")
     }
 }

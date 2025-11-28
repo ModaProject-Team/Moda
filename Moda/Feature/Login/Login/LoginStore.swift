@@ -127,7 +127,7 @@ final class LoginStore: ObservableObject {
                 // Apple User ID 저장 (자격 증명 상태 확인용)
                 UserDefaults.standard.set(result.userIdentifier, forKey: "appleUserId")
 
-                // 서버에 identityToken 전달하여 로그인
+                // 서버에 identityToken만 전달하여 로그인
                 let response = try await userAPI.loginWithApple(idToken: result.identityToken)
 
                 await MainActor.run {
