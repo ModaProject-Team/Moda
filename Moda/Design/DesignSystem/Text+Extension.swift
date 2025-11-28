@@ -15,7 +15,8 @@ extension Text {
     }
 
     func Logo() -> some View {
-        customStyle(fontName: "HancomMalangMalang-Bold", fontSize: 22)
+        customStyle(fontName: "Cafe24Moyamoya-OTF-Face", fontSize: 24, kerning: 6)
+            .foregroundColor(.blue1)
     }
 
     func H1() -> some View {

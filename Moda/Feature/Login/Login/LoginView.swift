@@ -88,7 +88,7 @@ struct LoginView: View {
 
             Text("모다")
                 .Logo()
-                .foregroundColor(.gray1)
+                .offset(y: -8)
 
             Text("친구와 함께하는 안전한 거래")
                 .Body1()

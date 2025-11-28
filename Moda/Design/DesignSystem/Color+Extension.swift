@@ -55,4 +55,8 @@ extension Color {
     static var gray5: Self {
         .init(hex: "#F5F5F5")
     }
+
+    static var inkGray: Self {
+        .init(hex: "#3A3A3A")
+    }
 }

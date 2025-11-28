@@ -26,6 +26,9 @@ struct FeedView: View {
                     categoryFilterSection
                     ScrollView(showsIndicators: false) {
                         VStack(spacing: 20) {
+                            BannerCarouselView()
+                                .padding(.top, 8)
+
                             ProductGridView(
                                 products: store.state.displayProducts,
                                 itemWidth: itemWidth,
@@ -85,10 +88,16 @@ struct FeedView: View {
 
     private var logoSection: some View {
         HStack(spacing: 8) {
-            Image("AppIcon")
-                .resizable()
-                .scaledToFit()
-                .frame(height: 48)
+            HStack(spacing: 0) {
+                Image("AppIcon")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(height: 40)
+
+                Text("모다")
+                    .Logo()
+                    .offset(x: -4)
+            }
 
             searchBar
         }
