@@ -60,7 +60,6 @@ struct VideoThumbnailView: View {
                     self.isLoading = false
                 }
             } catch {
-                print("썸네일 생성 실패: \(error.localizedDescription)")
                 await MainActor.run {
                     self.isLoading = false
                 }

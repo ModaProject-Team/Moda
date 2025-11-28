@@ -159,7 +159,6 @@ final class FeedViewStore: NSObject, ObservableObject {
 
         } catch {
             state.errorMessage = error.localizedDescription
-            print("피드 로드 실패: \(error.localizedDescription)")
         }
 
         state.isLoading = false
@@ -199,7 +198,6 @@ final class FeedViewStore: NSObject, ObservableObject {
                     state.products[index].likeCount = max(0, state.products[index].likeCount - 1)
                 }
             }
-            print("좋아요 요청 실패: \(error.localizedDescription)")
         }
     }
 

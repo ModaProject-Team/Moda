@@ -153,11 +153,9 @@ private final class ProfileDetailStore {
     }
 
     private func handleEditTapped() {
-        print("수정 버튼 탭")
     }
 
     private func handleUploadTapped() {
-        print("물건 올리기 버튼 탭")
     }
 
     private func handleLoadMore() {
@@ -217,7 +215,6 @@ private final class ProfileDetailStore {
             state.hasMoreUser = !response.nextCursor.isEmpty && response.nextCursor != "0"
         } catch {
             state.errorMessage = error.localizedDescription
-            print("사용자 게시글 로드 실패: \(error.localizedDescription)")
         }
 
         state.isLoading = false
@@ -257,7 +254,6 @@ private final class ProfileDetailStore {
             state.hasMoreLiked = !response.nextCursor.isEmpty && response.nextCursor != "0"
         } catch {
             state.errorMessage = error.localizedDescription
-            print("찜한 게시글 로드 실패: \(error.localizedDescription)")
         }
 
         state.isLoading = false
@@ -317,7 +313,6 @@ private final class ProfileDetailStore {
         } catch {
             // 실패 시 롤백
             rollbackLikeUI(postId: postId)
-            print("좋아요 요청 실패: \(error.localizedDescription)")
         }
     }
 

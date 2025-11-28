@@ -62,7 +62,6 @@ struct TransactionsView: View {
             store.send(.onAppear)
         }
         .onReceive(NotificationCenter.default.publisher(for: .postPaymentCompleted)) { _ in
-            print("🔔 결제 완료 notification 수신 - 거래 내역 새로고침")
             store.send(.refresh)
         }
     }

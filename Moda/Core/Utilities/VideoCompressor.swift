@@ -55,9 +55,6 @@ final class VideoCompressor {
         await exportSession.export()
 
         guard exportSession.status == .completed else {
-            if let error = exportSession.error {
-                print("압축 실패: \(error.localizedDescription)")
-            }
             throw VideoCompressionError.exportFailed
         }
 

@@ -612,7 +612,6 @@ struct ProductDetailView: View {
                     navigator.push(.chatRoom(roomId: response.roomId, participantName: post.creator.nick))
                 }
             } catch {
-                print("Failed to create chat room: \(error)")
             }
         }
     }
@@ -634,7 +633,6 @@ struct ProductDetailView: View {
                 self.totalCommentCount = count
             }
         } catch {
-            print("Failed to load comment preview: \(error)")
         }
     }
 
@@ -652,7 +650,6 @@ struct ProductDetailView: View {
                     .map { $0 }
             }
         } catch {
-            print("Failed to load related products: \(error)")
         }
     }
 
@@ -686,7 +683,6 @@ struct ProductDetailView: View {
             }
         } else {
             paymentMessage = "결제가 취소되었습니다."
-            print(response.error_msg ?? "알 수 없는 오류")
             showPaymentAlert = true
         }
     }

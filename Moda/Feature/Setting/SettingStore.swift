@@ -61,7 +61,6 @@ final class SettingStore {
                 }
             } catch {
                 state.errorMessage = error.localizedDescription
-                print("설정 데이터 로드 실패: \(error)")
             }
             state.isLoading = false
         }

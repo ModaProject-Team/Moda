@@ -96,7 +96,6 @@ private final class FriendAddStore {
                 self.myUserId = me.userId
             } catch {
                 // 내 ID 로드 실패는 치명적이지 않으므로 로그만
-                print("친구 추가 뷰, 내 프로필 불러오지 못함:", error.localizedDescription)
             }
         }
     }

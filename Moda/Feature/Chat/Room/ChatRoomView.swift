@@ -166,10 +166,8 @@ final class ChatRoomStore: ObservableObject {
 
     private func setupSocketCallbacks() {
         socketService.onConnect = {
-            print("SOCKET CONNECTED")
         }
         socketService.onDisconnect = {
-            print("SOCKET DISCONNECTED")
         }
         socketService.onError = { [weak self] message in
             Task { @MainActor in
@@ -474,7 +472,6 @@ struct ChatRoomView: View {
                 store.send(.imagePicked(data))
             }
         } catch {
-            print("이미지 로드 실패: \(error)")
         }
     }
 

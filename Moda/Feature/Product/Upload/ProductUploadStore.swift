@@ -60,7 +60,6 @@ final class ProductUploadStore: ObservableObject {
             // 기존 파일들을 MediaItem으로 변환하여 UI에 표시
             await loadExistingMedia(files: post.files)
         } catch {
-            print("게시글 로드 실패: \(error)")
             state.uploadError = "게시글을 불러올 수 없습니다."
         }
     }
@@ -86,7 +85,6 @@ final class ProductUploadStore: ObservableObject {
                             mediaItems.append(.image(image, serverURL: fileURL))
                         }
                     } catch {
-                        print("다운로드 실패: \(error)")
                     }
                 }
             } else if fileURL.isVideoFile {
@@ -105,7 +103,6 @@ final class ProductUploadStore: ObservableObject {
                             mediaItems.append(.video(url: permanentURL, thumbnail: thumbnail, serverURL: fileURL))
                         }
                     } catch {
-                        print("동영상 다운로드 실패: \(error)")
                     }
                 }
             }
@@ -207,7 +204,6 @@ final class ProductUploadStore: ObservableObject {
             let cgImage = try imageGenerator.copyCGImage(at: .zero, actualTime: nil)
             return UIImage(cgImage: cgImage)
         } catch {
-            print("썸네일 생성 실패: \(error)")
             return nil
         }
     }
@@ -310,7 +306,6 @@ final class ProductUploadStore: ObservableObject {
         } catch {
             state.isUploading = false
             state.uploadError = error.localizedDescription
-            print("게시글 \(editMode ? "수정" : "등록") 실패: \(error)")
         }
     }
 }
