@@ -102,9 +102,9 @@ struct PostCardView: View {
         HStack(spacing: 12) {
             Button(action: onLikeTapped) {
                 HStack(spacing: 4) {
-                    Image(systemName: product.isLiked ? "heart.fill" : "heart")
+                    Image(systemName: "heart.fill")
                         .font(.system(size: 16))
-                        .foregroundColor(product.isLiked ? .pink1 : .gray1)
+                        .foregroundColor(product.isLiked ? .pink1 : .gray3)
 
                     Text("\(product.likeCount)")
                         .Body2()
@@ -113,9 +113,9 @@ struct PostCardView: View {
             }
 
             HStack(spacing: 4) {
-                Image(systemName: "bubble.right")
+                Image(systemName: "bubble.right.fill")
                     .font(.system(size: 16))
-                    .foregroundColor(.gray1)
+                    .foregroundColor(.gray3)
 
                 Text("\(product.commentCount)")
                     .Body2()

@@ -565,7 +565,7 @@ struct ProductDetailView: View {
                         store.send(.toggleLike)
                     } label: {
                         HStack(spacing: 4) {
-                            Image(systemName: store.state.isLiked ? "heart.fill" : "heart")
+                            Image(systemName: "heart.fill")
                                 .font(.system(size: 16))
                                 .foregroundColor(store.state.isLiked ? .pink1 : .white)
                             Text("\(store.state.likeCount)")
