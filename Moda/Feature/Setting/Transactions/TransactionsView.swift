@@ -137,13 +137,19 @@ private struct TransactionItemView: View {
 
                 MediaImageView(
                     mediaURL: mediaPath,
-                    contentMode: .fill
+                    contentMode: .fill,
+                    placeholder: {
+                        AnyView(
+                            RoundedRectangle(cornerRadius: 12)
+                                .fill(Color.white)
+                        )
+                    }
                 )
                 .frame(width: 80, height: 80)
-                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                .clipShape(RoundedRectangle(cornerRadius: 12))
             } else {
-                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .fill(Color.gray5)
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(Color.white)
                     .frame(width: 80, height: 80)
                     .overlay {
                         Image(systemName: "photo")
@@ -151,7 +157,7 @@ private struct TransactionItemView: View {
                     }
             }
 
-            VStack(alignment: .leading, spacing: 6) {
+            VStack(alignment: .leading, spacing: 4) {
                 Text(transaction.productName)
                     .Body1()
                     .foregroundColor(.gray1)
@@ -174,19 +180,15 @@ private struct TransactionItemView: View {
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-
-            Image(systemName: "chevron.right")
-                .font(.system(size: 14))
-                .foregroundColor(.gray3)
         }
         .padding(16)
         .background(
             RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .fill(Color.white)
+                .fill(Color.gray5)
         )
         .overlay(
             RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .stroke(Color.gray4, lineWidth: 1)
+                .stroke(Color.gray4, lineWidth: 0.5)
         )
         .contentShape(Rectangle())
         .onTapGesture {
@@ -198,12 +200,12 @@ private struct TransactionItemView: View {
 private struct TransactionShimmerView: View {
     var body: some View {
         HStack(spacing: 12) {
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
+            RoundedRectangle(cornerRadius: 12)
                 .fill(Color.gray4)
                 .frame(width: 80, height: 80)
                 .shimmer()
 
-            VStack(alignment: .leading, spacing: 6) {
+            VStack(alignment: .leading, spacing: 4) {
                 RoundedRectangle(cornerRadius: 4)
                     .fill(Color.gray4)
                     .frame(height: 16)
@@ -211,31 +213,33 @@ private struct TransactionShimmerView: View {
 
                 RoundedRectangle(cornerRadius: 4)
                     .fill(Color.gray4)
-                    .frame(width: 100, height: 20)
+                    .frame(width: 80, height: 16)
                     .shimmer()
 
                 Spacer()
 
-                RoundedRectangle(cornerRadius: 4)
-                    .fill(Color.gray4)
-                    .frame(width: 120, height: 12)
-                    .shimmer()
+                HStack(spacing: 6) {
+                    Circle()
+                        .fill(Color.gray4)
+                        .frame(width: 12, height: 12)
+                        .shimmer()
+
+                    RoundedRectangle(cornerRadius: 4)
+                        .fill(Color.gray4)
+                        .frame(width: 100, height: 12)
+                        .shimmer()
+                }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-
-            Circle()
-                .fill(Color.gray4)
-                .frame(width: 20, height: 20)
-                .shimmer()
         }
         .padding(16)
         .background(
             RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .fill(Color.white)
+                .fill(Color.gray5)
         )
         .overlay(
             RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .stroke(Color.gray4, lineWidth: 1)
+                .stroke(Color.gray4, lineWidth: 0.5)
         )
     }
 }
