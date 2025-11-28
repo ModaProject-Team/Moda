@@ -8,7 +8,9 @@
 import Foundation
 
 /// 앱 내부에서 사용하는 게시글 Domain Model
-struct Post {
+struct Post: Identifiable {
+    var id: String { postId }
+
     let postId: String
     let category: String
     let title: String
