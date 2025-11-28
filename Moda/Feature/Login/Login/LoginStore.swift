@@ -174,15 +174,17 @@ final class LoginStore: ObservableObject {
 
     private func loginWithKakaoTalkAsync() async throws -> OAuthToken {
         try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<OAuthToken, Error>) in
-            UserApi.shared.loginWithKakaoTalk { token, error in
-                if let token = token {
-                    continuation.resume(returning: token)
-                } else {
-                    continuation.resume(throwing: error ?? NSError(
-                        domain: "KakaoLogin",
-                        code: -1,
-                        userInfo: [NSLocalizedDescriptionKey: "카카오톡 로그인에 실패했습니다"]
-                    ))
+            DispatchQueue.main.async {
+                UserApi.shared.loginWithKakaoTalk { token, error in
+                    if let token = token {
+                        continuation.resume(returning: token)
+                    } else {
+                        continuation.resume(throwing: error ?? NSError(
+                            domain: "KakaoLogin",
+                            code: -1,
+                            userInfo: [NSLocalizedDescriptionKey: "카카오톡 로그인에 실패했습니다"]
+                        ))
+                    }
                 }
             }
         }
@@ -190,15 +192,17 @@ final class LoginStore: ObservableObject {
 
     private func loginWithKakaoAccountAsync() async throws -> OAuthToken {
         try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<OAuthToken, Error>) in
-            UserApi.shared.loginWithKakaoAccount { token, error in
-                if let token = token {
-                    continuation.resume(returning: token)
-                } else {
-                    continuation.resume(throwing: error ?? NSError(
-                        domain: "KakaoLogin",
-                        code: -1,
-                        userInfo: [NSLocalizedDescriptionKey: "카카오계정 로그인에 실패했습니다"]
-                    ))
+            DispatchQueue.main.async {
+                UserApi.shared.loginWithKakaoAccount { token, error in
+                    if let token = token {
+                        continuation.resume(returning: token)
+                    } else {
+                        continuation.resume(throwing: error ?? NSError(
+                            domain: "KakaoLogin",
+                            code: -1,
+                            userInfo: [NSLocalizedDescriptionKey: "카카오계정 로그인에 실패했습니다"]
+                        ))
+                    }
                 }
             }
         }
