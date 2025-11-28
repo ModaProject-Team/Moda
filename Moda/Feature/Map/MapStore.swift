@@ -175,6 +175,17 @@ final class MapStore: NSObject, ObservableObject {
             if let index = state.clusterSheetPosts.firstIndex(where: { $0.id == postId }) {
                 state.clusterSheetPosts[index].like = isLiked
             }
+
+        case .refresh:
+            // 현재 지도 중심 위치에서 게시물 다시 불러오기
+            if let center = state.mapCenterCoordinate {
+                let maxDistance = state.currentSpan.latitudeDelta * 111000 / 2
+                send(.fetchPostsByLocation(
+                    longitude: center.longitude,
+                    latitude: center.latitude,
+                    maxDistance: maxDistance
+                ))
+            }
         }
     }
 

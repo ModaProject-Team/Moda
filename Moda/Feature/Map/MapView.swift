@@ -245,6 +245,12 @@ struct MapView: View {
                 store.send(.updateLikeFromExternal(postId: postId, isLiked: isLiked))
             }
         }
+        .onReceive(NotificationCenter.default.publisher(for: .postDeleted)) { _ in
+            store.send(.refresh)
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .postUpdated)) { _ in
+            store.send(.refresh)
+        }
     }
 }
 
