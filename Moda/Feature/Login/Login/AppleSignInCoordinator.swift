@@ -2,7 +2,7 @@
 //  AppleSignInCoordinator.swift
 //  Moda
 //
-//  Created by Claude on 11/28/25.
+//  Created by Suji Jang on 11/28/25.
 //
 
 import AuthenticationServices
