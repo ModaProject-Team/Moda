@@ -33,20 +33,20 @@ struct MapPostCardView: View {
                     )
                 }
             )
-            .frame(width: 70, height: 70)
-            .clipShape(RoundedRectangle(cornerRadius: 10))
+            .frame(width: 80, height: 80)
+            .clipShape(RoundedRectangle(cornerRadius: 12))
 
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: 6) {
                 Text(post.title)
-                    .font(.system(size: 15, weight: .semibold))
+                    .H2()
                     .foregroundColor(.gray1)
                     .lineLimit(1)
 
                 Text("\(post.price.formatted())원")
-                    .font(.system(size: 14, weight: .medium))
+                    .Body1()
                     .foregroundColor(.blue1)
 
-                HStack(spacing: 4) {
+                HStack(spacing: 6) {
                     KFImage(URL(string: "\(NetworkConfig.baseURL)/v1\(post.profileImage)"))
                         .requestModifier(KFHeaders.modifier)
                         .placeholder {
@@ -56,11 +56,11 @@ struct MapPostCardView: View {
                         .cacheOriginalImage()
                         .resizable()
                         .aspectRatio(contentMode: .fill)
-                        .frame(width: 16, height: 16)
+                        .frame(width: 18, height: 18)
                         .clipShape(Circle())
 
                     Text(post.nickname)
-                        .font(.system(size: 12))
+                        .Body2()
                         .foregroundColor(.gray2)
                 }
             }
@@ -73,14 +73,12 @@ struct MapPostCardView: View {
             } label: {
                 Image(systemName: isLiked ? "heart.fill" : "heart")
                     .foregroundColor(isLiked ? .pink1 : .gray3)
-                    .font(.system(size: 20))
+                    .font(.system(size: 18))
             }
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 12)
+        .padding(16)
         .background(Color.white)
-        .cornerRadius(12)
-        .shadow(color: .black.opacity(0.15), radius: 10, x: 0, y: -2)
+        .cornerRadius(16)
         .padding(.horizontal, 16)
         .padding(.bottom, 60)
         .contentShape(Rectangle())

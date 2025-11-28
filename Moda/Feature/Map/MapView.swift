@@ -25,7 +25,7 @@ struct MapView: View {
                 ForEach(store.state.mapItems) { item in
                     switch item {
                     case .single(let post):
-                        Annotation(post.title, coordinate: post.coordinate) {
+                        Annotation("", coordinate: post.coordinate) {
                             CustomAnnotationView(
                                 post: post,
                                 isSelected: store.state.selectedPostId == post.id
@@ -94,46 +94,46 @@ struct MapView: View {
                     Button {
                         store.send(.searchInCurrentMap)
                     } label: {
-                        HStack(spacing: 4) {
+                        HStack(spacing: 6) {
                             Image(systemName: "arrow.clockwise")
-                                .font(.caption)
+                                .font(.system(size: 14))
                             Text("현 지도에서 검색")
-                                .font(.caption)
-                                .fontWeight(.medium)
+                                .Body2()
                         }
                         .foregroundColor(.white)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 8)
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 12)
                         .background(Color.blue1)
                         .clipShape(Capsule())
-                        .shadow(radius: 3)
                     }
-                    .padding(.top, 8)
+                    .frame(height: 44)
+                    .padding(.top, 16)
                 }
 
                 Spacer()
             }
 
-            // 우측 상단 - 현재 위치 버튼 (고정)
+            // 우측 상단 - 현재 위치 버튼
             VStack {
                 HStack {
                     Spacer()
+
                     Button {
                         withAnimation {
                             store.send(.moveToUserLocation)
                         }
                     } label: {
-                        Image(systemName: "dot.scope")
-                            .font(.title3)
+                        Image(systemName: "location.fill")
+                            .font(.system(size: 16))
                             .foregroundColor(.white)
-                            .padding(.all, 8)
+                            .frame(width: 44, height: 44)
                             .background(Color.blue1)
                             .clipShape(Circle())
-                            .shadow(radius: 3)
                     }
-                    .padding(.top, 8)
-                    .padding(.trailing, 16)
                 }
+                .padding(.top, 16)
+                .padding(.trailing, 16)
+
                 Spacer()
             }
 
