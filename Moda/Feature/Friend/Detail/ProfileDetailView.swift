@@ -18,8 +18,8 @@ private enum ProfileTab: String, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .myItems: return "내물건"
-        case .likeItems: return "찜한목록"
+        case .myItems: return "내 물건"
+        case .likeItems: return "찜한 목록"
         }
     }
 }
@@ -412,16 +412,6 @@ struct ProfileDetailView: View {
                 } label: {
                     Image(systemName: "chevron.left")
                         .foregroundColor(.gray1)
-                }
-            }
-
-            if store.state.isCurrentUser {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button("수정") {
-                        store.send(.editTapped)
-                    }
-                    .font(.custom("SUIT-Medium", size: 14))
-                    .foregroundColor(.gray1)
                 }
             }
         }

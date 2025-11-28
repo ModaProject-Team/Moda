@@ -111,27 +111,30 @@ struct FriendSearchView: View {
     }
 
     private var searchBarSection: some View {
-        HStack(spacing: 8) {
-            FriendSearchBar(
-                text: Binding(
-                    get: { store.state.query },
-                    set: { store.send(.queryChanged($0)) }
-                ),
-                isFocused: _isSearching,
-                onClear: { store.send(.clearTapped) }
-            )
-            .padding(.vertical, 8)
-
-            Button("취소") {
-                store.send(.clearTapped)
-                isSearching = false
-                dismiss()
-            }
-            .font(.custom("SUIT-Medium", size: 14))
-            .foregroundColor(.gray1)
-        }
+        FriendSearchBar(
+            text: Binding(
+                get: { store.state.query },
+                set: { store.send(.queryChanged($0)) }
+            ),
+            isFocused: _isSearching,
+            onClear: { store.send(.clearTapped) }
+        )
         .padding(.horizontal, 16)
         .background(Color.white)
+    }
+
+    private var emptySearchView: some View {
+        VStack(spacing: 12) {
+            Spacer()
+
+            Text("친구를 검색해보세요")
+                .Body1()
+                .foregroundColor(.gray2)
+
+            Spacer()
+        }
+        .frame(maxWidth: .infinity)
+        .frame(height: UIScreen.main.bounds.height - 300)
     }
 
     private var searchResultsSection: some View {
@@ -169,12 +172,9 @@ private struct FriendSearchBar: View {
 
     var body: some View {
         HStack(spacing: 8) {
-            Image(systemName: "magnifyingglass")
-                .font(.system(size: 16))
-                .foregroundStyle(.secondary)
-
             TextField("검색", text: $text)
                 .font(.system(size: 16))
+                .foregroundColor(.gray1)
                 .textInputAutocapitalization(.none)
                 .disableAutocorrection(true)
                 .focused($isFocused)
@@ -185,15 +185,19 @@ private struct FriendSearchBar: View {
                     onClear()
                 } label: {
                     Image(systemName: "xmark.circle.fill")
-                        .font(.system(size: 16))
-                        .foregroundStyle(.gray.opacity(0.6))
+                        .font(.system(size: 18))
+                        .foregroundColor(.gray2)
                 }
             }
+
+            Image(systemName: "magnifyingglass")
+                .font(.system(size: 18))
+                .foregroundColor(.gray2)
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
         .background(
-            RoundedRectangle(cornerRadius: 10)
+            RoundedRectangle(cornerRadius: 25, style: .continuous)
                 .fill(Color.gray5)
         )
     }
