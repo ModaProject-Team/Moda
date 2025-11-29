@@ -31,6 +31,7 @@ enum ChatRoomIntent {
     case hideImageViewer
 
     case retryMessage(String)
+    case deleteMessage(String)
     case retryConnection
 
     case loadMoreMessages

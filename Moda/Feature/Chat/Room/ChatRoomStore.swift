@@ -107,6 +107,9 @@ final class ChatRoomStore: ObservableObject {
         case .retryMessage(let chatId):
             Task { await retryFailedMessage(chatId: chatId) }
 
+        case .deleteMessage(let chatId):
+            Task { await deleteFailedMessage(chatId: chatId) }
+
         case .retryConnection:
             Task { await retryConnection() }
 
@@ -456,6 +459,17 @@ final class ChatRoomStore: ObservableObject {
         }
 
         throw lastError ?? NetworkError.networkFailure
+    }
+
+    /// 실패한 메시지 삭제
+    /// - Parameter chatId: 삭제할 메시지 ID
+    private func deleteFailedMessage(chatId: String) async {
+        await MainActor.run {
+            self.state.messages.removeAll(where: { $0.id == chatId })
+        }
+
+        // Realm에서도 삭제
+        try? await realmService.deleteMessage(chatId: chatId)
     }
 
     private func retryFailedMessage(chatId: String) async {

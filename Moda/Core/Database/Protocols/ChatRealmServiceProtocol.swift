@@ -63,4 +63,8 @@ protocol ChatRealmServiceProtocol: Actor {
     ///   - chatId: 메시지 ID
     ///   - status: 새로운 상태 (synced, sending, failed)
     func updateMessageStatus(chatId: String, status: String) throws
+
+    /// 특정 메시지 삭제
+    /// - Parameter chatId: 메시지 ID
+    func deleteMessage(chatId: String) throws
 }

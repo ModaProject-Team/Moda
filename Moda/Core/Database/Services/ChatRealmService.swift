@@ -165,4 +165,16 @@ actor ChatRealmService: ChatRealmServiceProtocol {
             message.localStatus = status
         }
     }
+
+    func deleteMessage(chatId: String) throws {
+        let realm = try getRealm()
+
+        guard let message = realm.object(ofType: ChatMessageObject.self, forPrimaryKey: chatId) else {
+            return
+        }
+
+        try realm.write {
+            realm.delete(message)
+        }
+    }
 }

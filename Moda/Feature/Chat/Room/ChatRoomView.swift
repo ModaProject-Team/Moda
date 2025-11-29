@@ -197,7 +197,8 @@ struct ChatRoomView: View {
                             MessageBubble(
                                 message: message,
                                 onTapImage: { url in store.send(.showImageViewer(url)) },
-                                onRetry: { chatId in store.send(.retryMessage(chatId)) }
+                                onRetry: { chatId in store.send(.retryMessage(chatId)) },
+                                onDelete: { chatId in store.send(.deleteMessage(chatId)) }
                             )
                             .id(message.id)
                             .onAppear {
@@ -307,6 +308,7 @@ struct MessageBubble: View {
     let message: ChatMessage
     let onTapImage: (URL) -> Void
     let onRetry: (String) -> Void
+    let onDelete: (String) -> Void
 
     private let maxBubbleWidth: CGFloat = 220
 
@@ -352,12 +354,21 @@ struct MessageBubble: View {
                     .font(.system(size: 12))
                     .rotationEffect(.degrees(225))
             case .failed:
-                Button {
-                    onRetry(message.id)
-                } label: {
-                    Image(systemName: "arrow.clockwise.circle.fill")
-                        .foregroundColor(.red)
-                        .font(.system(size: 16))
+                HStack(spacing: 4) {
+                    Button {
+                        onRetry(message.id)
+                    } label: {
+                        Image(systemName: "arrow.clockwise.circle.fill")
+                            .foregroundColor(.red)
+                            .font(.system(size: 16))
+                    }
+                    Button {
+                        onDelete(message.id)
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .foregroundColor(.gray3)
+                            .font(.system(size: 16))
+                    }
                 }
             case .synced:
                 EmptyView()
