@@ -204,30 +204,28 @@ final class ChatRoomStore: ObservableObject {
         let userId = myUserId ?? ""
         let roomIdCopy = roomId
 
-        let localMessages = await Task.detached(priority: .utility) {
-            let messages = self.realmService.getMessages(roomId: roomIdCopy, limit: 100, currentUserId: userId)
+        let messages = await realmService.getMessages(roomId: roomIdCopy, limit: 100, currentUserId: userId)
 
-            for message in messages where message.localStatus == .sending {
-                try? self.realmService.updateMessageStatus(chatId: message.id, status: "failed")
-            }
+        for message in messages where message.localStatus == .sending {
+            try? await realmService.updateMessageStatus(chatId: message.id, status: "failed")
+        }
 
-            return messages.map { message in
-                if message.localStatus == .sending {
-                    return ChatMessage(
-                        id: message.id,
-                        content: message.content,
-                        senderId: message.senderId,
-                        senderName: message.senderName,
-                        senderProfileImage: message.senderProfileImage,
-                        createdAt: message.createdAt,
-                        isMine: message.isMine,
-                        attachment: message.attachment,
-                        localStatus: .failed
-                    )
-                }
-                return message
+        let localMessages = messages.map { message in
+            if message.localStatus == .sending {
+                return ChatMessage(
+                    id: message.id,
+                    content: message.content,
+                    senderId: message.senderId,
+                    senderName: message.senderName,
+                    senderProfileImage: message.senderProfileImage,
+                    createdAt: message.createdAt,
+                    isMine: message.isMine,
+                    attachment: message.attachment,
+                    localStatus: .failed
+                )
             }
-        }.value
+            return message
+        }
 
         await MainActor.run {
             self.state.messages = localMessages.sorted { $0.createdAt < $1.createdAt }
@@ -238,20 +236,15 @@ final class ChatRoomStore: ObservableObject {
         let userId = myUserId ?? ""
         let roomIdCopy = roomId
 
-        let lastMessage = await Task.detached {
-            self.realmService.getLastMessage(roomId: roomIdCopy)
-        }.value
-
+        let lastMessage = await realmService.getLastMessage(roomId: roomIdCopy)
         let cursorDate = lastMessage?.createdAt
 
         let history = try await chatAPI.getMessages(roomId: roomId, cursorDate: cursorDate)
 
-        let allLocalMessages = await Task.detached(priority: .utility) {
-            let messageObjects = history.data.map { ChatMessageObject.from(response: $0) }
-            try? self.realmService.saveMessages(messageObjects)
+        let messageObjects = history.data.map { ChatMessageObject.from(response: $0) }
+        try? await realmService.saveMessages(messageObjects)
 
-            return self.realmService.getMessages(roomId: roomIdCopy, limit: 100, currentUserId: userId)
-        }.value
+        let allLocalMessages = await realmService.getMessages(roomId: roomIdCopy, limit: 100, currentUserId: userId)
 
         await MainActor.run {
             self.state.messages = allLocalMessages.sorted { $0.createdAt < $1.createdAt }
@@ -268,22 +261,20 @@ final class ChatRoomStore: ObservableObject {
     private func handleRealtimeMessage(_ dto: ChatMessageResponse) async {
         let userId = myUserId ?? ""
 
-        let mapped = await Task.detached(priority: .utility) {
-            let messageObject = ChatMessageObject.from(response: dto)
-            try? self.realmService.saveMessage(messageObject)
+        let messageObject = ChatMessageObject.from(response: dto)
+        try? await realmService.saveMessage(messageObject)
 
-            return ChatMessage(
-                id: dto.chatId,
-                content: dto.content ?? "",
-                senderId: dto.sender.userId,
-                senderName: dto.sender.nick,
-                senderProfileImage: dto.sender.profileImage,
-                createdAt: self.parseISO(dto.createdAt),
-                isMine: dto.sender.userId == userId,
-                attachment: self.parseAttachment(dto.files),
-                localStatus: .synced
-            )
-        }.value
+        let mapped = ChatMessage(
+            id: dto.chatId,
+            content: dto.content ?? "",
+            senderId: dto.sender.userId,
+            senderName: dto.sender.nick,
+            senderProfileImage: dto.sender.profileImage,
+            createdAt: parseISO(dto.createdAt),
+            isMine: dto.sender.userId == userId,
+            attachment: parseAttachment(dto.files),
+            localStatus: .synced
+        )
 
         await MainActor.run {
             if !self.state.messages.contains(where: { $0.id == mapped.id }) {
@@ -359,34 +350,32 @@ final class ChatRoomStore: ObservableObject {
 
         let roomIdCopy = roomId
 
-        let optimistic = await Task.detached {
-            let optimisticMessage = ChatMessageObject(
-                chatId: tempId,
-                roomId: roomIdCopy,
-                createdAt: ISO8601DateFormatter().string(from: Date()),
-                createdAtDate: Date(),
-                content: text,
-                senderId: me?.userId ?? userId,
-                senderNick: me?.nick ?? "",
-                senderProfileImage: me?.profileImage,
-                filesJson: nil,
-                localStatus: "sending"
-            )
+        let optimisticMessage = ChatMessageObject(
+            chatId: tempId,
+            roomId: roomIdCopy,
+            createdAt: ISO8601DateFormatter().string(from: Date()),
+            createdAtDate: Date(),
+            content: text,
+            senderId: me?.userId ?? userId,
+            senderNick: me?.nick ?? "",
+            senderProfileImage: me?.profileImage,
+            filesJson: nil,
+            localStatus: "sending"
+        )
 
-            try? self.realmService.saveMessage(optimisticMessage)
+        try? await realmService.saveMessage(optimisticMessage)
 
-            return ChatMessage(
-                id: tempId,
-                content: text,
-                senderId: me?.userId ?? userId,
-                senderName: me?.nick ?? "",
-                senderProfileImage: me?.profileImage,
-                createdAt: Date(),
-                isMine: true,
-                attachment: nil,
-                localStatus: .sending
-            )
-        }.value
+        let optimistic = ChatMessage(
+            id: tempId,
+            content: text,
+            senderId: me?.userId ?? userId,
+            senderName: me?.nick ?? "",
+            senderProfileImage: me?.profileImage,
+            createdAt: Date(),
+            isMine: true,
+            attachment: nil,
+            localStatus: .sending
+        )
 
         await MainActor.run {
             self.state.messages.append(optimistic)
@@ -395,22 +384,20 @@ final class ChatRoomStore: ObservableObject {
         do {
             let sent = try await sendMessageWithRetry(content: text, files: nil, retryCount: 3)
 
-            let mapped = await Task.detached {
-                let actualMessage = ChatMessageObject.from(response: sent)
-                try? self.realmService.saveMessage(actualMessage)
+            let actualMessage = ChatMessageObject.from(response: sent)
+            try? await realmService.saveMessage(actualMessage)
 
-                return ChatMessage(
-                    id: sent.chatId,
-                    content: sent.content ?? "",
-                    senderId: sent.sender.userId,
-                    senderName: sent.sender.nick,
-                    senderProfileImage: sent.sender.profileImage,
-                    createdAt: self.parseISO(sent.createdAt),
-                    isMine: sent.sender.userId == userId,
-                    attachment: self.parseAttachment(sent.files),
-                    localStatus: .synced
-                )
-            }.value
+            let mapped = ChatMessage(
+                id: sent.chatId,
+                content: sent.content ?? "",
+                senderId: sent.sender.userId,
+                senderName: sent.sender.nick,
+                senderProfileImage: sent.sender.profileImage,
+                createdAt: parseISO(sent.createdAt),
+                isMine: sent.sender.userId == userId,
+                attachment: parseAttachment(sent.files),
+                localStatus: .synced
+            )
 
             await MainActor.run {
                 if let index = self.state.messages.firstIndex(where: { $0.id == tempId }) {
@@ -421,9 +408,7 @@ final class ChatRoomStore: ObservableObject {
                 }
             }
         } catch {
-            await Task.detached {
-                try? self.realmService.updateMessageStatus(chatId: tempId, status: "failed")
-            }.value
+            try? await realmService.updateMessageStatus(chatId: tempId, status: "failed")
 
             await MainActor.run {
                 if let index = self.state.messages.firstIndex(where: { $0.id == tempId }) {
@@ -462,9 +447,7 @@ final class ChatRoomStore: ObservableObject {
     }
 
     private func retryFailedMessage(chatId: String) async {
-        let message = await Task.detached {
-            self.realmService.getMessage(chatId: chatId)
-        }.value
+        let message = await realmService.getMessage(chatId: chatId)
 
         guard let message = message else { return }
         guard message.localStatus == .failed else { return }
@@ -485,22 +468,20 @@ final class ChatRoomStore: ObservableObject {
             )
 
             let userId = myUserId ?? ""
-            let mapped = await Task.detached {
-                let actualMessage = ChatMessageObject.from(response: sent)
-                try? self.realmService.saveMessage(actualMessage)
+            let actualMessage = ChatMessageObject.from(response: sent)
+            try? await realmService.saveMessage(actualMessage)
 
-                return ChatMessage(
-                    id: sent.chatId,
-                    content: sent.content ?? "",
-                    senderId: sent.sender.userId,
-                    senderName: sent.sender.nick,
-                    senderProfileImage: sent.sender.profileImage,
-                    createdAt: self.parseISO(sent.createdAt),
-                    isMine: sent.sender.userId == userId,
-                    attachment: self.parseAttachment(sent.files),
-                    localStatus: .synced
-                )
-            }.value
+            let mapped = ChatMessage(
+                id: sent.chatId,
+                content: sent.content ?? "",
+                senderId: sent.sender.userId,
+                senderName: sent.sender.nick,
+                senderProfileImage: sent.sender.profileImage,
+                createdAt: parseISO(sent.createdAt),
+                isMine: sent.sender.userId == userId,
+                attachment: parseAttachment(sent.files),
+                localStatus: .synced
+            )
 
             await MainActor.run {
                 if !self.state.messages.contains(where: { $0.id == mapped.id }) {
@@ -509,9 +490,7 @@ final class ChatRoomStore: ObservableObject {
                 }
             }
         } catch {
-            await Task.detached {
-                try? self.realmService.updateMessageStatus(chatId: chatId, status: "failed")
-            }.value
+            try? await realmService.updateMessageStatus(chatId: chatId, status: "failed")
 
             await MainActor.run {
                 let failedMessage = ChatMessage(
@@ -549,34 +528,32 @@ final class ChatRoomStore: ObservableObject {
             let me = try? await userProfileAPI.getMyProfile()
             let roomIdCopy = roomId
 
-            let optimistic = await Task.detached {
-                let optimisticMessage = ChatMessageObject(
-                    chatId: tempId,
-                    roomId: roomIdCopy,
-                    createdAt: ISO8601DateFormatter().string(from: Date()),
-                    createdAtDate: Date(),
-                    content: nil,
-                    senderId: me?.userId ?? userId,
-                    senderNick: me?.nick ?? "",
-                    senderProfileImage: me?.profileImage,
-                    filesJson: nil,
-                    localStatus: "sending"
-                )
+            let optimisticMessage = ChatMessageObject(
+                chatId: tempId,
+                roomId: roomIdCopy,
+                createdAt: ISO8601DateFormatter().string(from: Date()),
+                createdAtDate: Date(),
+                content: nil,
+                senderId: me?.userId ?? userId,
+                senderNick: me?.nick ?? "",
+                senderProfileImage: me?.profileImage,
+                filesJson: nil,
+                localStatus: "sending"
+            )
 
-                try? self.realmService.saveMessage(optimisticMessage)
+            try? await realmService.saveMessage(optimisticMessage)
 
-                return ChatMessage(
-                    id: tempId,
-                    content: "",
-                    senderId: me?.userId ?? userId,
-                    senderName: me?.nick ?? "",
-                    senderProfileImage: me?.profileImage,
-                    createdAt: Date(),
-                    isMine: true,
-                    attachment: nil,
-                    localStatus: .sending
-                )
-            }.value
+            let optimistic = ChatMessage(
+                id: tempId,
+                content: "",
+                senderId: me?.userId ?? userId,
+                senderName: me?.nick ?? "",
+                senderProfileImage: me?.profileImage,
+                createdAt: Date(),
+                isMine: true,
+                attachment: nil,
+                localStatus: .sending
+            )
 
             await MainActor.run {
                 self.state.messages.append(optimistic)
@@ -587,22 +564,20 @@ final class ChatRoomStore: ObservableObject {
                 let uploadResponse = try await chatAPI.uploadFiles(roomId: roomId, files: files)
                 let sent = try await sendMessageWithRetry(content: nil, files: uploadResponse.files, retryCount: 3)
 
-                let mapped = await Task.detached {
-                    let messageObject = ChatMessageObject.from(response: sent)
-                    try? self.realmService.saveMessage(messageObject)
+                let messageObject = ChatMessageObject.from(response: sent)
+                try? await realmService.saveMessage(messageObject)
 
-                    return ChatMessage(
-                        id: sent.chatId,
-                        content: sent.content ?? "",
-                        senderId: sent.sender.userId,
-                        senderName: sent.sender.nick,
-                        senderProfileImage: sent.sender.profileImage,
-                        createdAt: self.parseISO(sent.createdAt),
-                        isMine: sent.sender.userId == userId,
-                        attachment: self.parseAttachment(sent.files),
-                        localStatus: .synced
-                    )
-                }.value
+                let mapped = ChatMessage(
+                    id: sent.chatId,
+                    content: sent.content ?? "",
+                    senderId: sent.sender.userId,
+                    senderName: sent.sender.nick,
+                    senderProfileImage: sent.sender.profileImage,
+                    createdAt: parseISO(sent.createdAt),
+                    isMine: sent.sender.userId == userId,
+                    attachment: parseAttachment(sent.files),
+                    localStatus: .synced
+                )
 
                 await MainActor.run {
                     if let index = self.state.messages.firstIndex(where: { $0.id == tempId }) {
@@ -615,9 +590,7 @@ final class ChatRoomStore: ObservableObject {
                     self.state.pendingType = .none
                 }
             } catch {
-                await Task.detached {
-                    try? self.realmService.updateMessageStatus(chatId: tempId, status: "failed")
-                }.value
+                try? await realmService.updateMessageStatus(chatId: tempId, status: "failed")
 
                 await MainActor.run {
                     if let index = self.state.messages.firstIndex(where: { $0.id == tempId }) {
@@ -670,24 +643,22 @@ final class ChatRoomStore: ObservableObject {
                 return
             }
 
-            let newMessages = await Task.detached(priority: .utility) {
-                let messageObjects = history.data.map { ChatMessageObject.from(response: $0) }
-                try? self.realmService.saveMessages(messageObjects)
+            let messageObjects = history.data.map { ChatMessageObject.from(response: $0) }
+            try? await realmService.saveMessages(messageObjects)
 
-                return history.data.map { dto in
-                    ChatMessage(
-                        id: dto.chatId,
-                        content: dto.content ?? "",
-                        senderId: dto.sender.userId,
-                        senderName: dto.sender.nick,
-                        senderProfileImage: dto.sender.profileImage,
-                        createdAt: self.parseISO(dto.createdAt),
-                        isMine: dto.sender.userId == userId,
-                        attachment: self.parseAttachment(dto.files),
-                        localStatus: .synced
-                    )
-                }
-            }.value
+            let newMessages = history.data.map { dto in
+                ChatMessage(
+                    id: dto.chatId,
+                    content: dto.content ?? "",
+                    senderId: dto.sender.userId,
+                    senderName: dto.sender.nick,
+                    senderProfileImage: dto.sender.profileImage,
+                    createdAt: parseISO(dto.createdAt),
+                    isMine: dto.sender.userId == userId,
+                    attachment: parseAttachment(dto.files),
+                    localStatus: .synced
+                )
+            }
 
             await MainActor.run {
                 let existingIds = Set(self.state.messages.map { $0.id })

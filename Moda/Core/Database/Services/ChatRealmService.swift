@@ -9,7 +9,7 @@ import Foundation
 import RealmSwift
 
 /// 채팅 메시지 로컬 저장소 구현체
-final class ChatRealmService: ChatRealmServiceProtocol {
+actor ChatRealmService: ChatRealmServiceProtocol {
     static let shared = ChatRealmService()
 
     private let configuration: Realm.Configuration

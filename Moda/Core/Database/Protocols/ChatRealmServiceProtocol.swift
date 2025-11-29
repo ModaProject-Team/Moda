@@ -8,7 +8,7 @@
 import Foundation
 
 /// 채팅 메시지 로컬 저장소 프로토콜
-protocol ChatRealmServiceProtocol {
+protocol ChatRealmServiceProtocol: Actor {
     /// 단일 메시지 저장
     /// - Parameter message: 저장할 메시지 객체
     func saveMessage(_ message: ChatMessageObject) throws
