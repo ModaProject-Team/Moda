@@ -1,5 +1,5 @@
 {
-  "originHash" : "5fa4ccdd982192b0fbd56a17748c86112cd1f39de8960479b967307fc3547ead",
+  "originHash" : "5bb99747277033723cf8835e3ce105de37ba11b8614204973e066a74ca32b107",
   "pins" : [
     {
       "identity" : "alamofire",
@@ -38,6 +38,24 @@
       }
     },
     {
+      "identity" : "realm-core",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/realm/realm-core.git",
+      "state" : {
+        "revision" : "cccb3ca9e26ec452a29f2f0d4050d1e38b8a3d43",
+        "version" : "14.14.0"
+      }
+    },
+    {
+      "identity" : "realm-swift",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/realm/realm-swift.git",
+      "state" : {
+        "branch" : "master",
+        "revision" : "c22f9303d446fc3c044e4c151ed19597464b6bd7"
+      }
+    },
+    {
       "identity" : "rxswift",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/ReactiveX/RxSwift.git",
@@ -49,7 +67,7 @@
     {
       "identity" : "socket.io-client-swift",
       "kind" : "remoteSourceControl",
-      "location" : "https://github.com/socketio/socket.io-client-swift.git",
+      "location" : "https://github.com/socketio/socket.io-client-swift",
       "state" : {
         "branch" : "master",
         "revision" : "42da871d9369f290d6ec4930636c40672143905b"

@@ -16,9 +16,16 @@ struct ChatMessage: Identifiable {
     let createdAt: Date
     let isMine: Bool
     let attachment: Attachment?
+    let localStatus: LocalStatus
 
     enum Attachment: Equatable {
         case image(URL)
+    }
+
+    enum LocalStatus: String {
+        case synced
+        case sending
+        case failed
     }
 }
 
@@ -39,5 +46,21 @@ struct ChatRoomState {
     var showImageViewer: Bool = false
     var selectedImageURL: URL? = nil
 
+    var isNetworkError: Bool = false
+
+    var isLoadingMore: Bool = false
+    var hasMoreMessages: Bool = true
+
     enum PendingType { case image, none }
+
+    /// 메시지 정렬: synced 메시지는 시간순, sending/failed 메시지는 맨 아래
+    var sortedMessages: [ChatMessage] {
+        let syncedMessages = messages.filter { $0.localStatus == .synced }
+            .sorted { $0.createdAt < $1.createdAt }
+
+        let pendingMessages = messages.filter { $0.localStatus == .sending || $0.localStatus == .failed }
+            .sorted { $0.createdAt < $1.createdAt }
+
+        return syncedMessages + pendingMessages
+    }
 }

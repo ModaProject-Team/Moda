@@ -14,9 +14,14 @@ final class ProfileEditStore {
     var state = ProfileEditState()
 
     private let userProfileAPI: UserProfileAPIProtocol
+    private let userRealmService: UserRealmServiceProtocol
 
-    init(userProfileAPI: UserProfileAPIProtocol = UserProfileAPI.shared) {
+    init(
+        userProfileAPI: UserProfileAPIProtocol = UserProfileAPI.shared,
+        userRealmService: UserRealmServiceProtocol = UserRealmService.shared
+    ) {
         self.userProfileAPI = userProfileAPI
+        self.userRealmService = userRealmService
     }
 
     func send(_ intent: ProfileEditIntent) {
@@ -45,6 +50,17 @@ final class ProfileEditStore {
     private func loadProfile() {
         state.isLoading = true
         Task {
+            // 로컬 프로필 먼저 로드
+            if let localProfile = await userRealmService.getMyProfileData() {
+                state.nickname = localProfile.nick
+                state.statusMessage = localProfile.info1 ?? ""
+                if let profilePath = localProfile.profileImage,
+                   let url = URL(string: NetworkConfig.baseURL + "/v1/" + profilePath) {
+                    state.profileImageURL = url
+                }
+            }
+
+            // 서버와 동기화 시도
             do {
                 let response = try await userProfileAPI.getMyProfile()
                 state.nickname = response.nick
@@ -53,7 +69,12 @@ final class ProfileEditStore {
                    let url = URL(string: NetworkConfig.baseURL + "/v1/" + profilePath) {
                     state.profileImageURL = url
                 }
+
+                // 서버 프로필을 로컬에 저장
+                let userObject = UserObject.from(response: response)
+                try? await userRealmService.saveMyProfile(userObject)
             } catch {
+                // 네트워크 오류 시 로컬 데이터로 유지
                 state.errorMessage = "프로필을 불러올 수 없습니다."
             }
             state.isLoading = false
@@ -95,11 +116,15 @@ final class ProfileEditStore {
                 let nickToSend = state.nickname.trimmingCharacters(in: .whitespaces).isEmpty ? nil : state.nickname.trimmingCharacters(in: .whitespaces)
                 let statusToSend = state.statusMessage.trimmingCharacters(in: .whitespaces).isEmpty ? nil : state.statusMessage
 
-                _ = try await userProfileAPI.updateMyProfile(
+                let updatedProfile = try await userProfileAPI.updateMyProfile(
                     nick: nickToSend,
                     profileImage: imageData,
                     info1: statusToSend
                 )
+
+                // 로컬 DB에 즉시 반영
+                let userObject = UserObject.from(response: updatedProfile)
+                try? await userRealmService.saveMyProfile(userObject)
 
                 state.shouldDismiss = true
             } catch {
