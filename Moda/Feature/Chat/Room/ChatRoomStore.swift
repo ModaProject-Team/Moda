@@ -7,6 +7,7 @@
 
 import SwiftUI
 import PhotosUI
+import Combine
 
 final class ChatRoomStore: ObservableObject {
     @Published private(set) var state = ChatRoomState()
@@ -16,10 +17,12 @@ final class ChatRoomStore: ObservableObject {
     private let userProfileAPI: UserProfileAPIProtocol
     private let socketService: ChatSocketServiceProtocol
     private let realmService: ChatRealmServiceProtocol
+    private let networkMonitor: NetworkMonitor
 
     private var myUserId: String?
     private var bufferedMessages: [ChatMessageResponse] = []
     private var isSocketReady = false
+    private var cancellables = Set<AnyCancellable>()
 
     init(
         roomId: String,
@@ -27,22 +30,27 @@ final class ChatRoomStore: ObservableObject {
         chatAPI: ChatAPIProtocol = ChatAPI.shared,
         userProfileAPI: UserProfileAPIProtocol = UserProfileAPI.shared,
         socketService: ChatSocketServiceProtocol = ChatSocketService(),
-        realmService: ChatRealmServiceProtocol = ChatRealmService.shared
+        realmService: ChatRealmServiceProtocol = ChatRealmService.shared,
+        networkMonitor: NetworkMonitor = NetworkMonitor.shared
     ) {
         self.roomId = roomId
         self.chatAPI = chatAPI
         self.userProfileAPI = userProfileAPI
         self.socketService = socketService
         self.realmService = realmService
+        self.networkMonitor = networkMonitor
         self.state.participantName = participantName
         setupSocketCallbacks()
+        setupNetworkMonitoring()
     }
 
     func send(_ intent: ChatRoomIntent) {
         switch intent {
         case .onAppear:
+            networkMonitor.startMonitoring()
             Task { await loadAndConnect() }
         case .onDisappear:
+            networkMonitor.stopMonitoring()
             disconnectSocket()
         case .inputTextChanged(let text):
             state.inputText = text
@@ -128,6 +136,29 @@ final class ChatRoomStore: ObservableObject {
                 self.bufferedMessages.append(dto)
             }
         }
+    }
+
+    private func setupNetworkMonitoring() {
+        networkMonitor.$isConnected
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] isConnected in
+                guard let self = self else { return }
+                self.state.isNetworkError = !isConnected
+
+                if isConnected {
+                    Task {
+                        try? await self.reconnectIfNeeded()
+                    }
+                }
+            }
+            .store(in: &cancellables)
+    }
+
+    private func reconnectIfNeeded() async throws {
+        disconnectSocket()
+        try? await Task.sleep(nanoseconds: 500_000_000)
+        connectSocket()
+        try await syncWithServer()
     }
 
     private func loadAndConnect() async {

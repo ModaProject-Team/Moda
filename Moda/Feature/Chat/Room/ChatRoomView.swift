@@ -235,23 +235,11 @@ struct ChatRoomView: View {
                     .foregroundColor(.white)
                     .font(.system(size: 14))
 
-                Text("네트워크 연결 끊김")
+                Text("네트워크가 연결되지 않았습니다")
                     .Body2()
                     .foregroundColor(.white)
 
                 Spacer()
-
-                Button {
-                    store.send(.retryConnection)
-                } label: {
-                    Text("재시도")
-                        .Body2()
-                        .foregroundColor(.white)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 4)
-                        .background(Color.white.opacity(0.2))
-                        .cornerRadius(4)
-                }
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 12)
