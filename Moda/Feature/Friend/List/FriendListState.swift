@@ -16,7 +16,9 @@ struct People: Identifiable, Hashable {
 
 struct FriendListState {
     var myProfile: MyProfileResponse?
+    var localMyProfile: UserProfileData?
     var friends: [OtherProfileResponse] = []
+    var localFriends: [FriendData] = []
     var isLoading: Bool = false
     var errorMessage: String?
 }

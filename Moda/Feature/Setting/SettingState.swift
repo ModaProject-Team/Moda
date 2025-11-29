@@ -11,6 +11,7 @@ struct SettingState {
     var nickname: String = ""
     var profileImageURL: URL? = nil
     var latestPostImageURL: URL? = nil
+    var localProfile: UserProfileData? = nil
 
     var isLoading: Bool = false
     var errorMessage: String? = nil

@@ -18,19 +18,12 @@ final class RealmMigration {
     static func configuration() -> Realm.Configuration {
         var config = Realm.Configuration.defaultConfiguration
         config.schemaVersion = currentSchemaVersion
-        config.migrationBlock = { migration, oldSchemaVersion in
-            if oldSchemaVersion < 1 {
-                // 초기 버전 (0 → 1)
-                // 새로운 프로퍼티 추가 시 자동 마이그레이션
-            }
-
-            // 향후 버전 마이그레이션 예시:
-            // if oldSchemaVersion < 2 {
-            //     migration.enumerateObjects(ofType: ChatMessageObject.className()) { oldObject, newObject in
-            //         // 필드 변경 또는 데이터 변환
-            //     }
-            // }
-        }
+        config.objectTypes = [
+            ChatRoomObject.self,
+            ChatMessageObject.self,
+            UserObject.self,
+            FriendObject.self
+        ]
 
         return config
     }
