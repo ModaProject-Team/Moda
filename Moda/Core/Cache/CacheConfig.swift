@@ -27,12 +27,22 @@ struct CacheConfig {
     /// 기본값: 7일
     let expirationDays: Int
 
+    /// 다운로드 최대 재시도 횟수
+    /// 기본값: 3회
+    let maxRetryCount: Int
+
+    /// 재시도 간격 (초)
+    /// 기본값: 1.0초
+    let retryDelay: TimeInterval
+
     /// 기본 캐시 설정
     static let `default` = CacheConfig(
         maxVideoCacheSize: 230 * 1024 * 1024,      // 230MB
         maxThumbnailCacheSize: 20 * 1024 * 1024,   // 20MB
         maxMemoryCacheSize: 50 * 1024 * 1024,      // 50MB
-        expirationDays: 7
+        expirationDays: 7,
+        maxRetryCount: 3,
+        retryDelay: 1.0
     )
 
     /// 캐시 설정 초기화
@@ -41,15 +51,21 @@ struct CacheConfig {
     ///   - maxThumbnailCacheSize: 썸네일 캐시 최대 크기
     ///   - maxMemoryCacheSize: 메모리 캐시 최대 크기
     ///   - expirationDays: 만료 기간
+    ///   - maxRetryCount: 최대 재시도 횟수
+    ///   - retryDelay: 재시도 간격
     init(
         maxVideoCacheSize: Int64,
         maxThumbnailCacheSize: Int64,
         maxMemoryCacheSize: Int = 50 * 1024 * 1024,
-        expirationDays: Int
+        expirationDays: Int,
+        maxRetryCount: Int = 3,
+        retryDelay: TimeInterval = 1.0
     ) {
         self.maxVideoCacheSize = maxVideoCacheSize
         self.maxThumbnailCacheSize = maxThumbnailCacheSize
         self.maxMemoryCacheSize = maxMemoryCacheSize
         self.expirationDays = expirationDays
+        self.maxRetryCount = maxRetryCount
+        self.retryDelay = retryDelay
     }
 }
