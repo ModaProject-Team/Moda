@@ -429,8 +429,17 @@ final class ChatRoomStore: ObservableObject {
         }
     }
 
+    /// 지수 백오프를 적용한 메시지 재전송
+    /// - Parameters:
+    ///   - content: 메시지 내용
+    ///   - files: 첨부 파일 경로 배열
+    ///   - retryCount: 최대 재시도 횟수
+    /// - Returns: 전송된 메시지 응답
+    /// - Throws: 모든 재시도 실패 시 마지막 에러
     private func sendMessageWithRetry(content: String?, files: [String]?, retryCount: Int) async throws -> ChatMessageResponse {
         var lastError: Error?
+        let baseDelay: UInt64 = 500_000_000 // 0.5초
+        let maxDelay: UInt64 = 8_000_000_000 // 8초
 
         for attempt in 0..<retryCount {
             do {
@@ -438,7 +447,10 @@ final class ChatRoomStore: ObservableObject {
             } catch {
                 lastError = error
                 if attempt < retryCount - 1 {
-                    try? await Task.sleep(nanoseconds: 1_000_000_000)
+                    // 지수 백오프: 0.5초 * 2^attempt (최대 8초)
+                    let exponentialDelay = baseDelay * UInt64(pow(2.0, Double(attempt)))
+                    let delay = min(exponentialDelay, maxDelay)
+                    try? await Task.sleep(nanoseconds: delay)
                 }
             }
         }
