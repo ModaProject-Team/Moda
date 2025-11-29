@@ -11,6 +11,7 @@ import Foundation
 ///
 /// 회원가입, 로그인, 로그아웃 등 사용자 인증 관련 API 호출을 제공합니다.
 final class UserAPI: UserAPIProtocol {
+    
     static let shared = UserAPI()
 
     private let networkService: NetworkServiceProtocol
@@ -44,7 +45,7 @@ final class UserAPI: UserAPIProtocol {
         return response
     }
 
-    func login(email: String, password: String) async throws -> LoginResponse {
+    func login(email: String, password: String) async throws {
         let endpoint = UserRouter.login(email: email, password: password)
         let response = try await networkService.request(
             endpoint: endpoint,
@@ -56,12 +57,10 @@ final class UserAPI: UserAPIProtocol {
             refreshToken: response.refreshToken
         )
         UserDefaultsManager.shared.userId = response.userId
-
-        return response
     }
 
     // 서버 스펙: { "oauthToken": "<카카오 access token>" }
-    func loginWithKakao(oauthToken: String) async throws -> LoginResponse {
+    func loginWithKakao(oauthToken: String) async throws {
         let endpoint = UserRouter.loginKakao(oauthToken: oauthToken)
         let response = try await networkService.request(
             endpoint: endpoint,
@@ -73,11 +72,9 @@ final class UserAPI: UserAPIProtocol {
             refreshToken: response.refreshToken
         )
         UserDefaultsManager.shared.userId = response.userId
-
-        return response
     }
 
-    func loginWithApple(idToken: String) async throws -> LoginResponse {
+    func loginWithApple(idToken: String) async throws {
         let endpoint = UserRouter.loginApple(idToken: idToken)
         let response = try await networkService.request(
             endpoint: endpoint,
@@ -89,8 +86,6 @@ final class UserAPI: UserAPIProtocol {
             refreshToken: response.refreshToken
         )
         UserDefaultsManager.shared.userId = response.userId
-
-        return response
     }
 
     func withdraw() async throws -> WithdrawResponse {
