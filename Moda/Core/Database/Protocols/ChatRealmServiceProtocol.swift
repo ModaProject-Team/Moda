@@ -67,4 +67,12 @@ protocol ChatRealmServiceProtocol: Actor {
     /// 특정 메시지 삭제
     /// - Parameter chatId: 메시지 ID
     func deleteMessage(chatId: String) throws
+
+    /// 채팅방 여러 개 저장/업데이트
+    /// - Parameter rooms: 채팅방 객체 배열
+    func saveRooms(_ rooms: [ChatRoomObject]) throws
+
+    /// 모든 채팅방 조회
+    /// - Returns: 채팅방 객체 배열 (최신순)
+    func getAllRooms() -> [ChatRoomObject]
 }

@@ -177,4 +177,22 @@ actor ChatRealmService: ChatRealmServiceProtocol {
             realm.delete(message)
         }
     }
+
+    func saveRooms(_ rooms: [ChatRoomObject]) throws {
+        let realm = try getRealm()
+        try realm.write {
+            for room in rooms {
+                realm.add(room, update: .modified)
+            }
+        }
+    }
+
+    func getAllRooms() -> [ChatRoomObject] {
+        guard let realm = try? getRealm() else { return [] }
+
+        let results = realm.objects(ChatRoomObject.self)
+            .sorted(byKeyPath: "updatedAtDate", ascending: false)
+
+        return Array(results.map { ChatRoomObject(value: $0) })
+    }
 }
