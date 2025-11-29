@@ -185,20 +185,23 @@ struct ChatRoomView: View {
     }
 
     private var messageListSection: some View {
-        ScrollViewReader { proxy in
-            ScrollView(showsIndicators: false) {
-                LazyVStack(spacing: 10) {
-                    ForEach(store.state.messages) { message in
-                        MessageBubble(
-                            message: message,
-                            onTapImage: { url in store.send(.showImageViewer(url)) }
-                        )
-                        .id(message.id)
+        ZStack(alignment: .top) {
+            ScrollViewReader { proxy in
+                ScrollView(showsIndicators: false) {
+                    LazyVStack(spacing: 10) {
+                        ForEach(store.state.messages) { message in
+                            MessageBubble(
+                                message: message,
+                                onTapImage: { url in store.send(.showImageViewer(url)) },
+                                onRetry: { chatId in store.send(.retryMessage(chatId)) }
+                            )
+                            .id(message.id)
+                        }
                     }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 12)
+                    .padding(.top, store.state.isNetworkError ? 50 : 0)
                 }
-                .padding(.horizontal, 12)
-                .padding(.vertical, 12)
-            }
             .onAppear {
                 if let lastMessage = store.state.messages.last {
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
@@ -217,6 +220,42 @@ struct ChatRoomView: View {
                     }
                 }
             }
+            }
+
+            if store.state.isNetworkError {
+                networkErrorBanner
+            }
+        }
+    }
+
+    private var networkErrorBanner: some View {
+        VStack(spacing: 0) {
+            HStack(spacing: 8) {
+                Image(systemName: "wifi.slash")
+                    .foregroundColor(.white)
+                    .font(.system(size: 14))
+
+                Text("네트워크 연결 끊김")
+                    .Body2()
+                    .foregroundColor(.white)
+
+                Spacer()
+
+                Button {
+                    store.send(.retryConnection)
+                } label: {
+                    Text("재시도")
+                        .Body2()
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 4)
+                        .background(Color.white.opacity(0.2))
+                        .cornerRadius(4)
+                }
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
+            .background(Color.red.opacity(0.9))
         }
     }
 
@@ -261,6 +300,7 @@ struct ChatRoomView: View {
 struct MessageBubble: View {
     let message: ChatMessage
     let onTapImage: (URL) -> Void
+    let onRetry: (String) -> Void
 
     private let maxBubbleWidth: CGFloat = 220
 
@@ -270,13 +310,13 @@ struct MessageBubble: View {
                 HStack {
                     Spacer(minLength: 60)
                     HStack(alignment: .bottom, spacing: 6) {
+                        statusIndicator
                         timeLabel
                         bubbleContent
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .trailing)
             } else {
-                // 친구 메시지: 왼쪽 프로필, 오른쪽에 닉네임 + 버블/시간
                 HStack(alignment: .top, spacing: 8) {
                     profileImage
                     VStack(alignment: .leading, spacing: 4) {
@@ -292,6 +332,29 @@ struct MessageBubble: View {
                     Spacer(minLength: 40)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var statusIndicator: some View {
+        if message.isMine {
+            switch message.localStatus {
+            case .sending:
+                Image(systemName: "paperplane.fill")
+                    .foregroundColor(.gray3)
+                    .font(.system(size: 12))
+                    .rotationEffect(.degrees(225))
+            case .failed:
+                Button {
+                    onRetry(message.id)
+                } label: {
+                    Image(systemName: "arrow.clockwise.circle.fill")
+                        .foregroundColor(.red)
+                        .font(.system(size: 16))
+                }
+            case .synced:
+                EmptyView()
             }
         }
     }

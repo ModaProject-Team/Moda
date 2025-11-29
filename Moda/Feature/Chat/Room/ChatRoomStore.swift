@@ -94,17 +94,29 @@ final class ChatRoomStore: ObservableObject {
         case .hideImageViewer:
             state.showImageViewer = false
             state.selectedImageURL = nil
+
+        case .retryMessage(let chatId):
+            Task { await retryFailedMessage(chatId: chatId) }
+
+        case .retryConnection:
+            Task { await retryConnection() }
         }
     }
 
     private func setupSocketCallbacks() {
-        socketService.onConnect = {
+        socketService.onConnect = { [weak self] in
+            Task { @MainActor in
+                self?.state.isNetworkError = false
+            }
         }
-        socketService.onDisconnect = {
+        socketService.onDisconnect = { [weak self] in
+            Task { @MainActor in
+                self?.state.isNetworkError = true
+            }
         }
         socketService.onError = { [weak self] message in
             Task { @MainActor in
-                self?.state.errorMessage = message
+                self?.state.isNetworkError = true
             }
         }
         socketService.onChat = { [weak self] dto in
@@ -141,28 +153,60 @@ final class ChatRoomStore: ObservableObject {
     }
 
     private func loadLocalMessages() async {
-        let localMessages = realmService.getMessages(roomId: roomId, limit: 100)
-        let mapped = localMessages.map { $0.toChatMessage(currentUserId: myUserId ?? "") }
+        let userId = myUserId ?? ""
+        let roomIdCopy = roomId
+
+        let localMessages = await Task.detached(priority: .utility) {
+            let messages = self.realmService.getMessages(roomId: roomIdCopy, limit: 100, currentUserId: userId)
+
+            for message in messages where message.localStatus == .sending {
+                try? self.realmService.updateMessageStatus(chatId: message.id, status: "failed")
+            }
+
+            return messages.map { message in
+                if message.localStatus == .sending {
+                    return ChatMessage(
+                        id: message.id,
+                        content: message.content,
+                        senderId: message.senderId,
+                        senderName: message.senderName,
+                        senderProfileImage: message.senderProfileImage,
+                        createdAt: message.createdAt,
+                        isMine: message.isMine,
+                        attachment: message.attachment,
+                        localStatus: .failed
+                    )
+                }
+                return message
+            }
+        }.value
 
         await MainActor.run {
-            self.state.messages = mapped.sorted { $0.createdAt < $1.createdAt }
+            self.state.messages = localMessages.sorted { $0.createdAt < $1.createdAt }
         }
     }
 
     private func syncWithServer() async throws {
-        let lastMessage = realmService.getLastMessage(roomId: roomId)
+        let userId = myUserId ?? ""
+        let roomIdCopy = roomId
+
+        let lastMessage = await Task.detached {
+            self.realmService.getLastMessage(roomId: roomIdCopy)
+        }.value
+
         let cursorDate = lastMessage?.createdAt
 
         let history = try await chatAPI.getMessages(roomId: roomId, cursorDate: cursorDate)
 
-        let messageObjects = history.data.map { ChatMessageObject.from(response: $0) }
-        try realmService.saveMessages(messageObjects)
+        let allLocalMessages = await Task.detached(priority: .utility) {
+            let messageObjects = history.data.map { ChatMessageObject.from(response: $0) }
+            try? self.realmService.saveMessages(messageObjects)
 
-        let allLocalMessages = realmService.getMessages(roomId: roomId, limit: 100)
-        let mapped = allLocalMessages.map { $0.toChatMessage(currentUserId: myUserId ?? "") }
+            return self.realmService.getMessages(roomId: roomIdCopy, limit: 100, currentUserId: userId)
+        }.value
 
         await MainActor.run {
-            self.state.messages = mapped.sorted { $0.createdAt < $1.createdAt }
+            self.state.messages = allLocalMessages.sorted { $0.createdAt < $1.createdAt }
         }
     }
 
@@ -174,20 +218,43 @@ final class ChatRoomStore: ObservableObject {
     }
 
     private func handleRealtimeMessage(_ dto: ChatMessageResponse) async {
-        let messageObject = ChatMessageObject.from(response: dto)
+        let userId = myUserId ?? ""
 
-        do {
-            try realmService.saveMessage(messageObject)
+        let mapped = await Task.detached(priority: .utility) {
+            let messageObject = ChatMessageObject.from(response: dto)
+            try? self.realmService.saveMessage(messageObject)
 
-            let mapped = messageObject.toChatMessage(currentUserId: myUserId ?? "")
-            await MainActor.run {
-                if !self.state.messages.contains(where: { $0.id == mapped.id }) {
-                    self.state.messages.append(mapped)
-                }
+            return ChatMessage(
+                id: dto.chatId,
+                content: dto.content ?? "",
+                senderId: dto.sender.userId,
+                senderName: dto.sender.nick,
+                senderProfileImage: dto.sender.profileImage,
+                createdAt: self.parseISO(dto.createdAt),
+                isMine: dto.sender.userId == userId,
+                attachment: self.parseAttachment(dto.files),
+                localStatus: .synced
+            )
+        }.value
+
+        await MainActor.run {
+            if !self.state.messages.contains(where: { $0.id == mapped.id }) {
+                self.state.messages.append(mapped)
             }
-        } catch {
-            print("❌ Failed to save realtime message: \(error)")
         }
+    }
+
+    private func parseISO(_ string: String) -> Date {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return formatter.date(from: string) ?? Date()
+    }
+
+    private func parseAttachment(_ files: [String]) -> ChatMessage.Attachment? {
+        guard let firstFile = files.first, !firstFile.isEmpty else { return nil }
+        let urlString = "\(NetworkConfig.baseURL)/v1\(firstFile)"
+        guard let url = URL(string: urlString) else { return nil }
+        return .image(url)
     }
 
     private func connectSocket() {
@@ -204,6 +271,26 @@ final class ChatRoomStore: ObservableObject {
         socketService.disconnect()
     }
 
+    private func retryConnection() async {
+        await MainActor.run {
+            state.isNetworkError = false
+        }
+
+        disconnectSocket()
+
+        try? await Task.sleep(nanoseconds: 500_000_000)
+
+        connectSocket()
+
+        do {
+            try await syncWithServer()
+        } catch {
+            await MainActor.run {
+                state.isNetworkError = true
+            }
+        }
+    }
+
     private func ensureMyUserId() async throws {
         if myUserId == nil {
             let me = try await userProfileAPI.getMyProfile()
@@ -216,21 +303,185 @@ final class ChatRoomStore: ObservableObject {
         guard !text.isEmpty else { return }
         await MainActor.run { state.inputText = "" }
 
+        let tempId = "temp-\(UUID().uuidString)"
+
+        try? await ensureMyUserId()
+        let userId = myUserId ?? ""
+        let me = try? await userProfileAPI.getMyProfile()
+
+        let roomIdCopy = roomId
+
+        let optimistic = await Task.detached {
+            let optimisticMessage = ChatMessageObject(
+                chatId: tempId,
+                roomId: roomIdCopy,
+                createdAt: ISO8601DateFormatter().string(from: Date()),
+                createdAtDate: Date(),
+                content: text,
+                senderId: me?.userId ?? userId,
+                senderNick: me?.nick ?? "",
+                senderProfileImage: me?.profileImage,
+                filesJson: nil,
+                localStatus: "sending"
+            )
+
+            try? self.realmService.saveMessage(optimisticMessage)
+
+            return ChatMessage(
+                id: tempId,
+                content: text,
+                senderId: me?.userId ?? userId,
+                senderName: me?.nick ?? "",
+                senderProfileImage: me?.profileImage,
+                createdAt: Date(),
+                isMine: true,
+                attachment: nil,
+                localStatus: .sending
+            )
+        }.value
+
+        await MainActor.run {
+            self.state.messages.append(optimistic)
+        }
+
         do {
-            try await ensureMyUserId()
-            let sent = try await chatAPI.sendMessage(roomId: roomId, content: text, files: nil)
+            let sent = try await sendMessageWithRetry(content: text, files: nil, retryCount: 3)
 
-            let messageObject = ChatMessageObject.from(response: sent)
-            try realmService.saveMessage(messageObject)
+            let mapped = await Task.detached {
+                let actualMessage = ChatMessageObject.from(response: sent)
+                try? self.realmService.saveMessage(actualMessage)
 
-            let mapped = messageObject.toChatMessage(currentUserId: myUserId ?? "")
+                return ChatMessage(
+                    id: sent.chatId,
+                    content: sent.content ?? "",
+                    senderId: sent.sender.userId,
+                    senderName: sent.sender.nick,
+                    senderProfileImage: sent.sender.profileImage,
+                    createdAt: self.parseISO(sent.createdAt),
+                    isMine: sent.sender.userId == userId,
+                    attachment: self.parseAttachment(sent.files),
+                    localStatus: .synced
+                )
+            }.value
+
             await MainActor.run {
+                if let index = self.state.messages.firstIndex(where: { $0.id == tempId }) {
+                    self.state.messages.remove(at: index)
+                }
                 if !self.state.messages.contains(where: { $0.id == mapped.id }) {
                     self.state.messages.append(mapped)
                 }
             }
         } catch {
-            await setError(error)
+            await Task.detached {
+                try? self.realmService.updateMessageStatus(chatId: tempId, status: "failed")
+            }.value
+
+            await MainActor.run {
+                if let index = self.state.messages.firstIndex(where: { $0.id == tempId }) {
+                    let failedMessage = self.state.messages[index]
+                    self.state.messages[index] = ChatMessage(
+                        id: failedMessage.id,
+                        content: failedMessage.content,
+                        senderId: failedMessage.senderId,
+                        senderName: failedMessage.senderName,
+                        senderProfileImage: failedMessage.senderProfileImage,
+                        createdAt: failedMessage.createdAt,
+                        isMine: failedMessage.isMine,
+                        attachment: failedMessage.attachment,
+                        localStatus: .failed
+                    )
+                }
+            }
+        }
+    }
+
+    private func sendMessageWithRetry(content: String?, files: [String]?, retryCount: Int) async throws -> ChatMessageResponse {
+        var lastError: Error?
+
+        for attempt in 0..<retryCount {
+            do {
+                return try await chatAPI.sendMessage(roomId: roomId, content: content, files: files)
+            } catch {
+                lastError = error
+                if attempt < retryCount - 1 {
+                    try? await Task.sleep(nanoseconds: 1_000_000_000)
+                }
+            }
+        }
+
+        throw lastError ?? NetworkError.networkFailure
+    }
+
+    private func retryFailedMessage(chatId: String) async {
+        let messageObject = await Task.detached {
+            self.realmService.getMessage(chatId: chatId)
+        }.value
+
+        guard let messageObject = messageObject else { return }
+        guard messageObject.localStatus == .failed else { return }
+
+        let content = messageObject.content
+
+        await MainActor.run {
+            if let index = self.state.messages.firstIndex(where: { $0.id == chatId }) {
+                self.state.messages.remove(at: index)
+            }
+        }
+
+        do {
+            let sent = try await sendMessageWithRetry(
+                content: content.isEmpty ? nil : content,
+                files: nil,
+                retryCount: 3
+            )
+
+            let userId = myUserId ?? ""
+            let mapped = await Task.detached {
+                let actualMessage = ChatMessageObject.from(response: sent)
+                try? self.realmService.saveMessage(actualMessage)
+
+                return ChatMessage(
+                    id: sent.chatId,
+                    content: sent.content ?? "",
+                    senderId: sent.sender.userId,
+                    senderName: sent.sender.nick,
+                    senderProfileImage: sent.sender.profileImage,
+                    createdAt: self.parseISO(sent.createdAt),
+                    isMine: sent.sender.userId == userId,
+                    attachment: self.parseAttachment(sent.files),
+                    localStatus: .synced
+                )
+            }.value
+
+            await MainActor.run {
+                if !self.state.messages.contains(where: { $0.id == mapped.id }) {
+                    self.state.messages.append(mapped)
+                    self.state.messages.sort { $0.createdAt < $1.createdAt }
+                }
+            }
+        } catch {
+            await Task.detached {
+                try? self.realmService.updateMessageStatus(chatId: chatId, status: "failed")
+            }.value
+
+            await MainActor.run {
+                let failedMessage = ChatMessage(
+                    id: chatId,
+                    content: content,
+                    senderId: messageObject.senderId,
+                    senderName: messageObject.senderName,
+                    senderProfileImage: messageObject.senderProfileImage,
+                    createdAt: messageObject.createdAt,
+                    isMine: true,
+                    attachment: messageObject.attachment,
+                    localStatus: .failed
+                )
+                if !self.state.messages.contains(where: { $0.id == chatId }) {
+                    self.state.messages.append(failedMessage)
+                    self.state.messages.sort { $0.createdAt < $1.createdAt }
+                }
+            }
         }
     }
 
@@ -239,81 +490,112 @@ final class ChatRoomStore: ObservableObject {
             state.showSendConfirmAlert = false
         }
 
-        do {
-            try await ensureMyUserId()
+        let tempId = "temp-\(UUID().uuidString)"
 
-            switch state.pendingType {
-            case .image:
-                guard let data = state.pendingImageData else { return }
+        switch state.pendingType {
+        case .image:
+            guard let data = state.pendingImageData else { return }
+
+            try? await ensureMyUserId()
+            let userId = myUserId ?? ""
+            let me = try? await userProfileAPI.getMyProfile()
+            let roomIdCopy = roomId
+
+            let optimistic = await Task.detached {
+                let optimisticMessage = ChatMessageObject(
+                    chatId: tempId,
+                    roomId: roomIdCopy,
+                    createdAt: ISO8601DateFormatter().string(from: Date()),
+                    createdAtDate: Date(),
+                    content: nil,
+                    senderId: me?.userId ?? userId,
+                    senderNick: me?.nick ?? "",
+                    senderProfileImage: me?.profileImage,
+                    filesJson: nil,
+                    localStatus: "sending"
+                )
+
+                try? self.realmService.saveMessage(optimisticMessage)
+
+                return ChatMessage(
+                    id: tempId,
+                    content: "",
+                    senderId: me?.userId ?? userId,
+                    senderName: me?.nick ?? "",
+                    senderProfileImage: me?.profileImage,
+                    createdAt: Date(),
+                    isMine: true,
+                    attachment: nil,
+                    localStatus: .sending
+                )
+            }.value
+
+            await MainActor.run {
+                self.state.messages.append(optimistic)
+            }
+
+            do {
                 let files: [FileData] = [FileData(data: data, type: .image)]
                 let uploadResponse = try await chatAPI.uploadFiles(roomId: roomId, files: files)
-                let sent = try await chatAPI.sendMessage(roomId: roomId, content: nil, files: uploadResponse.files)
+                let sent = try await sendMessageWithRetry(content: nil, files: uploadResponse.files, retryCount: 3)
 
-                let messageObject = ChatMessageObject.from(response: sent)
-                try realmService.saveMessage(messageObject)
+                let mapped = await Task.detached {
+                    let messageObject = ChatMessageObject.from(response: sent)
+                    try? self.realmService.saveMessage(messageObject)
 
-                let mapped = messageObject.toChatMessage(currentUserId: myUserId ?? "")
+                    return ChatMessage(
+                        id: sent.chatId,
+                        content: sent.content ?? "",
+                        senderId: sent.sender.userId,
+                        senderName: sent.sender.nick,
+                        senderProfileImage: sent.sender.profileImage,
+                        createdAt: self.parseISO(sent.createdAt),
+                        isMine: sent.sender.userId == userId,
+                        attachment: self.parseAttachment(sent.files),
+                        localStatus: .synced
+                    )
+                }.value
+
                 await MainActor.run {
+                    if let index = self.state.messages.firstIndex(where: { $0.id == tempId }) {
+                        self.state.messages.remove(at: index)
+                    }
                     if !self.state.messages.contains(where: { $0.id == mapped.id }) {
                         self.state.messages.append(mapped)
                     }
                     self.state.pendingImageData = nil
                     self.state.pendingType = .none
                 }
+            } catch {
+                await Task.detached {
+                    try? self.realmService.updateMessageStatus(chatId: tempId, status: "failed")
+                }.value
 
-            case .none:
-                return
+                await MainActor.run {
+                    if let index = self.state.messages.firstIndex(where: { $0.id == tempId }) {
+                        let failedMessage = self.state.messages[index]
+                        self.state.messages[index] = ChatMessage(
+                            id: failedMessage.id,
+                            content: failedMessage.content,
+                            senderId: failedMessage.senderId,
+                            senderName: failedMessage.senderName,
+                            senderProfileImage: failedMessage.senderProfileImage,
+                            createdAt: failedMessage.createdAt,
+                            isMine: failedMessage.isMine,
+                            attachment: failedMessage.attachment,
+                            localStatus: .failed
+                        )
+                    }
+                    self.state.pendingImageData = nil
+                    self.state.pendingType = .none
+                }
             }
-        } catch {
-            await setError(error)
+
+        case .none:
+            return
         }
     }
 
-    private func mapToViewModel(_ dto: ChatMessageResponse) -> ChatMessage {
-        let created = parseISODate(dto.createdAt)
-        let myId = myUserId ?? ""
-        let isMine = (dto.sender.userId == myId)
-
-        let attachment: ChatMessage.Attachment? = {
-            guard let path = dto.files.first, !path.isEmpty else { return nil }
-            let ext = (path as NSString).pathExtension.lowercased()
-            if ["jpg", "jpeg", "png", "gif", "webp"].contains(ext) {
-                let full = makeFullURL(from: path)
-                return .image(full)
-            } else {
-                return nil
-            }
-        }()
-
-        let text: String
-        if let content = dto.content, !content.isEmpty {
-            text = content
-        } else {
-            text = attachment == nil ? "" : "파일"
-        }
-
-        return ChatMessage(
-            id: dto.chatId,
-            content: text,
-            senderId: dto.sender.userId,
-            senderName: dto.sender.nick,
-            senderProfileImage: dto.sender.profileImage,
-            createdAt: created,
-            isMine: isMine,
-            attachment: attachment
-        )
-    }
-
-    private func makeFullURL(from path: String) -> URL {
-        let urlString = "\(NetworkConfig.baseURL)/v1\(path)"
-        return URL(string: urlString) ?? URL(fileURLWithPath: "/")
-    }
-
-    private func parseISODate(_ string: String) -> Date {
-        let iso = ISO8601DateFormatter()
-        iso.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        return iso.date(from: string) ?? Date()
-    }
 
     @MainActor
     private func setLoading(_ loading: Bool) {

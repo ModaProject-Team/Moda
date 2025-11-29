@@ -16,9 +16,16 @@ struct ChatMessage: Identifiable {
     let createdAt: Date
     let isMine: Bool
     let attachment: Attachment?
+    let localStatus: LocalStatus
 
     enum Attachment: Equatable {
         case image(URL)
+    }
+
+    enum LocalStatus: String {
+        case synced
+        case sending
+        case failed
     }
 }
 
@@ -38,6 +45,8 @@ struct ChatRoomState {
 
     var showImageViewer: Bool = false
     var selectedImageURL: URL? = nil
+
+    var isNetworkError: Bool = false
 
     enum PendingType { case image, none }
 }

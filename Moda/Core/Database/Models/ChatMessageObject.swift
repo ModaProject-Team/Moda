@@ -64,10 +64,14 @@ extension ChatMessageObject {
         if let filesJson = filesJson,
            let filesData = filesJson.data(using: .utf8),
            let files = try? JSONDecoder().decode([String].self, from: filesData),
-           let firstFile = files.first,
-           let url = URL(string: firstFile) {
-            attachment = .image(url)
+           let firstFile = files.first {
+            let urlString = firstFile.hasPrefix("http") ? firstFile : "\(NetworkConfig.baseURL)/v1\(firstFile)"
+            if let url = URL(string: urlString) {
+                attachment = .image(url)
+            }
         }
+
+        let status = ChatMessage.LocalStatus(rawValue: localStatus) ?? .synced
 
         return ChatMessage(
             id: chatId,
@@ -77,7 +81,8 @@ extension ChatMessageObject {
             senderProfileImage: senderProfileImage,
             createdAt: createdAtDate,
             isMine: senderId == currentUserId,
-            attachment: attachment
+            attachment: attachment,
+            localStatus: status
         )
     }
 

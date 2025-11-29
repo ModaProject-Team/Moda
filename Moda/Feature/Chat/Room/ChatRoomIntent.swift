@@ -29,4 +29,7 @@ enum ChatRoomIntent {
 
     case showImageViewer(URL)
     case hideImageViewer
+
+    case retryMessage(String)
+    case retryConnection
 }

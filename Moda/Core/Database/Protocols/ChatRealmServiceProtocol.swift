@@ -21,21 +21,28 @@ protocol ChatRealmServiceProtocol {
     /// - Parameters:
     ///   - roomId: 채팅방 ID
     ///   - limit: 조회할 메시지 개수
+    ///   - currentUserId: 현재 사용자 ID
     /// - Returns: 메시지 배열
-    func getMessages(roomId: String, limit: Int) -> [ChatMessageObject]
+    func getMessages(roomId: String, limit: Int, currentUserId: String) -> [ChatMessage]
 
     /// 특정 채팅방의 가장 최근 메시지 조회
     /// - Parameter roomId: 채팅방 ID
-    /// - Returns: 가장 최근 메시지 (없으면 nil)
-    func getLastMessage(roomId: String) -> ChatMessageObject?
+    /// - Returns: 가장 최근 메시지의 ID와 생성 시간 (없으면 nil)
+    func getLastMessage(roomId: String) -> (chatId: String, createdAt: String)?
 
     /// 특정 시점 이전의 메시지 조회 (페이지네이션)
     /// - Parameters:
     ///   - roomId: 채팅방 ID
     ///   - beforeDate: 기준 날짜
     ///   - limit: 조회할 메시지 개수
+    ///   - currentUserId: 현재 사용자 ID
     /// - Returns: 메시지 배열
-    func getMessagesBefore(roomId: String, beforeDate: Date, limit: Int) -> [ChatMessageObject]
+    func getMessagesBefore(roomId: String, beforeDate: Date, limit: Int, currentUserId: String) -> [ChatMessage]
+
+    /// 특정 메시지 조회
+    /// - Parameter chatId: 메시지 ID
+    /// - Returns: 메시지 (없으면 nil)
+    func getMessage(chatId: String) -> ChatMessage?
 
     /// 채팅방 메타데이터 저장/업데이트
     /// - Parameter room: 채팅방 객체
