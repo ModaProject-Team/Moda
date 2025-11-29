@@ -327,6 +327,36 @@ final class VideoCacheManager: VideoCacheServiceProtocol {
         await downloadManager.cancelAllDownloads()
     }
 
+    func prefetchVideos(urls: [URL]) {
+        Task(priority: .low) {
+            for url in urls {
+                // 이미 캐시된 경우 스킵
+                guard getCachedVideo(for: url) == nil else { continue }
+
+                do {
+                    _ = try await cacheVideo(from: url)
+                } catch {
+                    print("[VideoCacheManager] Prefetch video failed for \(url.lastPathComponent): \(error.localizedDescription)")
+                }
+            }
+        }
+    }
+
+    func prefetchThumbnails(urls: [URL]) {
+        Task(priority: .low) {
+            for url in urls {
+                // 이미 캐시된 경우 스킵
+                guard getCachedThumbnail(for: url) == nil else { continue }
+
+                do {
+                    _ = try await cacheThumbnail(from: url)
+                } catch {
+                    print("[VideoCacheManager] Prefetch thumbnail failed for \(url.lastPathComponent): \(error.localizedDescription)")
+                }
+            }
+        }
+    }
+
     deinit {
         NotificationCenter.default.removeObserver(self)
     }

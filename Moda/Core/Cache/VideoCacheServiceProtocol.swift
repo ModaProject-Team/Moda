@@ -51,4 +51,12 @@ protocol VideoCacheServiceProtocol {
 
     /// 모든 다운로드 취소
     func cancelAllDownloads() async
+
+    /// 동영상 미리 다운로드 (백그라운드)
+    /// - Parameter urls: 미리 다운로드할 URL 배열
+    func prefetchVideos(urls: [URL])
+
+    /// 썸네일 미리 다운로드 (백그라운드)
+    /// - Parameter urls: 미리 다운로드할 동영상 URL 배열
+    func prefetchThumbnails(urls: [URL])
 }
