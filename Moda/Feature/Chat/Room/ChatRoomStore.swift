@@ -15,20 +15,25 @@ final class ChatRoomStore: ObservableObject {
     private let chatAPI: ChatAPIProtocol
     private let userProfileAPI: UserProfileAPIProtocol
     private let socketService: ChatSocketServiceProtocol
+    private let realmService: ChatRealmServiceProtocol
 
     private var myUserId: String?
+    private var bufferedMessages: [ChatMessageResponse] = []
+    private var isSocketReady = false
 
     init(
         roomId: String,
         participantName: String,
         chatAPI: ChatAPIProtocol = ChatAPI.shared,
         userProfileAPI: UserProfileAPIProtocol = UserProfileAPI.shared,
-        socketService: ChatSocketServiceProtocol = ChatSocketService()
+        socketService: ChatSocketServiceProtocol = ChatSocketService(),
+        realmService: ChatRealmServiceProtocol = ChatRealmService.shared
     ) {
         self.roomId = roomId
         self.chatAPI = chatAPI
         self.userProfileAPI = userProfileAPI
         self.socketService = socketService
+        self.realmService = realmService
         self.state.participantName = participantName
         setupSocketCallbacks()
     }
@@ -104,11 +109,11 @@ final class ChatRoomStore: ObservableObject {
         }
         socketService.onChat = { [weak self] dto in
             guard let self else { return }
-            let mapped = self.mapToViewModel(dto)
-            Task { @MainActor in
-                if !self.state.messages.contains(where: { $0.id == mapped.id }) {
-                    self.state.messages.append(mapped)
-                }
+
+            if self.isSocketReady {
+                Task { await self.handleRealtimeMessage(dto) }
+            } else {
+                self.bufferedMessages.append(dto)
             }
         }
     }
@@ -120,10 +125,68 @@ final class ChatRoomStore: ObservableObject {
 
         do {
             try await ensureMyUserId()
-            try await loadMessages(cursorDate: nil)
+
+            await loadLocalMessages()
+
             connectSocket()
+
+            try await syncWithServer()
+
+            await applyBufferedMessages()
+
+            isSocketReady = true
         } catch {
             await setError(error)
+        }
+    }
+
+    private func loadLocalMessages() async {
+        let localMessages = realmService.getMessages(roomId: roomId, limit: 100)
+        let mapped = localMessages.map { $0.toChatMessage(currentUserId: myUserId ?? "") }
+
+        await MainActor.run {
+            self.state.messages = mapped.sorted { $0.createdAt < $1.createdAt }
+        }
+    }
+
+    private func syncWithServer() async throws {
+        let lastMessage = realmService.getLastMessage(roomId: roomId)
+        let cursorDate = lastMessage?.createdAt
+
+        let history = try await chatAPI.getMessages(roomId: roomId, cursorDate: cursorDate)
+
+        let messageObjects = history.data.map { ChatMessageObject.from(response: $0) }
+        try realmService.saveMessages(messageObjects)
+
+        let allLocalMessages = realmService.getMessages(roomId: roomId, limit: 100)
+        let mapped = allLocalMessages.map { $0.toChatMessage(currentUserId: myUserId ?? "") }
+
+        await MainActor.run {
+            self.state.messages = mapped.sorted { $0.createdAt < $1.createdAt }
+        }
+    }
+
+    private func applyBufferedMessages() async {
+        for dto in bufferedMessages {
+            await handleRealtimeMessage(dto)
+        }
+        bufferedMessages.removeAll()
+    }
+
+    private func handleRealtimeMessage(_ dto: ChatMessageResponse) async {
+        let messageObject = ChatMessageObject.from(response: dto)
+
+        do {
+            try realmService.saveMessage(messageObject)
+
+            let mapped = messageObject.toChatMessage(currentUserId: myUserId ?? "")
+            await MainActor.run {
+                if !self.state.messages.contains(where: { $0.id == mapped.id }) {
+                    self.state.messages.append(mapped)
+                }
+            }
+        } catch {
+            print("❌ Failed to save realtime message: \(error)")
         }
     }
 
@@ -148,14 +211,6 @@ final class ChatRoomStore: ObservableObject {
         }
     }
 
-    private func loadMessages(cursorDate: String?) async throws {
-        let history = try await chatAPI.getMessages(roomId: roomId, cursorDate: cursorDate)
-        let mapped = history.data.map { mapToViewModel($0) }
-        await MainActor.run {
-            self.state.messages = mapped.sorted { $0.createdAt < $1.createdAt }
-        }
-    }
-
     private func sendCurrentMessage() async {
         let text = state.inputText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty else { return }
@@ -164,7 +219,11 @@ final class ChatRoomStore: ObservableObject {
         do {
             try await ensureMyUserId()
             let sent = try await chatAPI.sendMessage(roomId: roomId, content: text, files: nil)
-            let mapped = mapToViewModel(sent)
+
+            let messageObject = ChatMessageObject.from(response: sent)
+            try realmService.saveMessage(messageObject)
+
+            let mapped = messageObject.toChatMessage(currentUserId: myUserId ?? "")
             await MainActor.run {
                 if !self.state.messages.contains(where: { $0.id == mapped.id }) {
                     self.state.messages.append(mapped)
@@ -189,7 +248,11 @@ final class ChatRoomStore: ObservableObject {
                 let files: [FileData] = [FileData(data: data, type: .image)]
                 let uploadResponse = try await chatAPI.uploadFiles(roomId: roomId, files: files)
                 let sent = try await chatAPI.sendMessage(roomId: roomId, content: nil, files: uploadResponse.files)
-                let mapped = mapToViewModel(sent)
+
+                let messageObject = ChatMessageObject.from(response: sent)
+                try realmService.saveMessage(messageObject)
+
+                let mapped = messageObject.toChatMessage(currentUserId: myUserId ?? "")
                 await MainActor.run {
                     if !self.state.messages.contains(where: { $0.id == mapped.id }) {
                         self.state.messages.append(mapped)
