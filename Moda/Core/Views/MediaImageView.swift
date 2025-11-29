@@ -66,6 +66,8 @@ struct MediaVideoThumbnailView: View {
     @State private var thumbnail: UIImage?
     @State private var isLoading = true
 
+    private let cacheManager = VideoCacheManager.shared
+
     var body: some View {
         Group {
             if let thumbnail = thumbnail {
@@ -100,33 +102,7 @@ struct MediaVideoThumbnailView: View {
         }
 
         do {
-            // 인증 헤더를 포함한 URLRequest 생성
-            var request = URLRequest(url: url)
-            request.setValue(KFHeaders.sesacKey, forHTTPHeaderField: "SesacKey")
-            request.setValue(KFHeaders.productId, forHTTPHeaderField: "ProductId")
-            request.setValue(KFHeaders.authorization, forHTTPHeaderField: "Authorization")
-
-            // 동영상을 임시 파일로 다운로드
-            let (tempURL, _) = try await URLSession.shared.download(for: request)
-
-            // 임시 파일을 안전한 위치로 복사
-            let cacheDir = FileManager.default.temporaryDirectory
-            let permanentURL = cacheDir.appendingPathComponent(UUID().uuidString + ".mp4")
-
-            // 기존 파일이 있으면 삭제
-            if FileManager.default.fileExists(atPath: permanentURL.path) {
-                try? FileManager.default.removeItem(at: permanentURL)
-            }
-
-            // 파일 복사
-            try FileManager.default.copyItem(at: tempURL, to: permanentURL)
-
-            // 로컬 파일에서 썸네일 생성
-            let image = try await VideoThumbnailGenerator.shared.generateThumbnail(from: permanentURL)
-
-            // 썸네일 생성 후 임시 파일 삭제
-            try? FileManager.default.removeItem(at: permanentURL)
-
+            let image = try await cacheManager.cacheThumbnail(from: url)
             await MainActor.run {
                 self.thumbnail = image
                 self.isLoading = false

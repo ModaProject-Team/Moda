@@ -16,7 +16,10 @@ actor CacheMetadataManager {
     private let userDefaultsKey = "com.moda.videocache.metadata"
 
     init() {
-        load()
+        if let data = UserDefaults.standard.data(forKey: userDefaultsKey),
+           let metadataArray = try? JSONDecoder().decode([CacheMetadata].self, from: data) {
+            metadata = Dictionary(uniqueKeysWithValues: metadataArray.map { ($0.key, $0) })
+        }
     }
 
     /// 메타데이터 추가 또는 업데이트
@@ -94,18 +97,6 @@ actor CacheMetadataManager {
         let encoder = JSONEncoder()
         if let data = try? encoder.encode(Array(metadata.values)) {
             UserDefaults.standard.set(data, forKey: userDefaultsKey)
-        }
-    }
-
-    /// UserDefaults에서 메타데이터 로드
-    private func load() {
-        guard let data = UserDefaults.standard.data(forKey: userDefaultsKey) else {
-            return
-        }
-
-        let decoder = JSONDecoder()
-        if let metadataArray = try? decoder.decode([CacheMetadata].self, from: data) {
-            metadata = Dictionary(uniqueKeysWithValues: metadataArray.map { ($0.key, $0) })
         }
     }
 }

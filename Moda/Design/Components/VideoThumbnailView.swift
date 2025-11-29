@@ -15,6 +15,8 @@ struct VideoThumbnailView: View {
     @State private var thumbnailImage: UIImage?
     @State private var isLoading = true
 
+    private let cacheManager = VideoCacheManager.shared
+
     var body: some View {
         ZStack {
             if let thumbnail = thumbnailImage {
@@ -40,23 +42,16 @@ struct VideoThumbnailView: View {
                 .shadow(color: .black.opacity(0.3), radius: 4)
         }
         .onAppear {
-            generateThumbnail()
+            loadThumbnail()
         }
     }
 
-    private func generateThumbnail() {
+    private func loadThumbnail() {
         Task {
-            let asset = AVAsset(url: url)
-            let imageGenerator = AVAssetImageGenerator(asset: asset)
-            imageGenerator.appliesPreferredTrackTransform = true
-            imageGenerator.maximumSize = CGSize(width: itemWidth * 2, height: itemWidth * 2)
-
             do {
-                let cgImage = try imageGenerator.copyCGImage(at: .zero, actualTime: nil)
-                let uiImage = UIImage(cgImage: cgImage)
-
+                let thumbnail = try await cacheManager.cacheThumbnail(from: url)
                 await MainActor.run {
-                    self.thumbnailImage = uiImage
+                    self.thumbnailImage = thumbnail
                     self.isLoading = false
                 }
             } catch {

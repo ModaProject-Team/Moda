@@ -60,7 +60,7 @@ actor VideoDownloadManager {
             try FileManager.default.moveItem(at: tempURL, to: destinationURL)
 
             // Task 정리
-            await cleanupTask(for: url)
+            cleanupTask(for: url)
 
             return destinationURL
         }
@@ -70,7 +70,7 @@ actor VideoDownloadManager {
         do {
             return try await task.value
         } catch {
-            await cleanupTask(for: url)
+            cleanupTask(for: url)
             throw error
         }
     }

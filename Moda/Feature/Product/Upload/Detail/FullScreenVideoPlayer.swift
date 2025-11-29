@@ -13,8 +13,9 @@ struct FullScreenVideoPlayer: View {
     @Environment(\.dismiss) private var dismiss
     @State private var player: AVPlayer?
     @State private var dragOffset: CGFloat = 0
-    @State private var localVideoURL: URL?
     @State private var isDownloading = true
+
+    private let cacheManager = VideoCacheManager.shared
 
     var body: some View {
         ZStack {
@@ -80,45 +81,19 @@ struct FullScreenVideoPlayer: View {
                 }
         )
         .task {
-            await downloadAndPlayVideo()
+            await loadAndPlayVideo()
         }
         .onDisappear {
             player?.pause()
             player = nil
-
-            // 임시 파일 삭제
-            if let localURL = localVideoURL {
-                try? FileManager.default.removeItem(at: localURL)
-            }
         }
     }
 
-    private func downloadAndPlayVideo() async {
+    private func loadAndPlayVideo() async {
         do {
-            // 인증 헤더를 포함한 URLRequest 생성
-            var request = URLRequest(url: videoURL)
-            request.setValue(KFHeaders.sesacKey, forHTTPHeaderField: "SesacKey")
-            request.setValue(KFHeaders.productId, forHTTPHeaderField: "ProductId")
-            request.setValue(KFHeaders.authorization, forHTTPHeaderField: "Authorization")
-
-            // 동영상을 임시 파일로 다운로드
-            let (tempURL, _) = try await URLSession.shared.download(for: request)
-
-            // 임시 파일을 안전한 위치로 복사
-            let cacheDir = FileManager.default.temporaryDirectory
-            let permanentURL = cacheDir.appendingPathComponent(UUID().uuidString + ".mp4")
-
-            // 기존 파일이 있으면 삭제
-            if FileManager.default.fileExists(atPath: permanentURL.path) {
-                try? FileManager.default.removeItem(at: permanentURL)
-            }
-
-            // 파일 복사
-            try FileManager.default.copyItem(at: tempURL, to: permanentURL)
-
+            let localURL = try await cacheManager.cacheVideo(from: videoURL)
             await MainActor.run {
-                self.localVideoURL = permanentURL
-                self.player = AVPlayer(url: permanentURL)
+                self.player = AVPlayer(url: localURL)
                 self.player?.play()
                 self.isDownloading = false
             }
