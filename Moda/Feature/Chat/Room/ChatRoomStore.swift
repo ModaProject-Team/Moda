@@ -23,6 +23,7 @@ final class ChatRoomStore: ObservableObject {
     private var bufferedMessages: [ChatMessageResponse] = []
     private var isSocketReady = false
     private var cancellables = Set<AnyCancellable>()
+    private var networkDebounceTask: Task<Void, Never>?
 
     init(
         roomId: String,
@@ -146,11 +147,24 @@ final class ChatRoomStore: ObservableObject {
             .receive(on: DispatchQueue.main)
             .sink { [weak self] isConnected in
                 guard let self = self else { return }
-                self.state.isNetworkError = !isConnected
 
                 if isConnected {
-                    Task {
-                        try? await self.reconnectIfNeeded()
+                    self.networkDebounceTask?.cancel()
+                    self.networkDebounceTask = nil
+
+                    if self.state.isNetworkError {
+                        self.state.isNetworkError = false
+                        Task {
+                            try? await self.reconnectIfNeeded()
+                        }
+                    }
+                } else {
+                    self.networkDebounceTask?.cancel()
+                    self.networkDebounceTask = Task { @MainActor in
+                        try? await Task.sleep(nanoseconds: 3_000_000_000)
+                        if !Task.isCancelled {
+                            self.state.isNetworkError = true
+                        }
                     }
                 }
             }
