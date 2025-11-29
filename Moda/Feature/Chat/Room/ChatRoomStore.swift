@@ -191,9 +191,9 @@ final class ChatRoomStore: ObservableObject {
 
             await loadLocalMessages()
 
-            connectSocket()
-
             try await syncWithServer()
+
+            connectSocket()
 
             await applyBufferedMessages()
 
