@@ -193,7 +193,7 @@ struct ChatRoomView: View {
                             loadingMoreIndicator
                         }
 
-                        ForEach(store.state.messages) { message in
+                        ForEach(store.state.sortedMessages) { message in
                             MessageBubble(
                                 message: message,
                                 onTapImage: { url in store.send(.showImageViewer(url)) },
@@ -201,7 +201,7 @@ struct ChatRoomView: View {
                             )
                             .id(message.id)
                             .onAppear {
-                                if message.id == store.state.messages.first?.id && store.state.hasMoreMessages {
+                                if message.id == store.state.sortedMessages.first?.id && store.state.hasMoreMessages {
                                     store.send(.loadMoreMessages)
                                 }
                             }
@@ -212,7 +212,7 @@ struct ChatRoomView: View {
                     .padding(.top, store.state.isNetworkError ? 50 : 0)
                 }
             .onAppear {
-                if let lastMessage = store.state.messages.last {
+                if let lastMessage = store.state.sortedMessages.last {
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
                         withAnimation(.easeOut(duration: 0.3)) {
                             proxy.scrollTo(lastMessage.id, anchor: .top)
@@ -221,7 +221,7 @@ struct ChatRoomView: View {
                 }
             }
             .onChange(of: store.state.messages.count) {
-                if let lastMessage = store.state.messages.last {
+                if let lastMessage = store.state.sortedMessages.last {
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
                         withAnimation(.easeInOut(duration: 0.2)) {
                             proxy.scrollTo(lastMessage.id, anchor: .top)

@@ -52,4 +52,15 @@ struct ChatRoomState {
     var hasMoreMessages: Bool = true
 
     enum PendingType { case image, none }
+
+    /// 메시지 정렬: synced 메시지는 시간순, sending/failed 메시지는 맨 아래
+    var sortedMessages: [ChatMessage] {
+        let syncedMessages = messages.filter { $0.localStatus == .synced }
+            .sorted { $0.createdAt < $1.createdAt }
+
+        let pendingMessages = messages.filter { $0.localStatus == .sending || $0.localStatus == .failed }
+            .sorted { $0.createdAt < $1.createdAt }
+
+        return syncedMessages + pendingMessages
+    }
 }

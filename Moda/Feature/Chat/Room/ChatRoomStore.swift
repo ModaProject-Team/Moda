@@ -465,11 +465,51 @@ final class ChatRoomStore: ObservableObject {
         guard message.localStatus == .failed else { return }
 
         let content = message.content
+        let attachment = message.attachment
+
+        // 기존 실패 메시지 삭제
+        await MainActor.run {
+            self.state.messages.removeAll(where: { $0.id == chatId })
+        }
+
+        // 새로운 tempId로 재전송 메시지 생성 (맨 아래 추가, 새로운 타임스탬프)
+        let newTempId = "temp-\(UUID().uuidString)"
+        let now = Date()
+
+        try? await ensureMyUserId()
+        let userId = myUserId ?? ""
+        let me = try? await userProfileAPI.getMyProfile()
+        let roomIdCopy = roomId
+
+        let optimisticMessage = ChatMessageObject(
+            chatId: newTempId,
+            roomId: roomIdCopy,
+            createdAt: ISO8601DateFormatter().string(from: now),
+            createdAtDate: now,
+            content: content.isEmpty ? nil : content,
+            senderId: me?.userId ?? userId,
+            senderNick: me?.nick ?? "",
+            senderProfileImage: me?.profileImage,
+            filesJson: nil,
+            localStatus: "sending"
+        )
+
+        try? await realmService.saveMessage(optimisticMessage)
+
+        let optimistic = ChatMessage(
+            id: newTempId,
+            content: content,
+            senderId: me?.userId ?? userId,
+            senderName: me?.nick ?? "",
+            senderProfileImage: me?.profileImage,
+            createdAt: now,
+            isMine: true,
+            attachment: attachment,
+            localStatus: .sending
+        )
 
         await MainActor.run {
-            if let index = self.state.messages.firstIndex(where: { $0.id == chatId }) {
-                self.state.messages.remove(at: index)
-            }
+            self.state.messages.append(optimistic)
         }
 
         do {
@@ -479,7 +519,6 @@ final class ChatRoomStore: ObservableObject {
                 retryCount: 3
             )
 
-            let userId = myUserId ?? ""
             let actualMessage = ChatMessageObject.from(response: sent)
             try? await realmService.saveMessage(actualMessage)
 
@@ -496,29 +535,29 @@ final class ChatRoomStore: ObservableObject {
             )
 
             await MainActor.run {
+                // tempId 메시지 삭제하고 실제 메시지 추가
+                self.state.messages.removeAll(where: { $0.id == newTempId })
                 if !self.state.messages.contains(where: { $0.id == mapped.id }) {
                     self.state.messages.append(mapped)
-                    self.state.messages.sort { $0.createdAt < $1.createdAt }
                 }
             }
         } catch {
-            try? await realmService.updateMessageStatus(chatId: chatId, status: "failed")
+            try? await realmService.updateMessageStatus(chatId: newTempId, status: "failed")
 
+            // 재전송 실패 시 failed 상태로 변경
             await MainActor.run {
-                let failedMessage = ChatMessage(
-                    id: chatId,
-                    content: content,
-                    senderId: message.senderId,
-                    senderName: message.senderName,
-                    senderProfileImage: message.senderProfileImage,
-                    createdAt: message.createdAt,
-                    isMine: true,
-                    attachment: message.attachment,
-                    localStatus: .failed
-                )
-                if !self.state.messages.contains(where: { $0.id == chatId }) {
-                    self.state.messages.append(failedMessage)
-                    self.state.messages.sort { $0.createdAt < $1.createdAt }
+                if let index = self.state.messages.firstIndex(where: { $0.id == newTempId }) {
+                    self.state.messages[index] = ChatMessage(
+                        id: newTempId,
+                        content: content,
+                        senderId: optimistic.senderId,
+                        senderName: optimistic.senderName,
+                        senderProfileImage: optimistic.senderProfileImage,
+                        createdAt: now,
+                        isMine: true,
+                        attachment: attachment,
+                        localStatus: .failed
+                    )
                 }
             }
         }
