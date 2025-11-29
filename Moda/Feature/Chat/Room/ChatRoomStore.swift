@@ -24,6 +24,7 @@ final class ChatRoomStore: ObservableObject {
     private var isSocketReady = false
     private var cancellables = Set<AnyCancellable>()
     private var networkDebounceTask: Task<Void, Never>?
+    private var isActive = false
 
     init(
         roomId: String,
@@ -43,14 +44,17 @@ final class ChatRoomStore: ObservableObject {
         self.state.participantName = participantName
         setupSocketCallbacks()
         setupNetworkMonitoring()
+        setupAppLifecycleObservers()
     }
 
     func send(_ intent: ChatRoomIntent) {
         switch intent {
         case .onAppear:
+            isActive = true
             networkMonitor.startMonitoring()
             Task { await loadAndConnect() }
         case .onDisappear:
+            isActive = false
             networkMonitor.stopMonitoring()
             disconnectSocket()
         case .inputTextChanged(let text):
@@ -168,6 +172,30 @@ final class ChatRoomStore: ObservableObject {
                         if !Task.isCancelled {
                             self.state.isNetworkError = true
                         }
+                    }
+                }
+            }
+            .store(in: &cancellables)
+    }
+
+    private func setupAppLifecycleObservers() {
+        NotificationCenter.default.publisher(for: UIApplication.didEnterBackgroundNotification)
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                guard let self = self else { return }
+                if self.isActive {
+                    self.disconnectSocket()
+                }
+            }
+            .store(in: &cancellables)
+
+        NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                guard let self = self else { return }
+                if self.isActive {
+                    Task {
+                        try? await self.reconnectIfNeeded()
                     }
                 }
             }
