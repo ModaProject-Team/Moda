@@ -108,6 +108,9 @@ final class ChatRoomStore: ObservableObject {
 
         case .retryConnection:
             Task { await retryConnection() }
+
+        case .loadMoreMessages:
+            Task { await loadMoreMessages() }
         }
     }
 
@@ -445,14 +448,14 @@ final class ChatRoomStore: ObservableObject {
     }
 
     private func retryFailedMessage(chatId: String) async {
-        let messageObject = await Task.detached {
+        let message = await Task.detached {
             self.realmService.getMessage(chatId: chatId)
         }.value
 
-        guard let messageObject = messageObject else { return }
-        guard messageObject.localStatus == .failed else { return }
+        guard let message = message else { return }
+        guard message.localStatus == .failed else { return }
 
-        let content = messageObject.content
+        let content = message.content
 
         await MainActor.run {
             if let index = self.state.messages.firstIndex(where: { $0.id == chatId }) {
@@ -500,12 +503,12 @@ final class ChatRoomStore: ObservableObject {
                 let failedMessage = ChatMessage(
                     id: chatId,
                     content: content,
-                    senderId: messageObject.senderId,
-                    senderName: messageObject.senderName,
-                    senderProfileImage: messageObject.senderProfileImage,
-                    createdAt: messageObject.createdAt,
+                    senderId: message.senderId,
+                    senderName: message.senderName,
+                    senderProfileImage: message.senderProfileImage,
+                    createdAt: message.createdAt,
                     isMine: true,
-                    attachment: messageObject.attachment,
+                    attachment: message.attachment,
                     localStatus: .failed
                 )
                 if !self.state.messages.contains(where: { $0.id == chatId }) {
@@ -627,6 +630,64 @@ final class ChatRoomStore: ObservableObject {
         }
     }
 
+
+    private func loadMoreMessages() async {
+        guard !state.isLoadingMore else { return }
+        guard state.hasMoreMessages else { return }
+        guard let oldestMessage = state.messages.first else { return }
+
+        await MainActor.run {
+            state.isLoadingMore = true
+        }
+
+        let userId = myUserId ?? ""
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        let cursorDate = formatter.string(from: oldestMessage.createdAt)
+
+        do {
+            let history = try await chatAPI.getMessages(roomId: roomId, cursorDate: cursorDate)
+
+            if history.data.isEmpty {
+                await MainActor.run {
+                    state.hasMoreMessages = false
+                    state.isLoadingMore = false
+                }
+                return
+            }
+
+            let newMessages = await Task.detached(priority: .utility) {
+                let messageObjects = history.data.map { ChatMessageObject.from(response: $0) }
+                try? self.realmService.saveMessages(messageObjects)
+
+                return history.data.map { dto in
+                    ChatMessage(
+                        id: dto.chatId,
+                        content: dto.content ?? "",
+                        senderId: dto.sender.userId,
+                        senderName: dto.sender.nick,
+                        senderProfileImage: dto.sender.profileImage,
+                        createdAt: self.parseISO(dto.createdAt),
+                        isMine: dto.sender.userId == userId,
+                        attachment: self.parseAttachment(dto.files),
+                        localStatus: .synced
+                    )
+                }
+            }.value
+
+            await MainActor.run {
+                let existingIds = Set(self.state.messages.map { $0.id })
+                let uniqueNewMessages = newMessages.filter { !existingIds.contains($0.id) }
+                self.state.messages.insert(contentsOf: uniqueNewMessages, at: 0)
+                self.state.messages.sort { $0.createdAt < $1.createdAt }
+                self.state.isLoadingMore = false
+            }
+        } catch {
+            await MainActor.run {
+                state.isLoadingMore = false
+            }
+        }
+    }
 
     @MainActor
     private func setLoading(_ loading: Bool) {

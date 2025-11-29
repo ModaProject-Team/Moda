@@ -32,4 +32,6 @@ enum ChatRoomIntent {
 
     case retryMessage(String)
     case retryConnection
+
+    case loadMoreMessages
 }

@@ -189,6 +189,10 @@ struct ChatRoomView: View {
             ScrollViewReader { proxy in
                 ScrollView(showsIndicators: false) {
                     LazyVStack(spacing: 10) {
+                        if store.state.isLoadingMore {
+                            loadingMoreIndicator
+                        }
+
                         ForEach(store.state.messages) { message in
                             MessageBubble(
                                 message: message,
@@ -196,6 +200,11 @@ struct ChatRoomView: View {
                                 onRetry: { chatId in store.send(.retryMessage(chatId)) }
                             )
                             .id(message.id)
+                            .onAppear {
+                                if message.id == store.state.messages.first?.id && store.state.hasMoreMessages {
+                                    store.send(.loadMoreMessages)
+                                }
+                            }
                         }
                     }
                     .padding(.horizontal, 12)
@@ -225,6 +234,15 @@ struct ChatRoomView: View {
             if store.state.isNetworkError {
                 networkErrorBanner
             }
+        }
+    }
+
+    private var loadingMoreIndicator: some View {
+        HStack {
+            Spacer()
+            ProgressView()
+                .padding(.vertical, 8)
+            Spacer()
         }
     }
 

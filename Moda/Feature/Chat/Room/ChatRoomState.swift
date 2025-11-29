@@ -48,5 +48,8 @@ struct ChatRoomState {
 
     var isNetworkError: Bool = false
 
+    var isLoadingMore: Bool = false
+    var hasMoreMessages: Bool = true
+
     enum PendingType { case image, none }
 }
