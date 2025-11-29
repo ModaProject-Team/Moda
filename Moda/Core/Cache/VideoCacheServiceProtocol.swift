@@ -38,4 +38,10 @@ protocol VideoCacheServiceProtocol {
 
     /// 용량 초과 시 정리
     func cleanupIfNeeded() async
+
+    /// 메모리 캐시 정리
+    ///
+    /// 메모리 경고 시 또는 명시적으로 호출하여 메모리 캐시의 모든 항목을 제거합니다.
+    /// 디스크 캐시와 메타데이터는 유지됩니다.
+    func clearMemoryCache()
 }

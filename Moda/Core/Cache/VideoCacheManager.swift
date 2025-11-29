@@ -43,6 +43,9 @@ final class VideoCacheManager: VideoCacheServiceProtocol {
         // 디렉토리 생성
         createDirectoriesIfNeeded()
 
+        // 메모리 경고 옵저버 등록
+        setupMemoryWarningObserver()
+
         // 앱 시작 시 만료된 캐시 정리
         Task {
             await clearExpiredCache()
@@ -296,5 +299,27 @@ final class VideoCacheManager: VideoCacheServiceProtocol {
             at: thumbnailCacheDirectory,
             withIntermediateDirectories: true
         )
+    }
+
+    private func setupMemoryWarningObserver() {
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleMemoryWarning),
+            name: UIApplication.didReceiveMemoryWarningNotification,
+            object: nil
+        )
+    }
+
+    @objc private func handleMemoryWarning() {
+        clearMemoryCache()
+    }
+
+    func clearMemoryCache() {
+        memoryCache.removeAllObjects()
+        print("[VideoCacheManager] Memory cache cleared due to memory warning")
+    }
+
+    deinit {
+        NotificationCenter.default.removeObserver(self)
     }
 }
