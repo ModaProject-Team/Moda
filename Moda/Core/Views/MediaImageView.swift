@@ -65,6 +65,7 @@ struct MediaVideoThumbnailView: View {
 
     @State private var thumbnail: UIImage?
     @State private var isLoading = true
+    @State private var downloadTask: Task<Void, Never>?
 
     private let cacheManager = VideoCacheManager.shared
 
@@ -90,8 +91,18 @@ struct MediaVideoThumbnailView: View {
                     }
             }
         }
-        .task {
-            await loadThumbnail()
+        .onAppear {
+            downloadTask = Task {
+                await loadThumbnail()
+            }
+        }
+        .onDisappear {
+            downloadTask?.cancel()
+            if let url = URL(string: videoURL) {
+                Task {
+                    await cacheManager.cancelVideoDownload(for: url)
+                }
+            }
         }
     }
 

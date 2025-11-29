@@ -44,4 +44,11 @@ protocol VideoCacheServiceProtocol {
     /// 메모리 경고 시 또는 명시적으로 호출하여 메모리 캐시의 모든 항목을 제거합니다.
     /// 디스크 캐시와 메타데이터는 유지됩니다.
     func clearMemoryCache()
+
+    /// 특정 URL의 다운로드 취소
+    /// - Parameter url: 취소할 동영상 URL
+    func cancelVideoDownload(for url: URL) async
+
+    /// 모든 다운로드 취소
+    func cancelAllDownloads() async
 }

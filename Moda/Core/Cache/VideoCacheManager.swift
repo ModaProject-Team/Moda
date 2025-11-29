@@ -319,6 +319,14 @@ final class VideoCacheManager: VideoCacheServiceProtocol {
         print("[VideoCacheManager] Memory cache cleared due to memory warning")
     }
 
+    func cancelVideoDownload(for url: URL) async {
+        await downloadManager.cancelDownload(for: url)
+    }
+
+    func cancelAllDownloads() async {
+        await downloadManager.cancelAllDownloads()
+    }
+
     deinit {
         NotificationCenter.default.removeObserver(self)
     }

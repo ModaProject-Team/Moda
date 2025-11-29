@@ -32,6 +32,9 @@ struct VideoPlayerView: View {
         }
         .onDisappear {
             playerManager.cleanup()
+            Task {
+                await VideoCacheManager.shared.cancelVideoDownload(for: url)
+            }
         }
     }
 }

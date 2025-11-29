@@ -14,6 +14,7 @@ struct VideoThumbnailView: View {
 
     @State private var thumbnailImage: UIImage?
     @State private var isLoading = true
+    @State private var downloadTask: Task<Void, Never>?
 
     private let cacheManager = VideoCacheManager.shared
 
@@ -42,22 +43,28 @@ struct VideoThumbnailView: View {
                 .shadow(color: .black.opacity(0.3), radius: 4)
         }
         .onAppear {
-            loadThumbnail()
+            downloadTask = Task {
+                await loadThumbnail()
+            }
+        }
+        .onDisappear {
+            downloadTask?.cancel()
+            Task {
+                await cacheManager.cancelVideoDownload(for: url)
+            }
         }
     }
 
-    private func loadThumbnail() {
-        Task {
-            do {
-                let thumbnail = try await cacheManager.cacheThumbnail(from: url)
-                await MainActor.run {
-                    self.thumbnailImage = thumbnail
-                    self.isLoading = false
-                }
-            } catch {
-                await MainActor.run {
-                    self.isLoading = false
-                }
+    private func loadThumbnail() async {
+        do {
+            let thumbnail = try await cacheManager.cacheThumbnail(from: url)
+            await MainActor.run {
+                self.thumbnailImage = thumbnail
+                self.isLoading = false
+            }
+        } catch {
+            await MainActor.run {
+                self.isLoading = false
             }
         }
     }
