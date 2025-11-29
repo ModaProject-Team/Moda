@@ -328,6 +328,12 @@ extension MapStore: CLLocationManagerDelegate {
     nonisolated func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
         Task {
             await MainActor.run {
+                // kCLErrorLocationUnknown은 일시적인 오류이므로 무시
+                let clError = error as NSError
+                if clError.domain == kCLErrorDomain && clError.code == CLError.locationUnknown.rawValue {
+                    return
+                }
+
                 state.cameraPosition = MapState.initialCameraPosition
                 state.showLocationUpdateFailedAlert = true
 
