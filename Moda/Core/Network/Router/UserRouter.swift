@@ -106,7 +106,6 @@ extension UserRouter: Endpoint {
         case .loginApple(let idToken):
             // 서버 스펙: idToken 필드 사용
             let params = ["idToken": idToken]
-            print("🍎 Apple Login Request Body: \(params)")
             return params
         default:
             return nil

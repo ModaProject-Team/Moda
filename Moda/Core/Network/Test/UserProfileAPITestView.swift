@@ -65,7 +65,7 @@ final class UserProfileAPITestStore: ObservableObject {
         do {
             // 로그인
             state.resultMessage += "로그인 시도...\n"
-            let response = try await UserAPI.shared.login(
+            try await UserAPI.shared.login(
                 email: email,
                 password: password
             )
@@ -74,10 +74,6 @@ final class UserProfileAPITestStore: ObservableObject {
 
             state.resultMessage += """
             ✅ 로그인 성공!
-            User ID: \(response.userId)
-            Nick: \(response.nick)
-            Token: \(response.accessToken.prefix(20))...
-
             """
             state.isSuccess = true
         } catch {

@@ -108,7 +108,7 @@ final class LoginStore: ObservableObject {
         Task {
             do {
                 // Apple Sign In 요청
-                let coordinator = AppleSignInCoordinator()
+                let coordinator = await AppleSignInCoordinator()
                 let result = try await coordinator.signIn()
 
                 // 최초 로그인 시 사용자 정보 저장 (선택사항)
@@ -127,18 +127,11 @@ final class LoginStore: ObservableObject {
                 // Apple User ID 저장 (자격 증명 상태 확인용)
                 UserDefaults.standard.set(result.userIdentifier, forKey: "appleUserId")
 
-                // 서버에 identityToken만 전달하여 로그인
-                let response = try await userAPI.loginWithApple(idToken: result.identityToken)
+                try await userAPI.loginWithApple(idToken: result.identityToken)
 
                 await MainActor.run {
                     state.isLoading = false
                     state.isLoginSuccessful = true
-
-                    TokenManager.shared.saveToken(
-                        accessToken: response.accessToken,
-                        refreshToken: response.refreshToken
-                    )
-                    UserDefaults.standard.set(response.userId, forKey: "userId")
                 }
             } catch {
                 await MainActor.run {
