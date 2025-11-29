@@ -31,8 +31,6 @@ struct ChatRoomView: View {
 
                 if store.state.isLoading {
                     loadingSection
-                } else if let message = store.state.errorMessage {
-                    errorSection(message: message)
                 } else {
                     messageListSection
                 }

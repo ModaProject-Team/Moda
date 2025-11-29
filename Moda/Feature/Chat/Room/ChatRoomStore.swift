@@ -214,25 +214,36 @@ final class ChatRoomStore: ObservableObject {
         await setLoading(true)
         defer { Task { await setLoading(false) } }
 
+        // 로컬 메시지는 항상 먼저 로드
         do {
             try await ensureMyUserId()
+        } catch {
+            // userId 조회 실패해도 로컬 메시지는 로드 시도
+        }
 
-            await loadLocalMessages()
+        await loadLocalMessages()
 
+        // 서버 동기화 시도 (실패해도 로컬 메시지는 표시됨)
+        do {
             try await syncWithServer()
-
             connectSocket()
-
             await applyBufferedMessages()
-
             isSocketReady = true
         } catch {
-            await setError(error)
+            // 네트워크 오류는 배너로만 표시
+            await MainActor.run {
+                self.state.isNetworkError = true
+            }
         }
     }
 
     private func loadLocalMessages() async {
-        let userId = myUserId ?? ""
+        // 캐시된 userId 또는 로그인 시 저장된 userId 사용
+        let userId = myUserId ?? UserDefaultsManager.shared.userId ?? ""
+
+        // userId가 비어있으면 판단 불가능
+        guard !userId.isEmpty else { return }
+
         let roomIdCopy = roomId
 
         let messages = await realmService.getMessages(roomId: roomIdCopy, limit: 100, currentUserId: userId)
