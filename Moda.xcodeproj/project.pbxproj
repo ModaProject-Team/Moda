@@ -11,11 +11,26 @@
 		030D64E72ED6D00100AFA941 /* iamport-ios in Frameworks */ = {isa = PBXBuildFile; productRef = 030D64E62ED6D00100AFA941 /* iamport-ios */; };
 		037028BA2EBC8F1F00A4A7CF /* .gitignore in Resources */ = {isa = PBXBuildFile; fileRef = 037028B92EBC8F1700A4A7CF /* .gitignore */; };
 		03EA97212EDAB4C7002D5975 /* RealmSwift in Frameworks */ = {isa = PBXBuildFile; productRef = 03EA97202EDAB4C7002D5975 /* RealmSwift */; };
+		03EA97302EDAC010002D5975 /* RealmSwift in Embed Frameworks */ = {isa = PBXBuildFile; productRef = 03EA97202EDAB4C7002D5975 /* RealmSwift */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
 		926291192ED8429B00E6CE69 /* KakaoSDK in Frameworks */ = {isa = PBXBuildFile; productRef = 926291182ED8429B00E6CE69 /* KakaoSDK */; };
 		9262911B2ED8429B00E6CE69 /* KakaoSDKAuth in Frameworks */ = {isa = PBXBuildFile; productRef = 9262911A2ED8429B00E6CE69 /* KakaoSDKAuth */; };
 		9262911D2ED8429B00E6CE69 /* KakaoSDKUser in Frameworks */ = {isa = PBXBuildFile; productRef = 9262911C2ED8429B00E6CE69 /* KakaoSDKUser */; };
 		92D4A6372EC1D679002526FC /* Kingfisher in Frameworks */ = {isa = PBXBuildFile; productRef = 92D4A6362EC1D679002526FC /* Kingfisher */; };
 /* End PBXBuildFile section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		03EA97312EDAC010002D5975 /* Embed Frameworks */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 10;
+			files = (
+				03EA97302EDAC010002D5975 /* RealmSwift in Embed Frameworks */,
+			);
+			name = "Embed Frameworks";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
 		037028A92EBC8ED900A4A7CF /* Moda.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Moda.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -88,6 +103,7 @@
 				037028A52EBC8ED900A4A7CF /* Sources */,
 				037028A62EBC8ED900A4A7CF /* Frameworks */,
 				037028A72EBC8ED900A4A7CF /* Resources */,
+				03EA97312EDAC010002D5975 /* Embed Frameworks */,
 			);
 			buildRules = (
 			);
