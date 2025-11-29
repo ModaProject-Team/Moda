@@ -10,6 +10,7 @@
 		030D64C42ED5CC3D00AFA941 /* SocketIO in Frameworks */ = {isa = PBXBuildFile; productRef = 030D64C32ED5CC3D00AFA941 /* SocketIO */; };
 		030D64E72ED6D00100AFA941 /* iamport-ios in Frameworks */ = {isa = PBXBuildFile; productRef = 030D64E62ED6D00100AFA941 /* iamport-ios */; };
 		037028BA2EBC8F1F00A4A7CF /* .gitignore in Resources */ = {isa = PBXBuildFile; fileRef = 037028B92EBC8F1700A4A7CF /* .gitignore */; };
+		03EA97212EDAB4C7002D5975 /* RealmSwift in Frameworks */ = {isa = PBXBuildFile; productRef = 03EA97202EDAB4C7002D5975 /* RealmSwift */; };
 		926291192ED8429B00E6CE69 /* KakaoSDK in Frameworks */ = {isa = PBXBuildFile; productRef = 926291182ED8429B00E6CE69 /* KakaoSDK */; };
 		9262911B2ED8429B00E6CE69 /* KakaoSDKAuth in Frameworks */ = {isa = PBXBuildFile; productRef = 9262911A2ED8429B00E6CE69 /* KakaoSDKAuth */; };
 		9262911D2ED8429B00E6CE69 /* KakaoSDKUser in Frameworks */ = {isa = PBXBuildFile; productRef = 9262911C2ED8429B00E6CE69 /* KakaoSDKUser */; };
@@ -49,6 +50,7 @@
 			files = (
 				030D64E72ED6D00100AFA941 /* iamport-ios in Frameworks */,
 				926291192ED8429B00E6CE69 /* KakaoSDK in Frameworks */,
+				03EA97212EDAB4C7002D5975 /* RealmSwift in Frameworks */,
 				9262911D2ED8429B00E6CE69 /* KakaoSDKUser in Frameworks */,
 				92D4A6372EC1D679002526FC /* Kingfisher in Frameworks */,
 				030D64C42ED5CC3D00AFA941 /* SocketIO in Frameworks */,
@@ -102,6 +104,7 @@
 				926291182ED8429B00E6CE69 /* KakaoSDK */,
 				9262911A2ED8429B00E6CE69 /* KakaoSDKAuth */,
 				9262911C2ED8429B00E6CE69 /* KakaoSDKUser */,
+				03EA97202EDAB4C7002D5975 /* RealmSwift */,
 			);
 			productName = Moda;
 			productReference = 037028A92EBC8ED900A4A7CF /* Moda.app */;
@@ -136,6 +139,7 @@
 				030D64C22ED5CC3D00AFA941 /* XCRemoteSwiftPackageReference "socket" */,
 				030D64E52ED6D00100AFA941 /* XCRemoteSwiftPackageReference "iamport-ios" */,
 				926291172ED8429B00E6CE69 /* XCRemoteSwiftPackageReference "kakao-ios-sdk" */,
+				03EA971F2EDAB4C7002D5975 /* XCRemoteSwiftPackageReference "realm-swift" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 037028AA2EBC8ED900A4A7CF /* Products */;
@@ -298,7 +302,7 @@
 				CODE_SIGN_ENTITLEMENTS = Moda/Moda.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = "";
+				DEVELOPMENT_TEAM = RFZY2ACQ74;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Moda/Info.plist;
@@ -316,7 +320,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.Svtw.Moda;
+				PRODUCT_BUNDLE_IDENTIFIER = com.Miya.Moda;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
 				SUPPORTS_MACCATALYST = NO;
@@ -338,7 +342,7 @@
 				CODE_SIGN_ENTITLEMENTS = Moda/Moda.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = "";
+				DEVELOPMENT_TEAM = RFZY2ACQ74;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Moda/Info.plist;
@@ -356,7 +360,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.Svtw.Moda;
+				PRODUCT_BUNDLE_IDENTIFIER = com.Miya.Moda;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
 				SUPPORTS_MACCATALYST = NO;
@@ -408,6 +412,14 @@
 				minimumVersion = 1.4.7;
 			};
 		};
+		03EA971F2EDAB4C7002D5975 /* XCRemoteSwiftPackageReference "realm-swift" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/realm/realm-swift.git";
+			requirement = {
+				branch = master;
+				kind = branch;
+			};
+		};
 		926291172ED8429B00E6CE69 /* XCRemoteSwiftPackageReference "kakao-ios-sdk" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/kakao/kakao-ios-sdk";
@@ -436,6 +448,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 030D64E52ED6D00100AFA941 /* XCRemoteSwiftPackageReference "iamport-ios" */;
 			productName = "iamport-ios";
+		};
+		03EA97202EDAB4C7002D5975 /* RealmSwift */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 03EA971F2EDAB4C7002D5975 /* XCRemoteSwiftPackageReference "realm-swift" */;
+			productName = RealmSwift;
 		};
 		926291182ED8429B00E6CE69 /* KakaoSDK */ = {
 			isa = XCSwiftPackageProductDependency;
