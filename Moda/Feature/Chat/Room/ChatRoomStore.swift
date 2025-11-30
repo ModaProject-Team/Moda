@@ -426,6 +426,10 @@ final class ChatRoomStore: ObservableObject {
         do {
             let sent = try await sendMessageWithRetry(content: text, files: nil, retryCount: 3)
 
+            // Realm에서 임시 메시지 삭제
+            try? await realmService.deleteMessage(chatId: tempId)
+
+            // 실제 메시지 저장
             let actualMessage = ChatMessageObject.from(response: sent)
             try? await realmService.saveMessage(actualMessage)
 
@@ -572,6 +576,10 @@ final class ChatRoomStore: ObservableObject {
                 retryCount: 3
             )
 
+            // Realm에서 임시 메시지 삭제
+            try? await realmService.deleteMessage(chatId: newTempId)
+
+            // 실제 메시지 저장
             let actualMessage = ChatMessageObject.from(response: sent)
             try? await realmService.saveMessage(actualMessage)
 
@@ -668,6 +676,10 @@ final class ChatRoomStore: ObservableObject {
                 let uploadResponse = try await chatAPI.uploadFiles(roomId: roomId, files: files)
                 let sent = try await sendMessageWithRetry(content: nil, files: uploadResponse.files, retryCount: 3)
 
+                // Realm에서 임시 메시지 삭제
+                try? await realmService.deleteMessage(chatId: tempId)
+
+                // 실제 메시지 저장
                 let messageObject = ChatMessageObject.from(response: sent)
                 try? await realmService.saveMessage(messageObject)
 
