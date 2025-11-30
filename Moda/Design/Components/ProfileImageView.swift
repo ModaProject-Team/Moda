@@ -6,7 +6,6 @@
 //
 
 import SwiftUI
-import Kingfisher
 
 struct ProfileImageView: View {
     let imageURL: URL?
@@ -15,18 +14,19 @@ struct ProfileImageView: View {
     var body: some View {
         Group {
             if let url = imageURL {
-                KFImage(url)
-                    .requestModifier(KFHeaders.modifier)
-                    .placeholder {
-                        placeholder
+                CachedImageView(
+                    url: url,
+                    targetSize: CGSize(width: size, height: size),
+                    contentMode: .fill,
+                    placeholder: {
+                        AnyView(placeholder)
                     }
-                    .cacheOriginalImage()
-                    .fade(duration: 0.2)
-                    .cancelOnDisappear(true)
-                    .resizable()
-                    .scaledToFill()
-                    .frame(width: size, height: size)
-                    .clipShape(Circle())
+                )
+                .cacheOriginalImage()
+                .fade(duration: 0.2)
+                .cancelOnDisappear(true)
+                .frame(width: size, height: size)
+                .clipShape(Circle())
             } else {
                 placeholder
             }

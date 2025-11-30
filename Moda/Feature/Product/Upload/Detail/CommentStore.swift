@@ -74,7 +74,7 @@ final class CommentStore: ObservableObject {
             state.inputText = ""
             state.isSending = false
             await loadComments()
-            NotificationCenter.default.post(name: NSNotification.Name("commentUpdated"), object: nil)
+            NotificationCenter.default.post(name: AppNotification.commentUpdated, object: nil)
         } catch {
             state.errorMessage = "댓글 작성에 실패했습니다"
             state.isSending = false
@@ -85,7 +85,7 @@ final class CommentStore: ObservableObject {
         do {
             try await commentAPI.deleteComment(postId: postId, commentId: commentId)
             await loadComments()
-            NotificationCenter.default.post(name: NSNotification.Name("commentUpdated"), object: nil)
+            NotificationCenter.default.post(name: AppNotification.commentUpdated, object: nil)
         } catch {
             state.errorMessage = "댓글 삭제에 실패했습니다"
         }
@@ -95,7 +95,7 @@ final class CommentStore: ObservableObject {
         do {
             try await commentAPI.deleteComment(postId: postId, commentId: replyId)
             await loadComments()
-            NotificationCenter.default.post(name: NSNotification.Name("commentUpdated"), object: nil)
+            NotificationCenter.default.post(name: AppNotification.commentUpdated, object: nil)
         } catch {
             state.errorMessage = "답글 삭제에 실패했습니다"
         }

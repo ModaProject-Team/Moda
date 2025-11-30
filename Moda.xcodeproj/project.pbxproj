@@ -10,22 +10,21 @@
 		030D64C42ED5CC3D00AFA941 /* SocketIO in Frameworks */ = {isa = PBXBuildFile; productRef = 030D64C32ED5CC3D00AFA941 /* SocketIO */; };
 		030D64E72ED6D00100AFA941 /* iamport-ios in Frameworks */ = {isa = PBXBuildFile; productRef = 030D64E62ED6D00100AFA941 /* iamport-ios */; };
 		037028BA2EBC8F1F00A4A7CF /* .gitignore in Resources */ = {isa = PBXBuildFile; fileRef = 037028B92EBC8F1700A4A7CF /* .gitignore */; };
-		03EA97212EDAB4C7002D5975 /* RealmSwift in Frameworks */ = {isa = PBXBuildFile; productRef = 03EA97202EDAB4C7002D5975 /* RealmSwift */; };
-		03EA97302EDAC010002D5975 /* RealmSwift in Embed Frameworks */ = {isa = PBXBuildFile; productRef = 03EA97202EDAB4C7002D5975 /* RealmSwift */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
+		03EA9CC92EDB6039002D5975 /* RealmSwift in Frameworks */ = {isa = PBXBuildFile; productRef = 03EA9CC82EDB6039002D5975 /* RealmSwift */; };
+		03EA9CCA2EDB6041002D5975 /* RealmSwift in Embed Frameworks */ = {isa = PBXBuildFile; productRef = 03EA9CC82EDB6039002D5975 /* RealmSwift */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
 		926291192ED8429B00E6CE69 /* KakaoSDK in Frameworks */ = {isa = PBXBuildFile; productRef = 926291182ED8429B00E6CE69 /* KakaoSDK */; };
 		9262911B2ED8429B00E6CE69 /* KakaoSDKAuth in Frameworks */ = {isa = PBXBuildFile; productRef = 9262911A2ED8429B00E6CE69 /* KakaoSDKAuth */; };
 		9262911D2ED8429B00E6CE69 /* KakaoSDKUser in Frameworks */ = {isa = PBXBuildFile; productRef = 9262911C2ED8429B00E6CE69 /* KakaoSDKUser */; };
-		92D4A6372EC1D679002526FC /* Kingfisher in Frameworks */ = {isa = PBXBuildFile; productRef = 92D4A6362EC1D679002526FC /* Kingfisher */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
-		03EA97312EDAC010002D5975 /* Embed Frameworks */ = {
+		03EA9CCB2EDB6041002D5975 /* Embed Frameworks */ = {
 			isa = PBXCopyFilesBuildPhase;
 			buildActionMask = 2147483647;
 			dstPath = "";
 			dstSubfolderSpec = 10;
 			files = (
-				03EA97302EDAC010002D5975 /* RealmSwift in Embed Frameworks */,
+				03EA9CCA2EDB6041002D5975 /* RealmSwift in Embed Frameworks */,
 			);
 			name = "Embed Frameworks";
 			runOnlyForDeploymentPostprocessing = 0;
@@ -65,9 +64,8 @@
 			files = (
 				030D64E72ED6D00100AFA941 /* iamport-ios in Frameworks */,
 				926291192ED8429B00E6CE69 /* KakaoSDK in Frameworks */,
-				03EA97212EDAB4C7002D5975 /* RealmSwift in Frameworks */,
+				03EA9CC92EDB6039002D5975 /* RealmSwift in Frameworks */,
 				9262911D2ED8429B00E6CE69 /* KakaoSDKUser in Frameworks */,
-				92D4A6372EC1D679002526FC /* Kingfisher in Frameworks */,
 				030D64C42ED5CC3D00AFA941 /* SocketIO in Frameworks */,
 				9262911B2ED8429B00E6CE69 /* KakaoSDKAuth in Frameworks */,
 			);
@@ -103,7 +101,7 @@
 				037028A52EBC8ED900A4A7CF /* Sources */,
 				037028A62EBC8ED900A4A7CF /* Frameworks */,
 				037028A72EBC8ED900A4A7CF /* Resources */,
-				03EA97312EDAC010002D5975 /* Embed Frameworks */,
+				03EA9CCB2EDB6041002D5975 /* Embed Frameworks */,
 			);
 			buildRules = (
 			);
@@ -114,13 +112,12 @@
 			);
 			name = Moda;
 			packageProductDependencies = (
-				92D4A6362EC1D679002526FC /* Kingfisher */,
 				030D64C32ED5CC3D00AFA941 /* SocketIO */,
 				030D64E62ED6D00100AFA941 /* iamport-ios */,
 				926291182ED8429B00E6CE69 /* KakaoSDK */,
 				9262911A2ED8429B00E6CE69 /* KakaoSDKAuth */,
 				9262911C2ED8429B00E6CE69 /* KakaoSDKUser */,
-				03EA97202EDAB4C7002D5975 /* RealmSwift */,
+				03EA9CC82EDB6039002D5975 /* RealmSwift */,
 			);
 			productName = Moda;
 			productReference = 037028A92EBC8ED900A4A7CF /* Moda.app */;
@@ -151,11 +148,10 @@
 			mainGroup = 037028A02EBC8ED900A4A7CF;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
-				92D4A6352EC1D679002526FC /* XCRemoteSwiftPackageReference "Kingfisher" */,
 				030D64C22ED5CC3D00AFA941 /* XCRemoteSwiftPackageReference "socket" */,
 				030D64E52ED6D00100AFA941 /* XCRemoteSwiftPackageReference "iamport-ios" */,
 				926291172ED8429B00E6CE69 /* XCRemoteSwiftPackageReference "kakao-ios-sdk" */,
-				03EA971F2EDAB4C7002D5975 /* XCRemoteSwiftPackageReference "realm-swift" */,
+				03EA9CC72EDB6039002D5975 /* XCRemoteSwiftPackageReference "realm-swift" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 037028AA2EBC8ED900A4A7CF /* Products */;
@@ -428,7 +424,7 @@
 				minimumVersion = 1.4.7;
 			};
 		};
-		03EA971F2EDAB4C7002D5975 /* XCRemoteSwiftPackageReference "realm-swift" */ = {
+		03EA9CC72EDB6039002D5975 /* XCRemoteSwiftPackageReference "realm-swift" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/realm/realm-swift.git";
 			requirement = {
@@ -444,14 +440,6 @@
 				minimumVersion = 2.26.0;
 			};
 		};
-		92D4A6352EC1D679002526FC /* XCRemoteSwiftPackageReference "Kingfisher" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/onevcat/Kingfisher.git";
-			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 8.6.1;
-			};
-		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -465,9 +453,9 @@
 			package = 030D64E52ED6D00100AFA941 /* XCRemoteSwiftPackageReference "iamport-ios" */;
 			productName = "iamport-ios";
 		};
-		03EA97202EDAB4C7002D5975 /* RealmSwift */ = {
+		03EA9CC82EDB6039002D5975 /* RealmSwift */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = 03EA971F2EDAB4C7002D5975 /* XCRemoteSwiftPackageReference "realm-swift" */;
+			package = 03EA9CC72EDB6039002D5975 /* XCRemoteSwiftPackageReference "realm-swift" */;
 			productName = RealmSwift;
 		};
 		926291182ED8429B00E6CE69 /* KakaoSDK */ = {
@@ -484,11 +472,6 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 926291172ED8429B00E6CE69 /* XCRemoteSwiftPackageReference "kakao-ios-sdk" */;
 			productName = KakaoSDKUser;
-		};
-		92D4A6362EC1D679002526FC /* Kingfisher */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 92D4A6352EC1D679002526FC /* XCRemoteSwiftPackageReference "Kingfisher" */;
-			productName = Kingfisher;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

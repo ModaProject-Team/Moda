@@ -6,7 +6,6 @@
 //
 
 import SwiftUI
-import Kingfisher
 
 struct CommentSheetView: View {
     let postId: String
@@ -168,20 +167,23 @@ struct CommentRow: View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(alignment: .top, spacing: 12) {
                 if let profileImage = comment.creator.profileImage, !profileImage.isEmpty {
-                    KFImage(URL(string: "\(NetworkConfig.baseURL)/v1\(profileImage)"))
-                        .requestModifier(KFHeaders.modifier)
-                        .placeholder {
-                            Circle()
-                                .fill(Color.gray3)
-                                .overlay {
-                                    Image(systemName: "person.fill")
-                                        .foregroundColor(.gray2)
-                                }
+                    CachedImageView(
+                        url: URL(string: "\(NetworkConfig.baseURL)/v1\(profileImage)"),
+                        targetSize: CGSize(width: 36, height: 36),
+                        contentMode: .fill,
+                        placeholder: {
+                            AnyView(
+                                Circle()
+                                    .fill(Color.gray3)
+                                    .overlay {
+                                        Image(systemName: "person.fill")
+                                            .foregroundColor(.gray2)
+                                    }
+                            )
                         }
-                        .resizable()
-                        .aspectRatio(contentMode: .fill)
-                        .frame(width: 36, height: 36)
-                        .clipShape(Circle())
+                    )
+                    .frame(width: 36, height: 36)
+                    .clipShape(Circle())
                 } else {
                     Circle()
                         .fill(Color.gray3)
@@ -263,20 +265,23 @@ struct ReplyRow: View {
                 .padding(.leading, 16)
 
             if let profileImage = reply.creator.profileImage, !profileImage.isEmpty {
-                KFImage(URL(string: "\(NetworkConfig.baseURL)/v1\(profileImage)"))
-                    .requestModifier(KFHeaders.modifier)
-                    .placeholder {
-                        Circle()
-                            .fill(Color.gray3)
-                            .overlay {
-                                Image(systemName: "person.fill")
-                                    .foregroundColor(.gray2)
-                            }
+                CachedImageView(
+                    url: URL(string: "\(NetworkConfig.baseURL)/v1\(profileImage)"),
+                    targetSize: CGSize(width: 32, height: 32),
+                    contentMode: .fill,
+                    placeholder: {
+                        AnyView(
+                            Circle()
+                                .fill(Color.gray3)
+                                .overlay {
+                                    Image(systemName: "person.fill")
+                                        .foregroundColor(.gray2)
+                                }
+                        )
                     }
-                    .resizable()
-                    .aspectRatio(contentMode: .fill)
-                    .frame(width: 32, height: 32)
-                    .clipShape(Circle())
+                )
+                .frame(width: 32, height: 32)
+                .clipShape(Circle())
             } else {
                 Circle()
                     .fill(Color.gray3)

@@ -32,6 +32,9 @@ struct VideoPlayerView: View {
         }
         .onDisappear {
             playerManager.cleanup()
+            Task {
+                await VideoCacheManager.shared.cancelVideoDownload(for: url)
+            }
         }
     }
 }
@@ -81,15 +84,33 @@ final class VideoPlayerManager: ObservableObject {
     @Published var videoAspectRatio: CGFloat?
 
     private var statusObserver: NSKeyValueObservation?
+    private let cacheManager = VideoCacheManager.shared
 
     func setupPlayer(url: URL) {
-        let headers = [
-            "SesacKey": NetworkConfig.sesacKey,
-            "ProductId": NetworkConfig.productId,
-            "Authorization": TokenManager.shared.accessToken ?? ""
-        ]
+        Task {
+            do {
+                let localURL = try await getCachedOrDownload(url: url)
+                await setupPlayerWithURL(localURL)
+            } catch {
+                print("Failed to load video: \(error.localizedDescription)")
+                await MainActor.run {
+                    self.videoAspectRatio = 1.0
+                }
+            }
+        }
+    }
 
-        let asset = AVURLAsset(url: url, options: ["AVURLAssetHTTPHeaderFieldsKey": headers])
+    private func getCachedOrDownload(url: URL) async throws -> URL {
+        if let cachedURL = cacheManager.getCachedVideo(for: url) {
+            return cachedURL
+        }
+
+        return try await cacheManager.cacheVideo(from: url)
+    }
+
+    @MainActor
+    private func setupPlayerWithURL(_ url: URL) async {
+        let asset = AVURLAsset(url: url)
         let playerItem = AVPlayerItem(asset: asset)
         player = AVPlayer(playerItem: playerItem)
         player?.isMuted = true

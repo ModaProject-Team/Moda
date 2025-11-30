@@ -6,7 +6,6 @@
 //
 
 import SwiftUI
-import Kingfisher
 
 struct TransactionsView: View {
     @EnvironmentObject var navigator: AppNavigator
@@ -62,7 +61,7 @@ struct TransactionsView: View {
         .task {
             store.send(.onAppear)
         }
-        .onReceive(NotificationCenter.default.publisher(for: .postPaymentCompleted)) { _ in
+        .onReceive(NotificationCenter.default.publisher(for: AppNotification.postPaymentCompleted)) { _ in
             store.send(.refresh)
         }
     }

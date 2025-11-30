@@ -238,17 +238,17 @@ struct MapView: View {
                 }
             )
         }
-        .onReceive(NotificationCenter.default.publisher(for: .postLikeUpdated)) { notification in
+        .onReceive(NotificationCenter.default.publisher(for: AppNotification.postLikeUpdated)) { notification in
             if let userInfo = notification.userInfo,
                let postId = userInfo["postId"] as? String,
                let isLiked = userInfo["isLiked"] as? Bool {
                 store.send(.updateLikeFromExternal(postId: postId, isLiked: isLiked))
             }
         }
-        .onReceive(NotificationCenter.default.publisher(for: .postDeleted)) { _ in
+        .onReceive(NotificationCenter.default.publisher(for: AppNotification.postDeleted)) { _ in
             store.send(.refresh)
         }
-        .onReceive(NotificationCenter.default.publisher(for: .postUpdated)) { _ in
+        .onReceive(NotificationCenter.default.publisher(for: AppNotification.postUpdated)) { _ in
             store.send(.refresh)
         }
     }

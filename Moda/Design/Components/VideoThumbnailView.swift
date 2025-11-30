@@ -14,6 +14,9 @@ struct VideoThumbnailView: View {
 
     @State private var thumbnailImage: UIImage?
     @State private var isLoading = true
+    @State private var downloadTask: Task<Void, Never>?
+
+    private let cacheManager = VideoCacheManager.shared
 
     var body: some View {
         ZStack {
@@ -40,29 +43,28 @@ struct VideoThumbnailView: View {
                 .shadow(color: .black.opacity(0.3), radius: 4)
         }
         .onAppear {
-            generateThumbnail()
+            downloadTask = Task {
+                await loadThumbnail()
+            }
+        }
+        .onDisappear {
+            downloadTask?.cancel()
+            Task {
+                await cacheManager.cancelVideoDownload(for: url)
+            }
         }
     }
 
-    private func generateThumbnail() {
-        Task {
-            let asset = AVAsset(url: url)
-            let imageGenerator = AVAssetImageGenerator(asset: asset)
-            imageGenerator.appliesPreferredTrackTransform = true
-            imageGenerator.maximumSize = CGSize(width: itemWidth * 2, height: itemWidth * 2)
-
-            do {
-                let cgImage = try imageGenerator.copyCGImage(at: .zero, actualTime: nil)
-                let uiImage = UIImage(cgImage: cgImage)
-
-                await MainActor.run {
-                    self.thumbnailImage = uiImage
-                    self.isLoading = false
-                }
-            } catch {
-                await MainActor.run {
-                    self.isLoading = false
-                }
+    private func loadThumbnail() async {
+        do {
+            let thumbnail = try await cacheManager.cacheThumbnail(from: url)
+            await MainActor.run {
+                self.thumbnailImage = thumbnail
+                self.isLoading = false
+            }
+        } catch {
+            await MainActor.run {
+                self.isLoading = false
             }
         }
     }

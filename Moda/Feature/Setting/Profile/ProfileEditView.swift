@@ -7,7 +7,6 @@
 
 import SwiftUI
 import PhotosUI
-import Kingfisher
 
 struct ProfileEditView: View {
     @EnvironmentObject var navigator: AppNavigator
@@ -170,16 +169,16 @@ private struct ProfileImageContent: View {
                         .frame(width: 100, height: 100)
                         .clipShape(Circle())
                 } else if let url = profileImageURL {
-                    KFImage(url)
-                        .requestModifier(KFHeaders.modifier)
-                        .placeholder {
-                            Circle().fill(Color.gray.opacity(0.2))
+                    CachedImageView(
+                        url: url,
+                        targetSize: CGSize(width: 100, height: 100),
+                        contentMode: .fill,
+                        placeholder: {
+                            AnyView(Circle().fill(Color.gray.opacity(0.2)))
                         }
-                        .cacheOriginalImage()
-                        .resizable()
-                        .scaledToFill()
-                        .frame(width: 100, height: 100)
-                        .clipShape(Circle())
+                    )
+                    .frame(width: 100, height: 100)
+                    .clipShape(Circle())
                 } else {
                     ZStack {
                         Circle().fill(Color.gray.opacity(0.2))

@@ -129,6 +129,19 @@ struct SettingView: View {
     private func logout() {
         TokenManager.shared.clearToken()
         UserDefaultsManager.shared.clearUserData()
+
+        // 캐시 및 로컬 DB 정리
+        Task {
+            // 이미지/동영상 캐시 삭제
+            await ImageCacheManager.shared.clearCache()
+            await VideoCacheManager.shared.clearCache()
+
+            // Realm 로컬 DB 삭제
+            try? await UserRealmService.shared.deleteMyProfile()
+            try? await FriendRealmService.shared.deleteAllFriends()
+            try? await ChatRealmService.shared.deleteAllData()
+        }
+
         AppNavigator.shared.popToRoot()
         AppNavigator.shared.isLoggedIn = false
     }

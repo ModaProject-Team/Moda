@@ -12,15 +12,18 @@ import KakaoSDKAuth
 @main
 struct ModaApp: App {
     @StateObject private var navigator = AppNavigator.shared
+    @Environment(\.scenePhase) private var scenePhase
 
     init() {
         if Thread.isMainThread {
             initializeKakaoSDK()
             checkLoginStatus()
+            cleanupCacheOnStartup()
         } else {
             DispatchQueue.main.sync {
                 initializeKakaoSDK()
                 checkLoginStatus()
+                cleanupCacheOnStartup()
             }
         }
     }
@@ -37,9 +40,15 @@ struct ModaApp: App {
 
     @MainActor
     private func checkLoginStatus() {
-        // 앱 시작 시 저장된 토큰이 있으면 자동 로그인
         if TokenManager.shared.isLoggedIn {
             AppNavigator.shared.isLoggedIn = true
+        }
+    }
+
+    @MainActor
+    private func cleanupCacheOnStartup() {
+        Task {
+            await VideoCacheManager.shared.cleanupIfNeeded()
         }
     }
 
@@ -58,6 +67,13 @@ struct ModaApp: App {
                 }
             }
             .environmentObject(navigator)
+            .onChange(of: scenePhase) { oldPhase, newPhase in
+                if newPhase == .background {
+                    Task {
+                        await VideoCacheManager.shared.cleanupIfNeeded()
+                    }
+                }
+            }
         }
     }
 }

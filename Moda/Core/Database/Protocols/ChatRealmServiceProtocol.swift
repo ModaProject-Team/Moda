@@ -75,4 +75,7 @@ protocol ChatRealmServiceProtocol: Actor {
     /// 모든 채팅방 조회
     /// - Returns: 채팅방 객체 배열 (최신순)
     func getAllRooms() -> [ChatRoomObject]
+
+    /// 모든 채팅 데이터 삭제 (메시지 + 채팅방)
+    func deleteAllData() throws
 }
