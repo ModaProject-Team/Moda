@@ -269,7 +269,7 @@ final class VideoCacheManager: VideoCacheServiceProtocol {
 
         let newSize = CGSize(width: size.width * scale, height: size.height * scale)
 
-        UIGraphicsBeginImageContextWithOptions(newSize, false, 2.0)
+        UIGraphicsBeginImageContextWithOptions(newSize, true, 2.0)
         image.draw(in: CGRect(origin: .zero, size: newSize))
         let resized = UIGraphicsGetImageFromCurrentImageContext()
         UIGraphicsEndImageContext()
