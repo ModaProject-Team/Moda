@@ -23,10 +23,9 @@ actor ChatRealmService: ChatRealmServiceProtocol {
         self.configuration = config
 
         do {
-            let realm = try Realm(configuration: config)
-            print("✅ Realm initialized at: \(realm.configuration.fileURL?.path ?? "unknown")")
+            _ = try Realm(configuration: config)
         } catch {
-            fatalError("❌ Realm initialization failed: \(error)")
+            fatalError("Realm initialization failed: \(error)")
         }
     }
 
@@ -194,5 +193,16 @@ actor ChatRealmService: ChatRealmServiceProtocol {
             .sorted(byKeyPath: "updatedAtDate", ascending: false)
 
         return Array(results.map { ChatRoomObject(value: $0) })
+    }
+
+    func deleteAllData() throws {
+        let realm = try getRealm()
+
+        try realm.write {
+            // 모든 채팅 메시지 삭제
+            realm.delete(realm.objects(ChatMessageObject.self))
+            // 모든 채팅방 삭제
+            realm.delete(realm.objects(ChatRoomObject.self))
+        }
     }
 }
