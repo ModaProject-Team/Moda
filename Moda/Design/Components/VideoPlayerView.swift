@@ -136,7 +136,30 @@ final class VideoPlayerManager: ObservableObject {
 
         let playerItem = AVPlayerItem(asset: asset)
 
-        // 비디오 종횡비 먼저 로드
+        // 기본 종횡비로 플레이어 먼저 설정 (shimmer 즉시 제거)
+        self.videoAspectRatio = 1.0
+        self.player = AVPlayer(playerItem: playerItem)
+        self.player?.isMuted = true
+        self.player?.automaticallyWaitsToMinimizeStalling = false
+
+        self.statusObserver = playerItem.observe(\.status, options: [.new, .initial]) { [weak self] item, _ in
+            DispatchQueue.main.async {
+                if item.status == .readyToPlay {
+                    self?.player?.play()
+                }
+            }
+        }
+
+        NotificationCenter.default.addObserver(
+            forName: .AVPlayerItemDidPlayToEndTime,
+            object: playerItem,
+            queue: .main
+        ) { [weak self] _ in
+            self?.player?.seek(to: .zero)
+            self?.player?.play()
+        }
+
+        // 백그라운드에서 실제 종횡비 로드 후 업데이트
         Task {
             do {
                 let tracks = try await asset.loadTracks(withMediaType: .video)
@@ -160,37 +183,10 @@ final class VideoPlayerManager: ObservableObject {
 
                     await MainActor.run {
                         self.videoAspectRatio = videoWidth / videoHeight
-
-                        // 비율 로드 완료 후 플레이어 설정
-                        self.player = AVPlayer(playerItem: playerItem)
-                        self.player?.isMuted = true
-                        self.player?.automaticallyWaitsToMinimizeStalling = false
-
-                        self.statusObserver = playerItem.observe(\.status, options: [.new, .initial]) { [weak self] item, _ in
-                            DispatchQueue.main.async {
-                                if item.status == .readyToPlay {
-                                    self?.player?.play()
-                                }
-                            }
-                        }
-
-                        NotificationCenter.default.addObserver(
-                            forName: .AVPlayerItemDidPlayToEndTime,
-                            object: playerItem,
-                            queue: .main
-                        ) { [weak self] _ in
-                            self?.player?.seek(to: .zero)
-                            self?.player?.play()
-                        }
                     }
                 }
             } catch {
-                // 에러 발생 시 기본 비율로 설정
-                await MainActor.run {
-                    self.videoAspectRatio = 1.0
-                    self.player = AVPlayer(playerItem: playerItem)
-                    self.player?.isMuted = true
-                }
+                // 실제 종횡비 로드 실패 시 기본값(1.0) 유지
             }
         }
     }
@@ -200,6 +196,30 @@ final class VideoPlayerManager: ObservableObject {
         let asset = AVURLAsset(url: url)
         let playerItem = AVPlayerItem(asset: asset)
 
+        // 기본 종횡비로 플레이어 먼저 설정 (shimmer 즉시 제거)
+        self.videoAspectRatio = 1.0
+        self.player = AVPlayer(playerItem: playerItem)
+        self.player?.isMuted = true
+        self.player?.automaticallyWaitsToMinimizeStalling = false
+
+        self.statusObserver = playerItem.observe(\.status, options: [.new, .initial]) { [weak self] item, _ in
+            DispatchQueue.main.async {
+                if item.status == .readyToPlay {
+                    self?.player?.play()
+                }
+            }
+        }
+
+        NotificationCenter.default.addObserver(
+            forName: .AVPlayerItemDidPlayToEndTime,
+            object: playerItem,
+            queue: .main
+        ) { [weak self] _ in
+            self?.player?.seek(to: .zero)
+            self?.player?.play()
+        }
+
+        // 백그라운드에서 실제 종횡비 로드 후 업데이트
         Task {
             do {
                 let tracks = try await asset.loadTracks(withMediaType: .video)
@@ -223,37 +243,10 @@ final class VideoPlayerManager: ObservableObject {
 
                     await MainActor.run {
                         self.videoAspectRatio = videoWidth / videoHeight
-
-                        // 비율 로드 완료 후 플레이어 설정
-                        self.player = AVPlayer(playerItem: playerItem)
-                        self.player?.isMuted = true
-                        self.player?.automaticallyWaitsToMinimizeStalling = false
-
-                        self.statusObserver = playerItem.observe(\.status, options: [.new, .initial]) { [weak self] item, _ in
-                            DispatchQueue.main.async {
-                                if item.status == .readyToPlay {
-                                    self?.player?.play()
-                                }
-                            }
-                        }
-
-                        NotificationCenter.default.addObserver(
-                            forName: .AVPlayerItemDidPlayToEndTime,
-                            object: playerItem,
-                            queue: .main
-                        ) { [weak self] _ in
-                            self?.player?.seek(to: .zero)
-                            self?.player?.play()
-                        }
                     }
                 }
             } catch {
-                // 에러 발생 시 기본 비율로 설정
-                await MainActor.run {
-                    self.videoAspectRatio = 1.0
-                    self.player = AVPlayer(playerItem: playerItem)
-                    self.player?.isMuted = true
-                }
+                // 실제 종횡비 로드 실패 시 기본값(1.0) 유지
             }
         }
     }

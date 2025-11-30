@@ -91,10 +91,13 @@ final class ImageCompressor {
 
     /// JPEG 포맷으로 압축
     private func compressJPEG(_ image: UIImage, maxSizeInBytes: Int) -> Data? {
+        // 알파 채널 제거
+        let opaqueImage = removeAlphaChannel(from: image)
+
         var compression: CGFloat = 0.8
 
         while compression > 0.1 {
-            if let data = image.jpegData(compressionQuality: compression),
+            if let data = opaqueImage.jpegData(compressionQuality: compression),
                data.count <= maxSizeInBytes {
                 return data
             }
@@ -127,11 +130,28 @@ final class ImageCompressor {
 
     /// 이미지 리사이징
     private func resize(image: UIImage, to newSize: CGSize) -> UIImage? {
-        UIGraphicsBeginImageContextWithOptions(newSize, false, 1.0)
-        defer { UIGraphicsEndImageContext() }
+        let format = UIGraphicsImageRendererFormat()
+        format.opaque = false
+        format.scale = image.scale
 
-        image.draw(in: CGRect(origin: .zero, size: newSize))
-        return UIGraphicsGetImageFromCurrentImageContext()
+        let renderer = UIGraphicsImageRenderer(size: newSize, format: format)
+        return renderer.image { context in
+            image.draw(in: CGRect(origin: .zero, size: newSize))
+        }
+    }
+
+    /// 이미지에서 알파 채널 제거
+    /// - Parameter image: 원본 이미지
+    /// - Returns: 알파 채널이 제거된 이미지
+    private func removeAlphaChannel(from image: UIImage) -> UIImage {
+        let format = UIGraphicsImageRendererFormat()
+        format.opaque = true
+        format.scale = image.scale
+
+        let renderer = UIGraphicsImageRenderer(size: image.size, format: format)
+        return renderer.image { context in
+            image.draw(at: .zero)
+        }
     }
 }
 
