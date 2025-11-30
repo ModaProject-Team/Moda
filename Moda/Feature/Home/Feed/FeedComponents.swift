@@ -192,7 +192,7 @@ struct PostCardView: View {
     private var infoSection: some View {
         VStack(alignment: .leading, spacing: 4) {
             Text(product.title)
-                .Body1()
+                .Body1SemiBold()
                 .foregroundColor(.gray1)
                 .lineLimit(2)
                 .fixedSize(horizontal: false, vertical: true)
