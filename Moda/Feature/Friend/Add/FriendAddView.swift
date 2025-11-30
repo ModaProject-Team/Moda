@@ -28,6 +28,9 @@ struct FriendAddView: View {
                 }
             }
         }
+        .onTapGesture {
+            hideKeyboard()
+        }
         .navigationTitle("닉네임으로 추가")
         .navigationBarTitleDisplayMode(.inline)
         .navigationBarBackButtonHidden(true)
@@ -192,6 +195,12 @@ struct FriendAddView: View {
             }
             .padding(.bottom, 100)
         }
+        .simultaneousGesture(
+            DragGesture(minimumDistance: 0)
+                .onChanged { _ in
+                    hideKeyboard()
+                }
+        )
     }
 }
 

@@ -40,10 +40,19 @@ struct EmailSignUpView: View {
                 }
                 .padding(.horizontal, 24)
             }
+            .simultaneousGesture(
+                DragGesture(minimumDistance: 0)
+                    .onChanged { _ in
+                        hideKeyboard()
+                    }
+            )
 
             if store.state.isLoading {
                 LoadingOverlay()
             }
+        }
+        .onTapGesture {
+            hideKeyboard()
         }
         .navigationBarBackButtonHidden(true)
         .toolbar {

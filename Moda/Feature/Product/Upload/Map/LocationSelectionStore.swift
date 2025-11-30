@@ -198,15 +198,22 @@ extension LocationSelectionStore: CLLocationManagerDelegate {
             let authStatus = manager.authorizationStatus
 
             await MainActor.run {
+                let previousStatus = state.authorizationStatus
+
                 state.isLocationServicesEnabled = isEnabled
                 state.authorizationStatus = authStatus
 
-                if !isEnabled {
+                // 권한 상태가 실제로 변경되었을 때만 alert 표시
+                if !isEnabled && previousStatus != authStatus {
                     state.showLocationServiceDisabledAlert = true
-                } else if authStatus == .denied || authStatus == .restricted {
+                } else if (authStatus == .denied || authStatus == .restricted) &&
+                          previousStatus != .denied && previousStatus != .restricted {
                     state.showPermissionDeniedAlert = true
                 } else if authStatus == .authorizedWhenInUse || authStatus == .authorizedAlways {
-                    manager.startUpdatingLocation()
+                    // 이미 위치를 가져온 경우 다시 업데이트하지 않음
+                    if state.currentLocation == nil {
+                        manager.startUpdatingLocation()
+                    }
                 } else if authStatus == .notDetermined && isEnabled {
                     manager.requestWhenInUseAuthorization()
                 }
@@ -239,7 +246,22 @@ extension LocationSelectionStore: CLLocationManagerDelegate {
     nonisolated func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
         Task {
             await MainActor.run {
-                state.showLocationUpdateFailedAlert = true
+                // 이미 위치를 가져온 경우 에러 무시
+                guard state.currentLocation == nil else {
+                    locationManager.stopUpdatingLocation()
+                    return
+                }
+
+                // CLError 처리
+                if let clError = error as? CLError {
+                    switch clError.code {
+                    case .denied, .network, .locationUnknown:
+                        state.showLocationUpdateFailedAlert = true
+                    default:
+                        break
+                    }
+                }
+
                 locationManager.stopUpdatingLocation()
             }
         }

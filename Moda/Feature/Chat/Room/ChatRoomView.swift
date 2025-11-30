@@ -37,6 +37,9 @@ struct ChatRoomView: View {
                 inputSection
             }
         }
+        .onTapGesture {
+            hideKeyboard()
+        }
         .navigationBarHidden(true)
         .task {
             store.send(.onAppear)

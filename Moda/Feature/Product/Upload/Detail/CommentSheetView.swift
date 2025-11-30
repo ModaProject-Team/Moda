@@ -47,6 +47,9 @@ struct CommentSheetView: View {
                 }
             }
         }
+        .onTapGesture {
+            hideKeyboard()
+        }
         .task {
             store.send(.loadComments)
         }
@@ -95,6 +98,12 @@ struct CommentSheetView: View {
             }
             .padding(.bottom, 100)
         }
+        .simultaneousGesture(
+            DragGesture(minimumDistance: 0)
+                .onChanged { _ in
+                    hideKeyboard()
+                }
+        )
     }
 
     private var inputSection: some View {

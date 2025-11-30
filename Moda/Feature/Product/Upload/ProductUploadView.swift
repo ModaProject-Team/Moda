@@ -43,27 +43,14 @@ struct ProductUploadView: View {
                     .padding(.top, 20)
                     .padding(.bottom, 100)
                 }
+                .simultaneousGesture(
+                    DragGesture(minimumDistance: 0)
+                        .onChanged { _ in
+                            hideKeyboard()
+                        }
+                )
 
                 submitButtonSection
-            }
-            .disabled(store.state.isUploading)
-
-            // 업로드 중 전체 화면 오버레이
-            if store.state.isUploading {
-                ZStack {
-                    LoadingOverlay()
-
-                    VStack(spacing: 16) {
-                        ProgressView()
-                            .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                            .scaleEffect(1.5)
-
-                        Text("업로드 중...")
-                            .H2()
-                            .foregroundColor(.white)
-                    }
-                }
-                .onTapGesture { }
             }
         }
         .navigationBarHidden(true)
@@ -95,6 +82,21 @@ struct ProductUploadView: View {
             }
         } message: {
             Text("동영상은 10MB 이하만 업로드 가능합니다.")
+        }
+        .sheet(isPresented: Binding(
+            get: { store.state.showThumbnailPicker },
+            set: { if !$0 { store.send(.dismissThumbnailPicker) }}
+        )) {
+            if let index = store.state.selectedVideoIndex,
+               index < store.state.selectedMedia.count,
+               let videoURL = store.state.selectedMedia[index].videoURL {
+                VideoThumbnailPickerView(
+                    videoURL: videoURL,
+                    initialTime: store.state.selectedMedia[index].thumbnailTime ?? 0
+                ) { newTime in
+                    store.send(.thumbnailTimeSelected(index, newTime))
+                }
+            }
         }
     }
 
@@ -171,7 +173,7 @@ struct ProductUploadView: View {
                                     .cornerRadius(12)
                                     .clipped()
 
-                            case .video(_, let thumbnail, _):
+                            case .video(_, let thumbnail, _, _):
                                 ZStack {
                                     Image(uiImage: thumbnail)
                                         .resizable()
@@ -179,10 +181,16 @@ struct ProductUploadView: View {
                                         .frame(width: 70, height: 70)
                                         .cornerRadius(12)
                                         .clipped()
-
-                                    Image(systemName: "play.circle.fill")
-                                        .font(.system(size: 24))
-                                        .foregroundColor(.white)
+                                    
+                                    VStack {
+                                        Image(systemName: "play.circle.fill")
+                                            .font(.system(size: 24))
+                                            .foregroundColor(.white)
+                                        
+                                    }
+                                }
+                                .onTapGesture {
+                                    store.send(.thumbnailPickerTapped(index))
                                 }
                             }
 

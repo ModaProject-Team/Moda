@@ -72,16 +72,9 @@ struct ChatListView: View {
     }
 
     private var emptyStateSection: some View {
-        VStack(spacing: 12) {
+        VStack {
             Spacer()
-
             EmptyStateView(message: "아직 대화가 없어요")
-
-            Button("새로고침") {
-                store.send(.refresh)
-            }
-            .buttonStyle(.bordered)
-
             Spacer()
         }
     }
