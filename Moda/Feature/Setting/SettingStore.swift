@@ -82,28 +82,22 @@ final class SettingStore {
     }
 
     private func loadLocalProfile() async {
-        print("🔍 SettingStore: 로컬 프로필 로드 시작")
         if let profileData = await userRealmService.getMyProfileData() {
-            print("✅ SettingStore: 로컬 프로필 로드 성공 - \(profileData.nick)")
             state.localProfile = profileData
             state.nickname = profileData.nick
             if let profilePath = profileData.profileImage,
                let url = URL(string: NetworkConfig.baseURL + "/v1/" + profilePath) {
                 state.profileImageURL = url
             }
-        } else {
-            print("❌ SettingStore: 로컬 프로필 없음")
         }
     }
 
     private func saveProfileToLocal(_ profile: MyProfileResponse) async {
-        print("💾 SettingStore: 로컬에 프로필 저장 시작 - \(profile.nick)")
         let userObject = UserObject.from(response: profile)
         try? await userRealmService.saveMyProfile(userObject)
         // Response에서 바로 생성 (Realm 객체 스레드 문제 방지)
         let profileData = UserProfileData(from: profile)
         state.localProfile = profileData
-        print("✅ SettingStore: State에 프로필 저장 완료")
     }
 
     private func withdraw() async {
@@ -113,6 +107,16 @@ final class SettingStore {
 
             TokenManager.shared.clearToken()
             UserDefaultsManager.shared.clearUserData()
+
+            // 캐시 및 로컬 DB 정리
+            await ImageCacheManager.shared.clearCache()
+            await VideoCacheManager.shared.clearCache()
+
+            // Realm 로컬 DB 삭제
+            try? await userRealmService.deleteMyProfile()
+            try? await FriendRealmService.shared.deleteAllFriends()
+            try? await ChatRealmService.shared.deleteAllData()
+
             AppNavigator.shared.popToRoot()
             AppNavigator.shared.isLoggedIn = false
         } catch {
