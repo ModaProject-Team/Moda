@@ -94,6 +94,10 @@ struct PostCardView: View {
                 .foregroundColor(.gray1)
 
             Spacer()
+
+            Text(product.formattedDate)
+                .Body2()
+                .foregroundColor(.gray2)
         }
         .padding(.top, 8)
         .padding(.bottom, 4)
@@ -191,32 +195,26 @@ struct PostCardView: View {
                 .lineLimit(2)
                 .fixedSize(horizontal: false, vertical: true)
 
-            VStack(alignment: .leading, spacing: 2) {
-                HStack(spacing: 4) {
-                    if let distance = product.formattedDistance(from: currentLocation.map { ($0.latitude, $0.longitude) }) {
-                        Text(distance)
-                            .Body2()
-                            .foregroundColor(.gray2)
-                            .lineLimit(1)
+            HStack(spacing: 4) {
+                if let distance = product.formattedDistance(from: currentLocation.map { ($0.latitude, $0.longitude) }) {
+                    Text(distance)
+                        .Body2()
+                        .foregroundColor(.gray2)
+                        .lineLimit(1)
 
-                        Text("·")
-                            .Body2()
-                            .foregroundColor(.gray2)
-                    }
-
-                    if let location = product.formattedLocation {
-                        Text(location)
-                            .Body2()
-                            .foregroundColor(.gray2)
-                            .lineLimit(1)
-                    }
-
-                    Spacer(minLength: 0)
+                    Text("·")
+                        .Body2()
+                        .foregroundColor(.gray2)
                 }
 
-                Text(product.formattedDate)
-                    .Body2()
-                    .foregroundColor(.gray2)
+                if let location = product.formattedLocation {
+                    Text(location)
+                        .Body2()
+                        .foregroundColor(.gray2)
+                        .lineLimit(1)
+                }
+
+                Spacer(minLength: 0)
             }
 
             Text(product.formattedPrice)
