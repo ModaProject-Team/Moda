@@ -59,13 +59,11 @@ actor ImageDownloadManager {
 
                 // 마지막 시도가 아니면 대기 후 재시도
                 if attempt < maxRetryCount - 1 {
-                    print("[ImageDownloadManager] Download failed (attempt \(attempt + 1)/\(maxRetryCount)), retrying...")
                     try await Task.sleep(nanoseconds: UInt64(retryDelay * 1_000_000_000))
                 }
             }
         }
 
-        print("[ImageDownloadManager] Download failed after \(maxRetryCount) attempts")
         throw lastError ?? ImageCacheError.downloadFailed
     }
 

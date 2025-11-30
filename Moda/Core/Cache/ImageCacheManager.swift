@@ -280,7 +280,6 @@ final class ImageCacheManager: ImageCacheServiceProtocol {
 
     func clearMemoryCache() {
         memoryCache.removeAllObjects()
-        print("[ImageCacheManager] Memory cache cleared due to memory warning")
     }
 
     func cancelImageDownload(for url: URL) async {
@@ -300,7 +299,7 @@ final class ImageCacheManager: ImageCacheServiceProtocol {
                 do {
                     _ = try await cacheImage(from: url, targetSize: targetSize)
                 } catch {
-                    print("[ImageCacheManager] Prefetch image failed for \(url.lastPathComponent): \(error.localizedDescription)")
+                    // Prefetch 실패는 무시
                 }
             }
         }
