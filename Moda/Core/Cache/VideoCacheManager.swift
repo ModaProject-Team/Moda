@@ -316,7 +316,6 @@ final class VideoCacheManager: VideoCacheServiceProtocol {
 
     func clearMemoryCache() {
         memoryCache.removeAllObjects()
-        print("[VideoCacheManager] Memory cache cleared due to memory warning")
     }
 
     func cancelVideoDownload(for url: URL) async {
@@ -336,7 +335,7 @@ final class VideoCacheManager: VideoCacheServiceProtocol {
                 do {
                     _ = try await cacheVideo(from: url)
                 } catch {
-                    print("[VideoCacheManager] Prefetch video failed for \(url.lastPathComponent): \(error.localizedDescription)")
+                    // Prefetch 실패는 무시
                 }
             }
         }
@@ -351,7 +350,7 @@ final class VideoCacheManager: VideoCacheServiceProtocol {
                 do {
                     _ = try await cacheThumbnail(from: url)
                 } catch {
-                    print("[VideoCacheManager] Prefetch thumbnail failed for \(url.lastPathComponent): \(error.localizedDescription)")
+                    // Prefetch 실패는 무시
                 }
             }
         }
