@@ -65,7 +65,7 @@
 
 ## 주요 기능
 ### 채팅
-<img width="200" height="432" alt="IMG_2832" src="https://github.com/user-attachments/assets/4828efb6-d6cb-429e-918e-3b9f9e984cd3" />|<img width="200" height="432" alt="IMG_2824" src="https://github.com/user-attachments/assets/601ce439-6bb6-45f2-bfc3-e97ce81c0cc7" />|
+<img width="200" height="432" alt="IMG_2832" src="https://github.com/user-attachments/assets/4828efb6-d6cb-429e-918e-3b9f9e984cd3" />|<img width="200" height="432" alt="IMG_2850" src="https://github.com/user-attachments/assets/abf873b8-945e-443c-a468-5c5ffe611286" />|
 |:-:|:-:|
 
 - SocketIO 기반 실시간 메시징
