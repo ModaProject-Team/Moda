@@ -408,7 +408,7 @@ struct MessageBubble: View {
                     mediaBubble {
                         CachedImageView(
                             url: url,
-                            contentMode: .fill,
+                            contentMode: .fit,
                             placeholder: {
                                 AnyView(
                                     RoundedRectangle(cornerRadius: 12).fill(Color.gray5)
@@ -416,8 +416,7 @@ struct MessageBubble: View {
                                 )
                             }
                         )
-                        .frame(width: maxBubbleWidth, height: maxBubbleWidth * 0.6)
-                        .clipped()
+                        .frame(maxWidth: maxBubbleWidth)
                     }
                     .onTapGesture { onTapImage(url) }
                 }
@@ -426,7 +425,7 @@ struct MessageBubble: View {
                     mediaBubble {
                         CachedImageView(
                             url: url,
-                            contentMode: .fill,
+                            contentMode: .fit,
                             placeholder: {
                                 AnyView(
                                     RoundedRectangle(cornerRadius: 12).fill(Color.gray5)
@@ -434,8 +433,7 @@ struct MessageBubble: View {
                                 )
                             }
                         )
-                        .frame(width: maxBubbleWidth, height: maxBubbleWidth * 0.6)
-                        .clipped()
+                        .frame(maxWidth: maxBubbleWidth)
                     }
                     .onTapGesture { onTapImage(url) }
                 }
