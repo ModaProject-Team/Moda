@@ -21,4 +21,7 @@ enum ProductUploadIntent {
     case imageRemoved(Int)
     case submitButtonTapped
     case dismissFileSizeAlert
+    case thumbnailPickerTapped(Int)
+    case thumbnailTimeSelected(Int, Double)
+    case dismissThumbnailPicker
 }

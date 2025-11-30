@@ -100,7 +100,7 @@ final class ProductUploadStore: ObservableObject {
                         try? FileManager.default.removeItem(at: tempURL)
 
                         if let thumbnail = await generateThumbnail(from: permanentURL) {
-                            mediaItems.append(.video(url: permanentURL, thumbnail: thumbnail, serverURL: fileURL))
+                            mediaItems.append(.video(url: permanentURL, thumbnail: thumbnail, thumbnailTime: 0, serverURL: fileURL))
                         }
                     } catch {
                     }
@@ -159,20 +159,35 @@ final class ProductUploadStore: ObservableObject {
             }
         case .dismissFileSizeAlert:
             state.showFileSizeAlert = false
+
+        case .thumbnailPickerTapped(let index):
+            state.showThumbnailPicker = true
+            state.selectedVideoIndex = index
+
+        case .thumbnailTimeSelected(let index, let time):
+            Task {
+                await updateVideoThumbnail(at: index, time: time)
+            }
+
+        case .dismissThumbnailPicker:
+            state.showThumbnailPicker = false
+            state.selectedVideoIndex = nil
         }
     }
 
     @MainActor
     private func loadMedia(from items: [PhotosPickerItem]) async {
         var mediaItems: [MediaItem] = []
+        var firstVideoIndex: Int?
 
         for item in items {
             if let movie = try? await item.loadTransferable(type: Movie.self) {
-                let compressedURL = try? await VideoCompressor.shared.compress(url: movie.url)
-                let videoURL = compressedURL ?? movie.url
+                if let thumbnail = await generateThumbnail(from: movie.url) {
+                    mediaItems.append(.video(url: movie.url, thumbnail: thumbnail, thumbnailTime: 0))
 
-                if let thumbnail = await generateThumbnail(from: videoURL) {
-                    mediaItems.append(.video(url: videoURL, thumbnail: thumbnail))
+                    if firstVideoIndex == nil {
+                        firstVideoIndex = state.selectedMedia.count + mediaItems.count - 1
+                    }
                 }
             } else if let data = try? await item.loadTransferable(type: Data.self),
                       let image = UIImage(data: data) {
@@ -185,6 +200,11 @@ final class ProductUploadStore: ObservableObject {
         if state.selectedMedia.count > 5 {
             state.selectedMedia = Array(state.selectedMedia.prefix(5))
         }
+
+        if let videoIndex = firstVideoIndex, videoIndex < state.selectedMedia.count {
+            state.showThumbnailPicker = true
+            state.selectedVideoIndex = videoIndex
+        }
     }
 
     private func getFileSize(url: URL) -> Int64 {
@@ -195,17 +215,35 @@ final class ProductUploadStore: ObservableObject {
         return fileSize
     }
 
-    private func generateThumbnail(from url: URL) async -> UIImage? {
+    private func generateThumbnail(from url: URL, at time: Double = 0) async -> UIImage? {
         let asset = AVAsset(url: url)
         let imageGenerator = AVAssetImageGenerator(asset: asset)
         imageGenerator.appliesPreferredTrackTransform = true
 
+        let cmTime = CMTime(seconds: time, preferredTimescale: 600)
+
         do {
-            let cgImage = try imageGenerator.copyCGImage(at: .zero, actualTime: nil)
+            let cgImage = try imageGenerator.copyCGImage(at: cmTime, actualTime: nil)
             return UIImage(cgImage: cgImage)
         } catch {
             return nil
         }
+    }
+
+    @MainActor
+    private func updateVideoThumbnail(at index: Int, time: Double) async {
+        guard index < state.selectedMedia.count else { return }
+
+        let media = state.selectedMedia[index]
+
+        if case .video(let url, _, _, let serverURL) = media {
+            if let newThumbnail = await generateThumbnail(from: url, at: time) {
+                state.selectedMedia[index] = .video(url: url, thumbnail: newThumbnail, thumbnailTime: time, serverURL: serverURL)
+            }
+        }
+
+        state.showThumbnailPicker = false
+        state.selectedVideoIndex = nil
     }
 
     @MainActor
@@ -232,25 +270,42 @@ final class ProductUploadStore: ObservableObject {
             let newMedia = state.selectedMedia.filter { $0.serverURL == nil }
 
             if !newMedia.isEmpty {
-                var fileDataArray: [FileData] = []
+                // TaskGroup을 사용해서 각 파일을 동시에 업로드
+                let uploadedFiles = try await withThrowingTaskGroup(of: [String].self) { group in
+                    for media in newMedia {
+                        group.addTask {
+                            var fileData: FileData?
 
-                for media in newMedia {
-                    switch media {
-                    case .image(let image, _):
-                        if let imageData = image.jpegData(compressionQuality: 0.8) {
-                            fileDataArray.append(FileData(data: imageData, type: .image))
-                        }
-                    case .video(let url, _, _):
-                        if let videoData = try? Data(contentsOf: url) {
-                            fileDataArray.append(FileData(data: videoData, type: .video))
+                            switch media {
+                            case .image(let image, _):
+                                if let imageData = image.jpegData(compressionQuality: 0.8) {
+                                    fileData = FileData(data: imageData, type: .image)
+                                }
+                            case .video(let url, _, _, _):
+                                let compressedURL = try? await VideoCompressor.shared.compress(url: url)
+                                let videoURL = compressedURL ?? url
+
+                                if let videoData = try? Data(contentsOf: videoURL) {
+                                    fileData = FileData(data: videoData, type: .video)
+                                }
+                            }
+
+                            if let fileData = fileData {
+                                let response = try await self.postAPI.uploadFiles(files: [fileData])
+                                return response.files
+                            }
+                            return []
                         }
                     }
+
+                    var allFiles: [String] = []
+                    for try await files in group {
+                        allFiles.append(contentsOf: files)
+                    }
+                    return allFiles
                 }
 
-                if !fileDataArray.isEmpty {
-                    let uploadResponse = try await postAPI.uploadFiles(files: fileDataArray)
-                    uploadedFileURLs.append(contentsOf: uploadResponse.files)
-                }
+                uploadedFileURLs.append(contentsOf: uploadedFiles)
             }
 
             let priceValue = state.isSelling ? Int(state.price) : nil

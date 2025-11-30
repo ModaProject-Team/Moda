@@ -9,12 +9,30 @@ import SwiftUI
 
 enum MediaItem {
     case image(UIImage, serverURL: String? = nil)
-    case video(url: URL, thumbnail: UIImage, serverURL: String? = nil)
+    case video(url: URL, thumbnail: UIImage, thumbnailTime: Double = 0, serverURL: String? = nil)
 
     var serverURL: String? {
         switch self {
-        case .image(_, let serverURL), .video(_, _, let serverURL):
+        case .image(_, let serverURL), .video(_, _, _, let serverURL):
             return serverURL
+        }
+    }
+
+    var videoURL: URL? {
+        switch self {
+        case .video(let url, _, _, _):
+            return url
+        default:
+            return nil
+        }
+    }
+
+    var thumbnailTime: Double? {
+        switch self {
+        case .video(_, _, let time, _):
+            return time
+        default:
+            return nil
         }
     }
 }
@@ -41,6 +59,10 @@ struct ProductUploadState {
     // Edit mode data
     var originalPostId: String?
     var originalFiles: [String] = []
+
+    // Thumbnail picker
+    var showThumbnailPicker: Bool = false
+    var selectedVideoIndex: Int?
 
     // 작성 완료 버튼 활성화 조건
     var isFormValid: Bool {
