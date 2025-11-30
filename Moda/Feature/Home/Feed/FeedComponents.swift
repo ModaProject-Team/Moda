@@ -129,8 +129,8 @@ struct PostCardView: View {
 
             Spacer()
         }
-        .padding(.top, 6)
-        .padding(.bottom, 2)
+        .padding(.top, 2)
+        .padding(.bottom, -2)
     }
 
     private var imageSection: some View {
@@ -151,6 +151,7 @@ struct PostCardView: View {
                                 RoundedRectangle(cornerRadius: 12, style: .continuous)
                                     .fill(Color.gray5)
                                     .frame(width: itemWidth, height: itemWidth)
+                                    .shimmer()
                             )
                         }
                     )
@@ -168,6 +169,7 @@ struct PostCardView: View {
                 RoundedRectangle(cornerRadius: 12, style: .continuous)
                     .fill(Color.gray5)
                     .frame(width: itemWidth, height: itemWidth)
+                    .shimmer()
                     .overlay(completedOverlay)
             }
         }

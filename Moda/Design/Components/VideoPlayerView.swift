@@ -25,6 +25,7 @@ struct VideoPlayerView: View {
                 RoundedRectangle(cornerRadius: 12, style: .continuous)
                     .fill(Color.gray5)
                     .frame(width: itemWidth, height: itemWidth)
+                    .shimmer()
             }
         }
         .onAppear {
@@ -118,13 +119,11 @@ final class VideoPlayerManager: ObservableObject {
     private func setupStreamingPlayer(url: URL) async {
         // Custom scheme으로 변환 (https -> moda-video)
         guard var components = URLComponents(url: url, resolvingAgainstBaseURL: false) else {
-            self.videoAspectRatio = 1.0
             return
         }
         components.scheme = "moda-video"
 
         guard let streamingURL = components.url else {
-            self.videoAspectRatio = 1.0
             return
         }
 
@@ -136,11 +135,8 @@ final class VideoPlayerManager: ObservableObject {
         asset.resourceLoader.setDelegate(loader, queue: DispatchQueue(label: "com.moda.resourceloader"))
 
         let playerItem = AVPlayerItem(asset: asset)
-        player = AVPlayer(playerItem: playerItem)
-        player?.isMuted = true
-        player?.automaticallyWaitsToMinimizeStalling = false
 
-        // 비디오 종횡비 설정
+        // 비디오 종횡비 먼저 로드
         Task {
             do {
                 let tracks = try await asset.loadTracks(withMediaType: .video)
@@ -164,30 +160,38 @@ final class VideoPlayerManager: ObservableObject {
 
                     await MainActor.run {
                         self.videoAspectRatio = videoWidth / videoHeight
+
+                        // 비율 로드 완료 후 플레이어 설정
+                        self.player = AVPlayer(playerItem: playerItem)
+                        self.player?.isMuted = true
+                        self.player?.automaticallyWaitsToMinimizeStalling = false
+
+                        self.statusObserver = playerItem.observe(\.status, options: [.new, .initial]) { [weak self] item, _ in
+                            DispatchQueue.main.async {
+                                if item.status == .readyToPlay {
+                                    self?.player?.play()
+                                }
+                            }
+                        }
+
+                        NotificationCenter.default.addObserver(
+                            forName: .AVPlayerItemDidPlayToEndTime,
+                            object: playerItem,
+                            queue: .main
+                        ) { [weak self] _ in
+                            self?.player?.seek(to: .zero)
+                            self?.player?.play()
+                        }
                     }
                 }
             } catch {
+                // 에러 발생 시 기본 비율로 설정
                 await MainActor.run {
                     self.videoAspectRatio = 1.0
+                    self.player = AVPlayer(playerItem: playerItem)
+                    self.player?.isMuted = true
                 }
             }
-        }
-
-        statusObserver = playerItem.observe(\.status, options: [.new, .initial]) { [weak self] item, _ in
-            DispatchQueue.main.async {
-                if item.status == .readyToPlay {
-                    self?.player?.play()
-                }
-            }
-        }
-
-        NotificationCenter.default.addObserver(
-            forName: .AVPlayerItemDidPlayToEndTime,
-            object: playerItem,
-            queue: .main
-        ) { [weak self] _ in
-            self?.player?.seek(to: .zero)
-            self?.player?.play()
         }
     }
 
@@ -195,9 +199,6 @@ final class VideoPlayerManager: ObservableObject {
     private func setupPlayerWithURL(_ url: URL) async {
         let asset = AVURLAsset(url: url)
         let playerItem = AVPlayerItem(asset: asset)
-        player = AVPlayer(playerItem: playerItem)
-        player?.isMuted = true
-        player?.automaticallyWaitsToMinimizeStalling = false
 
         Task {
             do {
@@ -222,30 +223,38 @@ final class VideoPlayerManager: ObservableObject {
 
                     await MainActor.run {
                         self.videoAspectRatio = videoWidth / videoHeight
+
+                        // 비율 로드 완료 후 플레이어 설정
+                        self.player = AVPlayer(playerItem: playerItem)
+                        self.player?.isMuted = true
+                        self.player?.automaticallyWaitsToMinimizeStalling = false
+
+                        self.statusObserver = playerItem.observe(\.status, options: [.new, .initial]) { [weak self] item, _ in
+                            DispatchQueue.main.async {
+                                if item.status == .readyToPlay {
+                                    self?.player?.play()
+                                }
+                            }
+                        }
+
+                        NotificationCenter.default.addObserver(
+                            forName: .AVPlayerItemDidPlayToEndTime,
+                            object: playerItem,
+                            queue: .main
+                        ) { [weak self] _ in
+                            self?.player?.seek(to: .zero)
+                            self?.player?.play()
+                        }
                     }
                 }
             } catch {
+                // 에러 발생 시 기본 비율로 설정
                 await MainActor.run {
                     self.videoAspectRatio = 1.0
+                    self.player = AVPlayer(playerItem: playerItem)
+                    self.player?.isMuted = true
                 }
             }
-        }
-
-        statusObserver = playerItem.observe(\.status, options: [.new, .initial]) { [weak self] item, _ in
-            DispatchQueue.main.async {
-                if item.status == .readyToPlay {
-                    self?.player?.play()
-                }
-            }
-        }
-
-        NotificationCenter.default.addObserver(
-            forName: .AVPlayerItemDidPlayToEndTime,
-            object: playerItem,
-            queue: .main
-        ) { [weak self] _ in
-            self?.player?.seek(to: .zero)
-            self?.player?.play()
         }
     }
 
