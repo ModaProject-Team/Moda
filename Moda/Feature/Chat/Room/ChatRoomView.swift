@@ -7,7 +7,6 @@
 
 import SwiftUI
 import PhotosUI
-import Kingfisher
 
 struct ChatRoomView: View {
     @StateObject private var store: ChatRoomStore
@@ -377,16 +376,16 @@ struct MessageBubble: View {
     private var profileImage: some View {
         Group {
             if let path = message.senderProfileImage, !path.isEmpty {
-                KFImage(URL(string: "\(NetworkConfig.baseURL)/v1\(path)"))
-                    .requestModifier(KFHeaders.modifier)
-                    .placeholder {
-                        Circle().fill(Color.gray3)
+                CachedImageView(
+                    url: URL(string: "\(NetworkConfig.baseURL)/v1\(path)"),
+                    targetSize: CGSize(width: 32, height: 32),
+                    contentMode: .fill,
+                    placeholder: {
+                        AnyView(Circle().fill(Color.gray3))
                     }
-                    .cacheOriginalImage()
-                    .resizable()
-                    .scaledToFill()
-                    .frame(width: 32, height: 32)
-                    .clipShape(Circle())
+                )
+                .frame(width: 32, height: 32)
+                .clipShape(Circle())
             } else {
                 Circle()
                     .fill(Color.gray3)
@@ -404,34 +403,36 @@ struct MessageBubble: View {
             if message.isMine {
                 HStack(alignment: .bottom, spacing: 6) {
                     mediaBubble {
-                        KFImage(url)
-                            .requestModifier(KFHeaders.modifier)
-                            .placeholder {
-                                RoundedRectangle(cornerRadius: 12).fill(Color.gray5)
-                                    .frame(width: maxBubbleWidth, height: maxBubbleWidth * 0.6)
+                        CachedImageView(
+                            url: url,
+                            contentMode: .fill,
+                            placeholder: {
+                                AnyView(
+                                    RoundedRectangle(cornerRadius: 12).fill(Color.gray5)
+                                        .frame(width: maxBubbleWidth, height: maxBubbleWidth * 0.6)
+                                )
                             }
-                            .cacheOriginalImage()
-                            .resizable()
-                            .scaledToFill()
-                            .frame(width: maxBubbleWidth, height: maxBubbleWidth * 0.6)
-                            .clipped()
+                        )
+                        .frame(width: maxBubbleWidth, height: maxBubbleWidth * 0.6)
+                        .clipped()
                     }
                     .onTapGesture { onTapImage(url) }
                 }
             } else {
                 HStack(alignment: .bottom, spacing: 6) {
                     mediaBubble {
-                        KFImage(url)
-                            .requestModifier(KFHeaders.modifier)
-                            .placeholder {
-                                RoundedRectangle(cornerRadius: 12).fill(Color.gray5)
-                                    .frame(width: maxBubbleWidth, height: maxBubbleWidth * 0.6)
+                        CachedImageView(
+                            url: url,
+                            contentMode: .fill,
+                            placeholder: {
+                                AnyView(
+                                    RoundedRectangle(cornerRadius: 12).fill(Color.gray5)
+                                        .frame(width: maxBubbleWidth, height: maxBubbleWidth * 0.6)
+                                )
                             }
-                            .cacheOriginalImage()
-                            .resizable()
-                            .scaledToFill()
-                            .frame(width: maxBubbleWidth, height: maxBubbleWidth * 0.6)
-                            .clipped()
+                        )
+                        .frame(width: maxBubbleWidth, height: maxBubbleWidth * 0.6)
+                        .clipped()
                     }
                     .onTapGesture { onTapImage(url) }
                 }
@@ -480,13 +481,15 @@ struct ImageViewer: View {
     var body: some View {
         ZStack {
             Color.black.ignoresSafeArea()
-            KFImage(url)
-                .requestModifier(KFHeaders.modifier)
-                .placeholder { ProgressView().tint(.white) }
-                .cacheOriginalImage()
-                .resizable()
-                .scaledToFit()
-                .ignoresSafeArea()
+            CachedImageView(
+                url: url,
+                contentMode: .fit,
+                placeholder: {
+                    AnyView(ProgressView().tint(.white))
+                }
+            )
+            .cacheOriginalImage()
+            .ignoresSafeArea()
             VStack {
                 HStack {
                     Button(action: onClose) {

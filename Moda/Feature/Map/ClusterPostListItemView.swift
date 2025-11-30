@@ -6,7 +6,6 @@
 //
 
 import SwiftUI
-import Kingfisher
 
 struct ClusterPostListItemView: View {
     let post: PostAnnotation
@@ -56,17 +55,20 @@ struct ClusterPostListItemView: View {
 
                 HStack(spacing: 6) {
                     if !post.profileImage.isEmpty {
-                        KFImage(URL(string: "\(NetworkConfig.baseURL)/v1\(post.profileImage)"))
-                            .requestModifier(KFHeaders.modifier)
-                            .placeholder {
-                                Circle()
-                                    .fill(Color.gray5)
+                        CachedImageView(
+                            url: URL(string: "\(NetworkConfig.baseURL)/v1\(post.profileImage)"),
+                            targetSize: CGSize(width: 18, height: 18),
+                            contentMode: .fill,
+                            placeholder: {
+                                AnyView(
+                                    Circle()
+                                        .fill(Color.gray5)
+                                )
                             }
-                            .cacheOriginalImage()
-                            .resizable()
-                            .aspectRatio(contentMode: .fill)
-                            .frame(width: 18, height: 18)
-                            .clipShape(Circle())
+                        )
+                        .cacheOriginalImage()
+                        .frame(width: 18, height: 18)
+                        .clipShape(Circle())
                     } else {
                         Circle()
                             .fill(Color.gray5)

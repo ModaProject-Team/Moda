@@ -6,7 +6,6 @@
 //
 
 import SwiftUI
-import Kingfisher
 
 struct CustomAnnotationView: View {
     let post: PostAnnotation

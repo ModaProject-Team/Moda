@@ -6,7 +6,6 @@
 //
 
 import SwiftUI
-import Kingfisher
 import MapKit
 import iamport_ios
 import AVKit
@@ -264,20 +263,23 @@ struct ProductDetailView: View {
         } label: {
             HStack(spacing: 12) {
                 if let profileImage = post.creator.profileImage, !profileImage.isEmpty {
-                    KFImage(URL(string: "\(NetworkConfig.baseURL)/v1\(profileImage)"))
-                        .requestModifier(KFHeaders.modifier)
-                        .placeholder {
-                            Circle()
-                                .fill(Color.gray3)
-                                .overlay {
-                                    Image(systemName: "person.fill")
-                                        .foregroundColor(.gray2)
-                                }
+                    CachedImageView(
+                        url: URL(string: "\(NetworkConfig.baseURL)/v1\(profileImage)"),
+                        targetSize: CGSize(width: 48, height: 48),
+                        contentMode: .fill,
+                        placeholder: {
+                            AnyView(
+                                Circle()
+                                    .fill(Color.gray3)
+                                    .overlay {
+                                        Image(systemName: "person.fill")
+                                            .foregroundColor(.gray2)
+                                    }
+                            )
                         }
-                        .resizable()
-                        .aspectRatio(contentMode: .fill)
-                        .frame(width: 48, height: 48)
-                        .clipShape(Circle())
+                    )
+                    .frame(width: 48, height: 48)
+                    .clipShape(Circle())
                 } else {
                     Circle()
                         .fill(Color.gray3)
@@ -495,16 +497,19 @@ struct ProductDetailView: View {
                     navigator.push(.profileDetail(people: people, isCurrentUser: false))
                 } label: {
                     if let profileImage = post.creator.profileImage, !profileImage.isEmpty {
-                        KFImage(URL(string: "\(NetworkConfig.baseURL)/v1\(profileImage)"))
-                            .requestModifier(KFHeaders.modifier)
-                            .placeholder {
-                                Image(systemName: "person.fill")
-                                    .foregroundColor(.white)
+                        CachedImageView(
+                            url: URL(string: "\(NetworkConfig.baseURL)/v1\(profileImage)"),
+                            targetSize: CGSize(width: 32, height: 32),
+                            contentMode: .fill,
+                            placeholder: {
+                                AnyView(
+                                    Image(systemName: "person.fill")
+                                        .foregroundColor(.white)
+                                )
                             }
-                            .resizable()
-                            .aspectRatio(contentMode: .fill)
-                            .frame(width: 32, height: 32)
-                            .clipShape(Circle())
+                        )
+                        .frame(width: 32, height: 32)
+                        .clipShape(Circle())
                     } else {
                         Image(systemName: "person.fill")
                             .font(.system(size: 18))
@@ -740,19 +745,19 @@ struct MediaItemView: View {
                 .frame(width: geometry.size.width, height: geometry.size.height * 0.4)
                 .clipped()
             } else {
-                KFImage(URL(string: fullURL))
-                    .requestModifier(KFHeaders.modifier)
-                    .onSuccess { result in
-                        extractColor(from: result.image)
+                CachedImageView(
+                    url: URL(string: fullURL),
+                    targetSize: CGSize(width: geometry.size.width, height: geometry.size.height * 0.4),
+                    contentMode: .fill,
+                    placeholder: {
+                        AnyView(
+                            Rectangle()
+                                .fill(Color.gray.opacity(0.3))
+                        )
                     }
-                    .placeholder {
-                        Rectangle()
-                            .fill(Color.gray.opacity(0.3))
-                    }
-                    .resizable()
-                    .aspectRatio(contentMode: .fill)
-                    .frame(width: geometry.size.width, height: geometry.size.height * 0.4)
-                    .clipped()
+                )
+                .frame(width: geometry.size.width, height: geometry.size.height * 0.4)
+                .clipped()
             }
 
             if isVideo {
@@ -765,7 +770,7 @@ struct MediaItemView: View {
         }
     }
 
-    private func extractColor(from image: KFCrossPlatformImage) {
+    private func extractColor(from image: UIImage) {
         DispatchQueue.global(qos: .userInitiated).async {
             guard let cgImage = image.cgImage else { return }
 
@@ -805,20 +810,23 @@ struct CommentPreviewRow: View {
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
             if let profileImage = comment.creator.profileImage, !profileImage.isEmpty {
-                KFImage(URL(string: "\(NetworkConfig.baseURL)/v1\(profileImage)"))
-                    .requestModifier(KFHeaders.modifier)
-                    .placeholder {
-                        Circle()
-                            .fill(Color.gray3)
-                            .overlay {
-                                Image(systemName: "person.fill")
-                                    .foregroundColor(.gray2)
-                            }
+                CachedImageView(
+                    url: URL(string: "\(NetworkConfig.baseURL)/v1\(profileImage)"),
+                    targetSize: CGSize(width: 32, height: 32),
+                    contentMode: .fill,
+                    placeholder: {
+                        AnyView(
+                            Circle()
+                                .fill(Color.gray3)
+                                .overlay {
+                                    Image(systemName: "person.fill")
+                                        .foregroundColor(.gray2)
+                                }
+                        )
                     }
-                    .resizable()
-                    .aspectRatio(contentMode: .fill)
-                    .frame(width: 32, height: 32)
-                    .clipShape(Circle())
+                )
+                .frame(width: 32, height: 32)
+                .clipShape(Circle())
             } else {
                 Circle()
                     .fill(Color.gray3)

@@ -6,7 +6,6 @@
 //
 
 import SwiftUI
-import Kingfisher
 import CoreLocation
 
 // MARK: - Supporting Views
@@ -71,17 +70,19 @@ struct PostCardView: View {
     private var profileSection: some View {
         HStack(spacing: 8) {
             if let profileImage = product.creator.profileImage, !profileImage.isEmpty {
-                KFImage(URL(string: "\(NetworkConfig.baseURL)/v1\(profileImage)"))
-                    .requestModifier(KFHeaders.modifier)
-                    .placeholder {
-                        Circle()
-                            .fill(Color.gray3)
+                CachedImageView(
+                    url: URL(string: "\(NetworkConfig.baseURL)/v1\(profileImage)"),
+                    targetSize: CGSize(width: 24, height: 24),
+                    contentMode: .fill,
+                    placeholder: {
+                        AnyView(
+                            Circle()
+                                .fill(Color.gray3)
+                        )
                     }
-                    .cacheOriginalImage()
-                    .resizable()
-                    .aspectRatio(contentMode: .fill)
-                    .frame(width: 24, height: 24)
-                    .clipShape(Circle())
+                )
+                .frame(width: 24, height: 24)
+                .clipShape(Circle())
             } else {
                 Circle()
                     .fill(Color.gray3)
@@ -138,24 +139,26 @@ struct PostCardView: View {
                     )
                     .overlay(completedOverlay)
                 } else {
-                    KFImage(URL(string: "\(NetworkConfig.baseURL)/v1\(imageURL)"))
-                        .requestModifier(KFHeaders.modifier)
-                        .placeholder {
-                            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                .fill(Color.gray5)
-                                .frame(width: itemWidth, height: itemWidth)
+                    CachedImageView(
+                        url: URL(string: "\(NetworkConfig.baseURL)/v1\(imageURL)"),
+                        contentMode: .fit,
+                        placeholder: {
+                            AnyView(
+                                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                    .fill(Color.gray5)
+                                    .frame(width: itemWidth, height: itemWidth)
+                            )
                         }
-                        .cacheOriginalImage()
-                        .fade(duration: 0.2)
-                        .resizable()
-                        .scaledToFit()
-                        .frame(width: itemWidth)
-                        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                .fill(Color.clear)
-                                .overlay(completedOverlay)
-                        )
+                    )
+                    .cacheOriginalImage()
+                    .fade(duration: 0.2)
+                    .frame(width: itemWidth)
+                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12, style: .continuous)
+                            .fill(Color.clear)
+                            .overlay(completedOverlay)
+                    )
                 }
             } else {
                 RoundedRectangle(cornerRadius: 12, style: .continuous)

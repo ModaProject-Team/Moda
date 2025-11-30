@@ -6,7 +6,6 @@
 //
 
 import SwiftUI
-import Kingfisher
 
 struct LikedPostsView: View {
     @EnvironmentObject var navigator: AppNavigator
@@ -140,16 +139,19 @@ private struct LikedPostItemView: View {
 
                 HStack(spacing: 6) {
                     if let url = post.profileImageURL {
-                        KFImage(url)
-                            .requestModifier(KFHeaders.modifier)
-                            .placeholder {
-                                Circle().fill(Color.gray3)
+                        CachedImageView(
+                            url: url,
+                            targetSize: CGSize(width: 20, height: 20),
+                            contentMode: .fill,
+                            placeholder: {
+                                AnyView(
+                                    Circle().fill(Color.gray3)
+                                )
                             }
-                            .cacheOriginalImage()
-                            .resizable()
-                            .aspectRatio(contentMode: .fill)
-                            .frame(width: 20, height: 20)
-                            .clipShape(Circle())
+                        )
+                        .cacheOriginalImage()
+                        .frame(width: 20, height: 20)
+                        .clipShape(Circle())
                     } else {
                         Circle()
                             .fill(Color.gray3)

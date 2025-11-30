@@ -74,9 +74,9 @@ final class ProductUploadStore: ObservableObject {
             if fileURL.isImageFile {
                 if let url = URL(string: fullURL) {
                     var request = URLRequest(url: url)
-                    request.setValue(KFHeaders.sesacKey, forHTTPHeaderField: "SesacKey")
-                    request.setValue(KFHeaders.productId, forHTTPHeaderField: "ProductId")
-                    request.setValue(KFHeaders.authorization, forHTTPHeaderField: "Authorization")
+                    request.setValue(NetworkConfig.sesacKey, forHTTPHeaderField: "SesacKey")
+                    request.setValue(NetworkConfig.productId, forHTTPHeaderField: "ProductId")
+                    request.setValue(TokenManager.shared.accessToken ?? "", forHTTPHeaderField: "Authorization")
                     
                     do {
                         let (data, _) = try await URLSession.shared.data(for: request)
@@ -112,9 +112,9 @@ final class ProductUploadStore: ObservableObject {
 
     private func downloadFileWithAuth(from url: URL) async throws -> (URL, URLResponse) {
         var request = URLRequest(url: url)
-        request.setValue(KFHeaders.sesacKey, forHTTPHeaderField: "SesacKey")
-        request.setValue(KFHeaders.productId, forHTTPHeaderField: "ProductId")
-        request.setValue(KFHeaders.authorization, forHTTPHeaderField: "Authorization")
+        request.setValue(NetworkConfig.sesacKey, forHTTPHeaderField: "SesacKey")
+        request.setValue(NetworkConfig.productId, forHTTPHeaderField: "ProductId")
+        request.setValue(TokenManager.shared.accessToken ?? "", forHTTPHeaderField: "Authorization")
 
         return try await URLSession.shared.download(for: request)
     }

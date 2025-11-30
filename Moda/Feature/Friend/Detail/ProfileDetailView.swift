@@ -7,7 +7,6 @@
 
 import SwiftUI
 import Observation
-import Kingfisher
 import Combine
 
 struct ProfileDetailView: View {
@@ -101,17 +100,20 @@ struct ProfileDetailView: View {
         VStack(spacing: 10) {
             Group {
                 if let url = store.state.profileImageURL {
-                    KFImage(url)
-                        .requestModifier(KFHeaders.modifier)
-                        .placeholder {
-                            Circle().fill(Color.gray3)
+                    CachedImageView(
+                        url: url,
+                        targetSize: CGSize(width: 72, height: 72),
+                        contentMode: .fill,
+                        placeholder: {
+                            AnyView(
+                                Circle().fill(Color.gray3)
+                            )
                         }
-                        .cacheOriginalImage()
-                        .fade(duration: 0.2)
-                        .resizable()
-                        .scaledToFill()
-                        .frame(width: 72, height: 72)
-                        .clipShape(Circle())
+                    )
+                    .cacheOriginalImage()
+                    .fade(duration: 0.2)
+                    .frame(width: 72, height: 72)
+                    .clipShape(Circle())
                 } else {
                     ZStack {
                         Circle().fill(Color.gray3)
