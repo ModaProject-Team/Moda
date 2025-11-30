@@ -172,6 +172,7 @@ struct MapView: View {
         }
         .navigationBarHidden(true)
         .onAppear {
+            store.send(.loadMutualFriends)
             store.send(.setupLocationManager)
         }
         .alert(

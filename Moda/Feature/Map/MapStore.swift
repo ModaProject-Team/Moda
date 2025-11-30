@@ -15,11 +15,18 @@ final class MapStore: NSObject, ObservableObject {
 
     @Published private(set) var state = MapState()
 
+    private let userProfileAPI: UserProfileAPIProtocol
+
     lazy var locationManager: CLLocationManager = {
         let manager = CLLocationManager()
         manager.delegate = self
         return manager
     }()
+
+    init(userProfileAPI: UserProfileAPIProtocol = UserProfileAPI.shared) {
+        self.userProfileAPI = userProfileAPI
+        super.init()
+    }
 
     func send(_ intent: MapIntent) {
         switch intent {
@@ -186,6 +193,11 @@ final class MapStore: NSObject, ObservableObject {
                     maxDistance: maxDistance
                 ))
             }
+
+        case .loadMutualFriends:
+            Task {
+                await loadMutualFriends()
+            }
         }
     }
 
@@ -197,6 +209,24 @@ final class MapStore: NSObject, ObservableObject {
             if let index = state.posts.firstIndex(where: { $0.id == postId }) {
                 state.posts[index].like = isLiked
             }
+        } catch {
+        }
+    }
+
+    private func loadMutualFriends() async {
+        do {
+            let myProfile = try await userProfileAPI.getMyProfile()
+
+            let followerIds = Set(myProfile.followers.map { $0.userId })
+            let followingIds = Set(myProfile.following.map { $0.userId })
+            var mutualIds = followerIds.intersection(followingIds)
+
+            // 본인도 친구 목록에 포함 (내 게시글도 볼 수 있도록)
+            if let currentUserId = UserDefaultsManager.shared.userId {
+                mutualIds.insert(currentUserId)
+            }
+
+            state.mutualFriendIds = mutualIds
         } catch {
         }
     }
@@ -213,7 +243,7 @@ final class MapStore: NSObject, ObservableObject {
                 maxDistance: maxDistance
             )
 
-            let posts = response.data.compactMap { postResponse -> PostAnnotation? in
+            var posts = response.data.compactMap { postResponse -> PostAnnotation? in
                 guard let geolocation = postResponse.geolocation else { return nil }
 
                 // 현재 사용자가 좋아요 했는지 확인
@@ -229,8 +259,14 @@ final class MapStore: NSObject, ObservableObject {
                     nickname: postResponse.creator.nick,
                     latitude: geolocation.latitude,
                     longitude: geolocation.longitude,
-                    price: postResponse.price ?? 0
+                    price: postResponse.price ?? 0,
+                    creatorId: postResponse.creator.userId
                 )
+            }
+
+            // 맞팔 친구의 게시글만 필터링
+            posts = posts.filter { post in
+                state.mutualFriendIds.contains(post.creatorId)
             }
 
             state.posts = posts

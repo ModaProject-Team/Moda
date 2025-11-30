@@ -115,7 +115,8 @@ struct ClusterPostListItemView: View {
             nickname: "닉네임",
             latitude: 37.5,
             longitude: 127.0,
-            price: 50000
+            price: 50000,
+            creatorId: "test-user-id"
         )
     )
 }

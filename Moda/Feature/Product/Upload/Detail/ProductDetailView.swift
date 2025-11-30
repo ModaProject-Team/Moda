@@ -31,6 +31,7 @@ struct ProductDetailView: View {
     @State private var showComments = false
     @State private var commentPreview: [Comment] = []
     @State private var totalCommentCount = 0
+    @State private var mutualFriendIds: Set<String> = []
 
     init(postId: String) {
         self.postId = postId
@@ -68,6 +69,7 @@ struct ProductDetailView: View {
         }
         .task {
             store.send(.loadPost)
+            await loadMutualFriends()
             await loadRelatedProducts()
             await loadCommentPreview()
         }
@@ -633,16 +635,37 @@ struct ProductDetailView: View {
         }
     }
 
+    private func loadMutualFriends() async {
+        do {
+            let myProfile = try await UserProfileAPI.shared.getMyProfile()
+
+            let followerIds = Set(myProfile.followers.map { $0.userId })
+            let followingIds = Set(myProfile.following.map { $0.userId })
+            var mutualIds = followerIds.intersection(followingIds)
+
+            // 본인도 친구 목록에 포함 (내 게시글도 볼 수 있도록)
+            if let currentUserId = UserDefaultsManager.shared.userId {
+                mutualIds.insert(currentUserId)
+            }
+
+            await MainActor.run {
+                self.mutualFriendIds = mutualIds
+            }
+        } catch {
+        }
+    }
+
     private func loadRelatedProducts() async {
         do {
             let response = try await NetworkService.shared.request(
-                endpoint: PostRouter.getPosts(next: nil, limit: "5", category: nil),
+                endpoint: PostRouter.getPosts(next: nil, limit: "20", category: nil),
                 responseType: PostListResponse.self
             )
             await MainActor.run {
                 self.relatedProducts = response.data
                     .map { $0.toDomain() }
                     .filter { $0.postId != postId }
+                    .filter { mutualFriendIds.contains($0.creator.userId) }
                     .prefix(5)
                     .map { $0 }
             }

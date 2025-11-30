@@ -29,6 +29,7 @@ struct MapState {
     var showSearchButton: Bool
     var mapCenterCoordinate: CLLocationCoordinate2D?
     var hasLoadedInitialPosts: Bool
+    var mutualFriendIds: Set<String>
 
     // 경도 기준으로 정렬된 게시물 배열
     var sortedPosts: [PostAnnotation] {
@@ -105,7 +106,8 @@ struct MapState {
         postLoadError: String? = nil,
         showSearchButton: Bool = false,
         mapCenterCoordinate: CLLocationCoordinate2D? = nil,
-        hasLoadedInitialPosts: Bool = false
+        hasLoadedInitialPosts: Bool = false,
+        mutualFriendIds: Set<String> = []
     ) {
         self.cameraPosition = cameraPosition
         self.currentSpan = currentSpan
@@ -126,5 +128,6 @@ struct MapState {
         self.showSearchButton = showSearchButton
         self.mapCenterCoordinate = mapCenterCoordinate
         self.hasLoadedInitialPosts = hasLoadedInitialPosts
+        self.mutualFriendIds = mutualFriendIds
     }
 }
