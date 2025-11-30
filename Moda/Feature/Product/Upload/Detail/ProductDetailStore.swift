@@ -70,7 +70,7 @@ final class ProductDetailStore: ObservableObject {
         do {
             try await postAPI.deletePost(postId: postId)
             state.isDeleting = false
-            NotificationCenter.default.post(name: .postDeleted, object: nil)
+            NotificationCenter.default.post(name: AppNotification.postDeleted, object: nil)
         } catch {
             state.isDeleting = false
         }
@@ -86,7 +86,7 @@ final class ProductDetailStore: ObservableObject {
             _ = try await postAPI.likePost(postId: postId, likeStatus: newLikeStatus)
             // 성공 시 알림 발송
             NotificationCenter.default.post(
-                name: .postLikeUpdated,
+                name: AppNotification.postLikeUpdated,
                 object: nil,
                 userInfo: ["postId": postId, "isLiked": newLikeStatus, "likeCount": state.likeCount]
             )

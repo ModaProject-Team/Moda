@@ -12,14 +12,6 @@ import iamport_ios
 import AVKit
 import Combine
 
-extension Notification.Name {
-    static let postDeleted = Notification.Name("postDeleted")
-    static let postLikeUpdated = Notification.Name("postLikeUpdated")
-    static let postPaymentCompleted = Notification.Name("postPaymentCompleted")
-    static let postUpdated = Notification.Name("postUpdated")
-    static let paymentResponse = Notification.Name("paymentResponse")
-}
-
 extension IamportPayment: @retroactive Identifiable {
     public var id: String {
         return merchant_uid
@@ -80,7 +72,7 @@ struct ProductDetailView: View {
             await loadRelatedProducts()
             await loadCommentPreview()
         }
-        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("commentUpdated"))) { _ in
+        .onReceive(NotificationCenter.default.publisher(for: AppNotification.commentUpdated)) { _ in
             Task {
                 await loadCommentPreview()
             }
@@ -105,7 +97,7 @@ struct ProductDetailView: View {
                     .tint(.white)
             }
         }
-        .onReceive(NotificationCenter.default.publisher(for: .postDeleted)) { _ in
+        .onReceive(NotificationCenter.default.publisher(for: AppNotification.postDeleted)) { _ in
             navigator.popToRoot()
         }
         .alert("결제 결과", isPresented: $showPaymentAlert) {
@@ -696,7 +688,7 @@ struct ProductDetailView: View {
 
             await MainActor.run {
                 store.send(.loadPost)
-                NotificationCenter.default.post(name: .postPaymentCompleted, object: nil)
+                NotificationCenter.default.post(name: AppNotification.postPaymentCompleted, object: nil)
             }
 
             try? await Task.sleep(nanoseconds: 500_000_000)
