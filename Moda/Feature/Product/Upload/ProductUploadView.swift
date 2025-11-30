@@ -43,6 +43,12 @@ struct ProductUploadView: View {
                     .padding(.top, 20)
                     .padding(.bottom, 100)
                 }
+                .simultaneousGesture(
+                    DragGesture(minimumDistance: 0)
+                        .onChanged { _ in
+                            hideKeyboard()
+                        }
+                )
 
                 submitButtonSection
             }

@@ -57,10 +57,19 @@ struct LoginView: View {
                 }
                 .padding(.horizontal, 24)
             }
+            .simultaneousGesture(
+                DragGesture(minimumDistance: 0)
+                    .onChanged { _ in
+                        hideKeyboard()
+                    }
+            )
 
             if store.state.isLoading {
                 LoadingOverlay()
             }
+        }
+        .onTapGesture {
+            hideKeyboard()
         }
         .alert("로그인 실패", isPresented: $showErrorAlert) {
             Button("확인", role: .cancel) { }

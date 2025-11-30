@@ -14,7 +14,8 @@ struct ProfileEditView: View {
 
     var body: some View {
         ZStack {
-                Color.white.ignoresSafeArea()
+                Color.white
+                    .ignoresSafeArea()
 
                 if store.state.isLoading {
                     ProgressView("로딩 중...")
@@ -31,7 +32,16 @@ struct ProfileEditView: View {
                         .padding(.horizontal, 16)
                         .padding(.top, 24)
                     }
+                    .simultaneousGesture(
+                        DragGesture(minimumDistance: 0)
+                            .onChanged { _ in
+                                hideKeyboard()
+                            }
+                    )
                 }
+            }
+            .onTapGesture {
+                hideKeyboard()
             }
             .navigationTitle("프로필 편집")
             .navigationBarTitleDisplayMode(.inline)

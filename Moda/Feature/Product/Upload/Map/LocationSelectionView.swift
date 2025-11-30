@@ -110,6 +110,12 @@ struct LocationSelectionView: View {
                 .padding(.bottom, 16)
             }
         }
+        .simultaneousGesture(
+            TapGesture()
+                .onEnded { _ in
+                    hideKeyboard()
+                }
+        )
         .navigationBarHidden(true)
         .onAppear {
             store.send(.setupLocationManager)

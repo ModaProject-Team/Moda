@@ -32,6 +32,9 @@ struct FriendSearchView: View {
                 }
             }
         }
+        .onTapGesture {
+            hideKeyboard()
+        }
         .navigationTitle("친구 검색하기")
         .navigationBarTitleDisplayMode(.inline)
         .navigationBarBackButtonHidden(true)
@@ -94,6 +97,12 @@ struct FriendSearchView: View {
             }
             .padding(.bottom, 100)
         }
+        .simultaneousGesture(
+            DragGesture(minimumDistance: 0)
+                .onChanged { _ in
+                    hideKeyboard()
+                }
+        )
     }
 }
 
