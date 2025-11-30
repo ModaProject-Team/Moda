@@ -278,7 +278,7 @@ struct BannerCarouselView: View {
     ]
 
     var body: some View {
-        VStack(spacing: 0) {
+        ZStack(alignment: .bottomTrailing) {
             TabView(selection: $currentPage) {
                 ForEach(Array(banners.enumerated()), id: \.offset) { index, banner in
                     BannerCardView(banner: banner)
@@ -293,14 +293,28 @@ struct BannerCarouselView: View {
                 }
             }
 
-            HStack(spacing: 6) {
-                ForEach(0..<banners.count, id: \.self) { index in
-                    Circle()
-                        .fill(currentPage == index ? Color.gray1 : Color.gray3)
-                        .frame(width: 6, height: 6)
-                }
+            HStack(spacing: 2) {
+                Text("\(currentPage + 1)")
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundColor(.white)
+                Text("/")
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundColor(.white.opacity(0.7))
+                Text("\(banners.count)")
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundColor(.white.opacity(0.7))
+                Text("전체")
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundColor(.white.opacity(0.7))
             }
-            .padding(.top, 12)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
+            .background(
+                Capsule()
+                    .fill(Color.black.opacity(0.4))
+            )
+            .padding(.trailing, 12)
+            .padding(.bottom, 20)
         }
     }
 }
@@ -351,8 +365,8 @@ struct BannerCardView: View {
                 Image(banner.iconName)
                     .resizable()
                     .aspectRatio(contentMode: .fit)
-                    .frame(width: 100, height: 100)
-                    .padding(.trailing, banner.iconName == "check" ? 12 : (banner.iconName == "location" ? 8 : 24))
+                    .frame(width: 85, height: 85)
+                    .offset(x: banner.iconName == "chat" ? -88 : (banner.iconName == "check" ? -80 : -76))
             }
             .padding(.vertical, 16)
         }
