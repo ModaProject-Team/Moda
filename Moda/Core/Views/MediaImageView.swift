@@ -6,7 +6,6 @@
 //
 
 import SwiftUI
-import Kingfisher
 import AVFoundation
 
 /// 이미지 또는 동영상 URL을 받아서 적절한 썸네일을 표시하는 뷰
@@ -32,19 +31,19 @@ struct MediaImageView: View {
         if isVideo {
             MediaVideoThumbnailView(videoURL: fullURL, contentMode: contentMode)
         } else {
-            KFImage(URL(string: fullURL))
-                .requestModifier(KFHeaders.modifier)
-                .placeholder {
+            CachedImageView(
+                url: URL(string: fullURL),
+                contentMode: contentMode,
+                placeholder: {
                     if let placeholder = placeholder {
                         placeholder()
                     } else {
-                        defaultPlaceholder
+                        AnyView(defaultPlaceholder)
                     }
                 }
-                .cacheOriginalImage()
-                .fade(duration: 0.2)
-                .resizable()
-                .aspectRatio(contentMode: contentMode)
+            )
+            .cacheOriginalImage()
+            .fade(duration: 0.2)
         }
     }
 
