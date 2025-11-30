@@ -1,7 +1,7 @@
 <img width="100" src="https://github.com/user-attachments/assets/15d03bad-a57a-47d3-8a36-96dc3a703c0b"/>
 
 # 모다
-<img width="200" height="432" alt="IMG_2845" src="https://github.com/user-attachments/assets/f5cffaf9-5ea7-4e8d-84a3-95d47fe608d5" />|<img width="200" height="432" alt="IMG_2824" src="https://github.com/user-attachments/assets/5dd1f1c2-ee8a-47e7-8c1d-71edc7c3a0ac" />|<img width="200" height="432" alt="IMG_2831" src="https://github.com/user-attachments/assets/3edd53bc-b0f2-42db-9d71-9e2bffaa922e" />|<img width="200" height="432" alt="IMG_2834" src="https://github.com/user-attachments/assets/c3a2c948-634f-4516-9f00-80ad6673a88f" />|
+<img width="200" height="432" alt="IMG_2848 2" src="https://github.com/user-attachments/assets/ad6fb05d-15c9-4178-b202-6bae09b37d57" />| <img width="200" height="432" alt="IMG_2845" src="https://github.com/user-attachments/assets/f5cffaf9-5ea7-4e8d-84a3-95d47fe608d5" />|<img width="200" height="432" alt="IMG_2824" src="https://github.com/user-attachments/assets/5dd1f1c2-ee8a-47e7-8c1d-71edc7c3a0ac" />|<img width="200" height="432" alt="IMG_2834" src="https://github.com/user-attachments/assets/c3a2c948-634f-4516-9f00-80ad6673a88f" />|
 |:-:|:-:|:-:|:-:|
 
 |구분|내용|
