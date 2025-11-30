@@ -27,8 +27,16 @@ extension Text {
         customStyle(fontName: "SUIT-Bold", fontSize: 16)
     }
 
+    func H3() -> some View {
+        customStyle(fontName: "SUIT-SemiBold", fontSize: 16)
+    }
+
     func Body1() -> some View {
         customStyle(fontName: "SUIT-Medium", fontSize: 14)
+    }
+
+    func Body1SemiBold() -> some View {
+        customStyle(fontName: "SUIT-SemiBold", fontSize: 14)
     }
 
     func Body2() -> some View {

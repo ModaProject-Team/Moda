@@ -87,7 +87,7 @@ struct ProfileDetailView: View {
         .overlay(alignment: .bottomTrailing) {
             if store.state.isCurrentUser {
                 FloatingUploadButton(title: "물건 올리기") {
-                    store.send(.uploadTapped)
+                    navigator.push(.productUpload(editMode: false, postId: nil))
                 }
                 .padding(.trailing, 16)
                 .padding(.bottom, 24)

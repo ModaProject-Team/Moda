@@ -93,17 +93,21 @@ final class ImageCacheManager: ImageCacheServiceProtocol {
         memoryCache.setObject(image, forKey: key as NSString)
 
         // 디스크 캐시 저장 (downsampled 버전만)
-        if targetSize != nil, let data = image.jpegData(compressionQuality: 0.85) {
-            try? data.write(to: fileURL)
+        if targetSize != nil {
+            // 알파 채널 제거 후 JPEG로 저장
+            let opaqueImage = removeAlphaChannel(from: image)
+            if let data = opaqueImage.jpegData(compressionQuality: 0.85) {
+                try? data.write(to: fileURL)
 
-            // 메타데이터 저장
-            let metadata = CacheMetadata(
-                key: key,
-                originalURL: url.absoluteString,
-                size: Int64(data.count),
-                type: .thumbnail
-            )
-            await metadataManager.addOrUpdate(metadata)
+                // 메타데이터 저장
+                let metadata = CacheMetadata(
+                    key: key,
+                    originalURL: url.absoluteString,
+                    size: Int64(data.count),
+                    type: .thumbnail
+                )
+                await metadataManager.addOrUpdate(metadata)
+            }
         }
 
         // 원본 이미지 메타데이터 저장
@@ -302,6 +306,20 @@ final class ImageCacheManager: ImageCacheServiceProtocol {
                     // Prefetch 실패는 무시
                 }
             }
+        }
+    }
+
+    /// 이미지에서 알파 채널 제거
+    /// - Parameter image: 원본 이미지
+    /// - Returns: 알파 채널이 제거된 이미지
+    private func removeAlphaChannel(from image: UIImage) -> UIImage {
+        let format = UIGraphicsImageRendererFormat()
+        format.opaque = true
+        format.scale = image.scale
+
+        let renderer = UIGraphicsImageRenderer(size: image.size, format: format)
+        return renderer.image { context in
+            image.draw(at: .zero)
         }
     }
 

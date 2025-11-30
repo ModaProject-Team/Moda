@@ -94,6 +94,10 @@ struct PostCardView: View {
                 .foregroundColor(.gray1)
 
             Spacer()
+
+            Text(product.formattedDate)
+                .Body2()
+                .foregroundColor(.gray2)
         }
         .padding(.top, 8)
         .padding(.bottom, 4)
@@ -125,8 +129,8 @@ struct PostCardView: View {
 
             Spacer()
         }
-        .padding(.top, 6)
-        .padding(.bottom, 2)
+        .padding(.top, 2)
+        .padding(.bottom, -2)
     }
 
     private var imageSection: some View {
@@ -147,6 +151,7 @@ struct PostCardView: View {
                                 RoundedRectangle(cornerRadius: 12, style: .continuous)
                                     .fill(Color.gray5)
                                     .frame(width: itemWidth, height: itemWidth)
+                                    .shimmer()
                             )
                         }
                     )
@@ -164,6 +169,7 @@ struct PostCardView: View {
                 RoundedRectangle(cornerRadius: 12, style: .continuous)
                     .fill(Color.gray5)
                     .frame(width: itemWidth, height: itemWidth)
+                    .shimmer()
                     .overlay(completedOverlay)
             }
         }
@@ -186,37 +192,31 @@ struct PostCardView: View {
     private var infoSection: some View {
         VStack(alignment: .leading, spacing: 4) {
             Text(product.title)
-                .Body1()
+                .Body1SemiBold()
                 .foregroundColor(.gray1)
                 .lineLimit(2)
                 .fixedSize(horizontal: false, vertical: true)
 
-            VStack(alignment: .leading, spacing: 2) {
-                HStack(spacing: 4) {
-                    if let distance = product.formattedDistance(from: currentLocation.map { ($0.latitude, $0.longitude) }) {
-                        Text(distance)
-                            .Body2()
-                            .foregroundColor(.gray2)
-                            .lineLimit(1)
+            HStack(spacing: 4) {
+                if let distance = product.formattedDistance(from: currentLocation.map { ($0.latitude, $0.longitude) }) {
+                    Text(distance)
+                        .Body2()
+                        .foregroundColor(.gray2)
+                        .lineLimit(1)
 
-                        Text("·")
-                            .Body2()
-                            .foregroundColor(.gray2)
-                    }
-
-                    if let location = product.formattedLocation {
-                        Text(location)
-                            .Body2()
-                            .foregroundColor(.gray2)
-                            .lineLimit(1)
-                    }
-
-                    Spacer(minLength: 0)
+                    Text("·")
+                        .Body2()
+                        .foregroundColor(.gray2)
                 }
 
-                Text(product.formattedDate)
-                    .Body2()
-                    .foregroundColor(.gray2)
+                if let location = product.formattedLocation {
+                    Text(location)
+                        .Body2()
+                        .foregroundColor(.gray2)
+                        .lineLimit(1)
+                }
+
+                Spacer(minLength: 0)
             }
 
             Text(product.formattedPrice)
