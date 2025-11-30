@@ -78,4 +78,7 @@ enum MapIntent {
 
     /// 지도 새로고침 (게시물 삭제/수정 시)
     case refresh
+
+    /// 맞팔 친구 목록 로드
+    case loadMutualFriends
 }

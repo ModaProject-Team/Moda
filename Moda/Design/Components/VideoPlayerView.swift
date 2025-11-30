@@ -84,28 +84,111 @@ final class VideoPlayerManager: ObservableObject {
     @Published var videoAspectRatio: CGFloat?
 
     private var statusObserver: NSKeyValueObservation?
+    private var resourceLoader: AuthenticatedResourceLoader?
     private let cacheManager = VideoCacheManager.shared
+    private var currentURL: URL?
 
     func setupPlayer(url: URL) {
+        currentURL = url
+
+        // 캐시된 동영상이 있으면 로컬 파일 재생
+        if let cachedURL = cacheManager.getCachedVideo(for: url) {
+            Task {
+                await setupPlayerWithURL(cachedURL)
+            }
+            return
+        }
+
+        // 캐시가 없으면 206 스트리밍 + 백그라운드 다운로드
+        Task {
+            await setupStreamingPlayer(url: url)
+        }
+
+        // 백그라운드에서 전체 동영상 다운로드 (캐싱용)
+        Task(priority: .low) {
+            do {
+                _ = try await cacheManager.cacheVideo(from: url)
+            } catch {
+                // 백그라운드 다운로드 실패는 무시
+            }
+        }
+    }
+
+    @MainActor
+    private func setupStreamingPlayer(url: URL) async {
+        // Custom scheme으로 변환 (https -> moda-video)
+        guard var components = URLComponents(url: url, resolvingAgainstBaseURL: false) else {
+            self.videoAspectRatio = 1.0
+            return
+        }
+        components.scheme = "moda-video"
+
+        guard let streamingURL = components.url else {
+            self.videoAspectRatio = 1.0
+            return
+        }
+
+        // ResourceLoader 설정
+        let loader = AuthenticatedResourceLoader()
+        self.resourceLoader = loader
+
+        let asset = AVURLAsset(url: streamingURL)
+        asset.resourceLoader.setDelegate(loader, queue: DispatchQueue(label: "com.moda.resourceloader"))
+
+        let playerItem = AVPlayerItem(asset: asset)
+        player = AVPlayer(playerItem: playerItem)
+        player?.isMuted = true
+        player?.automaticallyWaitsToMinimizeStalling = false
+
+        // 비디오 종횡비 설정
         Task {
             do {
-                let localURL = try await getCachedOrDownload(url: url)
-                await setupPlayerWithURL(localURL)
+                let tracks = try await asset.loadTracks(withMediaType: .video)
+                if let videoTrack = tracks.first {
+                    let size = try await videoTrack.load(.naturalSize)
+                    let transform = try await videoTrack.load(.preferredTransform)
+
+                    let videoWidth: CGFloat
+                    let videoHeight: CGFloat
+
+                    if transform.a == 0 && transform.b == 1.0 && transform.c == -1.0 && transform.d == 0 {
+                        videoWidth = size.height
+                        videoHeight = size.width
+                    } else if transform.a == 0 && transform.b == -1.0 && transform.c == 1.0 && transform.d == 0 {
+                        videoWidth = size.height
+                        videoHeight = size.width
+                    } else {
+                        videoWidth = size.width
+                        videoHeight = size.height
+                    }
+
+                    await MainActor.run {
+                        self.videoAspectRatio = videoWidth / videoHeight
+                    }
+                }
             } catch {
-                print("Failed to load video: \(error.localizedDescription)")
                 await MainActor.run {
                     self.videoAspectRatio = 1.0
                 }
             }
         }
-    }
 
-    private func getCachedOrDownload(url: URL) async throws -> URL {
-        if let cachedURL = cacheManager.getCachedVideo(for: url) {
-            return cachedURL
+        statusObserver = playerItem.observe(\.status, options: [.new, .initial]) { [weak self] item, _ in
+            DispatchQueue.main.async {
+                if item.status == .readyToPlay {
+                    self?.player?.play()
+                }
+            }
         }
 
-        return try await cacheManager.cacheVideo(from: url)
+        NotificationCenter.default.addObserver(
+            forName: .AVPlayerItemDidPlayToEndTime,
+            object: playerItem,
+            queue: .main
+        ) { [weak self] _ in
+            self?.player?.seek(to: .zero)
+            self?.player?.play()
+        }
     }
 
     @MainActor
@@ -172,6 +255,8 @@ final class VideoPlayerManager: ObservableObject {
         NotificationCenter.default.removeObserver(self)
         player?.pause()
         player = nil
+        resourceLoader?.cancelAllRequests()
+        resourceLoader = nil
     }
 
     deinit {

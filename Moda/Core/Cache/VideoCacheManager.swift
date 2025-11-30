@@ -115,8 +115,11 @@ final class VideoCacheManager: VideoCacheServiceProtocol {
             return image
         }
 
-        // 썸네일 생성
-        let thumbnail = try await generateThumbnail(from: videoURL)
+        // 먼저 동영상을 다운로드 (인증 헤더 필요)
+        let localVideoURL = try await cacheVideo(from: videoURL)
+
+        // 로컬 파일에서 썸네일 생성
+        let thumbnail = try await generateThumbnail(from: localVideoURL)
 
         // 최적화 (300pt, JPEG 0.8)
         let optimized = optimizeThumbnail(thumbnail)
@@ -269,7 +272,7 @@ final class VideoCacheManager: VideoCacheServiceProtocol {
 
         let newSize = CGSize(width: size.width * scale, height: size.height * scale)
 
-        UIGraphicsBeginImageContextWithOptions(newSize, false, 2.0)
+        UIGraphicsBeginImageContextWithOptions(newSize, true, 2.0)
         image.draw(in: CGRect(origin: .zero, size: newSize))
         let resized = UIGraphicsGetImageFromCurrentImageContext()
         UIGraphicsEndImageContext()

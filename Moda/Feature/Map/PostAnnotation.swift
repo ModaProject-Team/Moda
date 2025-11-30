@@ -18,6 +18,7 @@ struct PostAnnotation: Identifiable {
     let latitude: Double  // 위도
     let longitude: Double  // 경도
     let price: Int  // 가격
+    let creatorId: String  // 작성자 ID
 
     var coordinate: CLLocationCoordinate2D {
         CLLocationCoordinate2D(latitude: latitude, longitude: longitude)

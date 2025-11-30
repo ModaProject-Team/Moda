@@ -56,7 +56,8 @@ struct ClusterSheetView: View {
                 nickname: "닉네임1",
                 latitude: 37.5,
                 longitude: 127.0,
-                price: 50000
+                price: 50000,
+                creatorId: "test-user-id-1"
             ),
             PostAnnotation(
                 id: "2",
@@ -67,7 +68,8 @@ struct ClusterSheetView: View {
                 nickname: "닉네임2",
                 latitude: 37.5,
                 longitude: 127.0,
-                price: 30000
+                price: 30000,
+                creatorId: "test-user-id-2"
             )
         ],
         onDismiss: {}
