@@ -223,11 +223,16 @@ final class ChatRoomStore: ObservableObject {
 
         await loadLocalMessages()
 
+        // ✅ 소켓을 먼저 연결하여 메시지 유실 방지
+        // isSocketReady는 false로 유지하여 syncWithServer() 중 온 메시지는 버퍼에 쌓임
+        connectSocket()
+
         // 서버 동기화 시도 (실패해도 로컬 메시지는 표시됨)
         do {
             try await syncWithServer()
-            connectSocket()
+            // 버퍼에 쌓인 메시지 처리 (syncWithServer() 중 온 메시지들)
             await applyBufferedMessages()
+            // 이제부터 새 메시지는 버퍼 없이 바로 처리
             isSocketReady = true
         } catch {
             // 네트워크 오류는 배너로만 표시
