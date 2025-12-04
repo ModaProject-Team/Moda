@@ -76,8 +76,7 @@ final class ChatListStore: ObservableObject {
             participantName: opponent?.nick ?? "알 수 없음",
             participantProfileImage: opponent?.profileImage,
             lastMessage: lastMessageText,
-            lastMessageTime: lastMessageTime,
-            unreadCount: 0
+            lastMessageTime: lastMessageTime
         )
     }
 
@@ -112,8 +111,7 @@ final class ChatListStore: ObservableObject {
             participantName: object.participantNick ?? "알 수 없음",
             participantProfileImage: object.participantProfileImage,
             lastMessage: lastMessageText,
-            lastMessageTime: lastMessageTime,
-            unreadCount: object.unreadCount
+            lastMessageTime: lastMessageTime
         )
     }
 

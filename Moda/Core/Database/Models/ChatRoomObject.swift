@@ -14,7 +14,6 @@ class ChatRoomObject: Object {
     @Persisted(indexed: true) var updatedAt: String
     @Persisted var updatedAtDate: Date
     @Persisted var lastSyncedAt: String?
-    @Persisted var unreadCount: Int = 0
 
     @Persisted var participantNick: String?
     @Persisted var participantProfileImage: String?
@@ -30,7 +29,6 @@ class ChatRoomObject: Object {
         updatedAt: String,
         updatedAtDate: Date,
         lastSyncedAt: String? = nil,
-        unreadCount: Int = 0,
         participantNick: String? = nil,
         participantProfileImage: String? = nil,
         participantUserId: String? = nil,
@@ -44,7 +42,6 @@ class ChatRoomObject: Object {
         self.updatedAt = updatedAt
         self.updatedAtDate = updatedAtDate
         self.lastSyncedAt = lastSyncedAt
-        self.unreadCount = unreadCount
         self.participantNick = participantNick
         self.participantProfileImage = participantProfileImage
         self.participantUserId = participantUserId
@@ -96,15 +93,5 @@ extension ChatRoomObject {
         let formatter = ISO8601DateFormatter()
         formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
         self.lastSyncedAt = formatter.string(from: date)
-    }
-
-    /// 읽지 않은 메시지 수 증가
-    func incrementUnreadCount() {
-        self.unreadCount += 1
-    }
-
-    /// 읽지 않은 메시지 수 초기화
-    func resetUnreadCount() {
-        self.unreadCount = 0
     }
 }

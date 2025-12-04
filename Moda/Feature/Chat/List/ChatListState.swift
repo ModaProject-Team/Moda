@@ -13,7 +13,6 @@ struct ChatRoom: Identifiable {
     let participantProfileImage: String?
     let lastMessage: String
     let lastMessageTime: Date
-    let unreadCount: Int
 }
 
 struct ChatListState {
