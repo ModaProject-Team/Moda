@@ -12,7 +12,6 @@ import CoreLocation
 struct FeedViewState {
     var products: [PostCard] = []
     var filteredProducts: [PostCard] = []
-    var userName = "장수지"
     var categories = ["전체", "중고거래", "나눔"]
     var selectedCategory: String = "전체"
 
