@@ -8,46 +8,6 @@
 import SwiftUI
 import CoreLocation
 
-// MARK: - Supporting Views
-struct QuickActionButton: View {
-    let icon: String
-    let title: String
-    let action: () -> Void
-
-    private var iconColor: Color {
-        switch icon {
-        case "arrow.up.circle.fill":
-            return .green1
-        case "heart.fill":
-            return .pink1
-        case "clock.fill":
-            return .blue1
-        default:
-            return .gray1
-        }
-    }
-
-    var body: some View {
-        Button(action: action) {
-            VStack(spacing: 4) {
-                Image(systemName: icon)
-                    .font(.system(size: 20))
-                    .foregroundColor(iconColor)
-
-                Text(title)
-                    .Body2()
-                    .foregroundColor(.gray1)
-            }
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 10)
-            .background(
-                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .fill(.white.opacity(0.6))
-            )
-        }
-    }
-}
-
 struct PostCardView: View {
     let product: PostCard
     let itemWidth: CGFloat
@@ -58,49 +18,12 @@ struct PostCardView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             imageSection
-            profileSection
             statsSection
             infoSection
         }
         .frame(width: itemWidth, alignment: .leading)
         .contentShape(Rectangle())
         .onTapGesture(perform: onTapped)
-    }
-
-    private var profileSection: some View {
-        HStack(spacing: 8) {
-            if let profileImage = product.creator.profileImage, !profileImage.isEmpty {
-                CachedImageView(
-                    url: URL(string: "\(NetworkConfig.baseURL)/v1\(profileImage)"),
-                    targetSize: CGSize(width: 24, height: 24),
-                    contentMode: .fill,
-                    placeholder: {
-                        AnyView(
-                            Circle()
-                                .fill(Color.gray3)
-                        )
-                    }
-                )
-                .frame(width: 24, height: 24)
-                .clipShape(Circle())
-            } else {
-                Circle()
-                    .fill(Color.gray3)
-                    .frame(width: 24, height: 24)
-            }
-
-            Text(product.creator.nickname)
-                .Body1()
-                .foregroundColor(.gray1)
-
-            Spacer()
-
-            Text(product.formattedDate)
-                .Body2()
-                .foregroundColor(.gray2)
-        }
-        .padding(.top, 8)
-        .padding(.bottom, 4)
     }
 
     private var statsSection: some View {
@@ -129,8 +52,8 @@ struct PostCardView: View {
 
             Spacer()
         }
-        .padding(.top, 2)
-        .padding(.bottom, -2)
+        .padding(.top, 8)
+        .padding(.bottom, 4)
     }
 
     private var imageSection: some View {
