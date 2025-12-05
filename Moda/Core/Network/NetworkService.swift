@@ -342,6 +342,23 @@ final class NetworkService: NetworkServiceProtocol {
         return errorResponse.message
     }
 
+    /// API 요청에 필요한 공통 헤더를 생성합니다
+    ///
+    /// - Parameter includeAuthorization: Authorization 헤더 포함 여부 (기본값: true)
+    /// - Returns: 공통 헤더 딕셔너리
+    static func buildHeaders(includeAuthorization: Bool = true) -> [String: String] {
+        var headers: [String: String] = [
+            "SesacKey": NetworkConfig.sesacKey,
+            "ProductId": NetworkConfig.productId
+        ]
+
+        if includeAuthorization, let token = TokenManager.shared.accessToken, !token.isEmpty {
+            headers["Authorization"] = token
+        }
+
+        return headers
+    }
+
     /// HTTP 상태 코드에 따라 에러를 반환합니다
     ///
     /// - Parameters:

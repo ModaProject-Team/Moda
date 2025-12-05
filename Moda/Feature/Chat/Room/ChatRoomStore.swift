@@ -41,7 +41,7 @@ final class ChatRoomStore: ObservableObject {
         self.realmService = realmService
         self.networkMonitor = networkMonitor
         self.state.participantName = participantName
-        setupSocketCallbacks()
+        setupSocketObservers()
         setupNetworkMonitoring()
     }
 
@@ -129,31 +129,26 @@ final class ChatRoomStore: ObservableObject {
         }
     }
 
-    private func setupSocketCallbacks() {
-        socketService.onConnect = { [weak self] in
-            Task { @MainActor in
-                self?.state.isNetworkError = false
+    private func setupSocketObservers() {
+        socketService.isConnected
+            .sink { [weak self] isConnected in
+                Task { @MainActor in
+                    self?.state.isNetworkError = !isConnected
+                }
             }
-        }
-        socketService.onDisconnect = { [weak self] in
-            Task { @MainActor in
-                self?.state.isNetworkError = true
-            }
-        }
-        socketService.onError = { [weak self] message in
-            Task { @MainActor in
-                self?.state.isNetworkError = true
-            }
-        }
-        socketService.onChat = { [weak self] dto in
-            guard let self else { return }
+            .store(in: &cancellables)
 
-            if self.isSocketReady {
-                Task { await self.handleRealtimeMessage(dto) }
-            } else {
-                self.bufferedMessages.append(dto)
+        socketService.messageReceived
+            .sink { [weak self] dto in
+                guard let self else { return }
+
+                if self.isSocketReady {
+                    Task { await self.handleRealtimeMessage(dto) }
+                } else {
+                    self.bufferedMessages.append(dto)
+                }
             }
-        }
+            .store(in: &cancellables)
     }
 
     private func setupNetworkMonitoring() {
