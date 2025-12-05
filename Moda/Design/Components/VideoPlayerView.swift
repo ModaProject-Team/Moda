@@ -94,14 +94,14 @@ final class VideoPlayerManager: ObservableObject {
 
         // 캐시된 동영상이 있으면 로컬 파일 재생
         if let cachedURL = cacheManager.getCachedVideo(for: url) {
-            Task {
+            Task { @MainActor in
                 await setupPlayerWithURL(cachedURL)
             }
             return
         }
 
         // 캐시가 없으면 206 스트리밍 + 백그라운드 다운로드
-        Task {
+        Task { @MainActor in
             await setupStreamingPlayer(url: url)
         }
 
@@ -117,7 +117,6 @@ final class VideoPlayerManager: ObservableObject {
 
     @MainActor
     private func setupStreamingPlayer(url: URL) async {
-        // Custom scheme으로 변환 (https -> moda-video)
         guard var components = URLComponents(url: url, resolvingAgainstBaseURL: false) else {
             return
         }
@@ -127,7 +126,6 @@ final class VideoPlayerManager: ObservableObject {
             return
         }
 
-        // ResourceLoader 설정
         let loader = AuthenticatedResourceLoader()
         self.resourceLoader = loader
 

@@ -14,14 +14,7 @@ import Foundation
 /// SesacKey, ProductId, Authorization 헤더를 자동으로 추가합니다.
 final class AuthenticatedResourceLoader: NSObject, AVAssetResourceLoaderDelegate {
     private var pendingRequests: [AVAssetResourceLoadingRequest: URLSessionDataTask] = [:]
-    private let session: URLSession
-
-    override init() {
-        let configuration = URLSessionConfiguration.default
-        configuration.requestCachePolicy = .reloadIgnoringLocalCacheData
-        self.session = URLSession(configuration: configuration)
-        super.init()
-    }
+    private let session = URLSession.shared
 
     func resourceLoader(
         _ resourceLoader: AVAssetResourceLoader,
@@ -31,7 +24,6 @@ final class AuthenticatedResourceLoader: NSObject, AVAssetResourceLoaderDelegate
             return false
         }
 
-        // Custom scheme을 실제 https로 변환
         let actualURL = convertToActualURL(url)
 
         var request = URLRequest(url: actualURL)
@@ -120,12 +112,17 @@ final class AuthenticatedResourceLoader: NSObject, AVAssetResourceLoaderDelegate
         pendingRequests.removeValue(forKey: loadingRequest)
     }
 
-    /// Custom scheme을 실제 HTTPS URL로 변환
-    /// - Parameter url: custom-scheme://... 형식의 URL
-    /// - Returns: https://... 형식의 실제 URL
+    /// Custom scheme을 실제 URL로 변환
+    /// - Parameter url: moda-video://... 형식의 URL
+    /// - Returns: http://... 형식의 실제 URL
     private func convertToActualURL(_ url: URL) -> URL {
         var components = URLComponents(url: url, resolvingAgainstBaseURL: false)
-        components?.scheme = "https"
+
+        // moda-video scheme을 원본 http로 복원
+        if url.scheme == "moda-video" || url.scheme == "moda-video-secure" {
+            components?.scheme = "http"
+        }
+
         return components?.url ?? url
     }
 
