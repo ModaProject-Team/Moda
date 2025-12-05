@@ -730,12 +730,21 @@ struct ProductDetailView: View {
                 if let networkError = error as? NetworkError {
                     switch networkError {
                     case .serverError(let message):
-                        paymentMessage = "결제 검증 실패: \(message)"
+                        // 서버 에러 메시지에 따라 사용자 친화적인 안내 제공
+                        if message.contains("게시글을 찾을 수 없습니다") {
+                            paymentMessage = "상품이 삭제되었습니다.\n결제는 자동으로 취소되며 환불됩니다."
+                        } else if message.contains("검증처리가 완료된 결제건") {
+                            paymentMessage = "이미 구매 완료된 상품입니다."
+                        } else if message.contains("필수값을 채워주세요") {
+                            paymentMessage = "결제 정보가 올바르지 않습니다.\n다시 시도해주세요."
+                        } else {
+                            paymentMessage = "결제 검증에 실패했습니다.\n\(message)\n\n결제는 자동으로 취소되며 환불됩니다."
+                        }
                     default:
-                        paymentMessage = "결제 검증 중 오류가 발생했습니다."
+                        paymentMessage = "결제 검증 중 오류가 발생했습니다.\n잠시 후 다시 시도해주세요."
                     }
                 } else {
-                    paymentMessage = "결제 검증 중 오류가 발생했습니다."
+                    paymentMessage = "결제 검증 중 오류가 발생했습니다.\n잠시 후 다시 시도해주세요."
                 }
                 showPaymentAlert = true
             }
