@@ -44,7 +44,6 @@ final class ChatRoomStore: ObservableObject {
         self.state.participantName = participantName
         setupSocketCallbacks()
         setupNetworkMonitoring()
-        setupAppLifecycleObservers()
     }
 
     func send(_ intent: ChatRoomIntent) {
@@ -119,6 +118,18 @@ final class ChatRoomStore: ObservableObject {
 
         case .loadMoreMessages:
             Task { await loadMoreMessages() }
+
+        case .appDidEnterBackground:
+            if isActive {
+                disconnectSocket()
+            }
+
+        case .appWillEnterForeground:
+            if isActive {
+                Task {
+                    try? await reconnectIfNeeded()
+                }
+            }
         }
     }
 
@@ -178,33 +189,11 @@ final class ChatRoomStore: ObservableObject {
             .store(in: &cancellables)
     }
 
-    private func setupAppLifecycleObservers() {
-        NotificationCenter.default.publisher(for: UIApplication.didEnterBackgroundNotification)
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] _ in
-                guard let self = self else { return }
-                if self.isActive {
-                    self.disconnectSocket()
-                }
-            }
-            .store(in: &cancellables)
-
-        NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] _ in
-                guard let self = self else { return }
-                if self.isActive {
-                    Task {
-                        try? await self.reconnectIfNeeded()
-                    }
-                }
-            }
-            .store(in: &cancellables)
-    }
 
     private func reconnectIfNeeded() async throws {
         disconnectSocket()
-        try? await Task.sleep(nanoseconds: 500_000_000)
+        // SocketIO의 disconnect()는 즉시 완료되므로 대기 불필요
+        // connect() 내부에서도 이미 기존 연결을 해제함
         connectSocket()
         try await syncWithServer()
     }
@@ -223,7 +212,7 @@ final class ChatRoomStore: ObservableObject {
 
         await loadLocalMessages()
 
-        // ✅ 소켓을 먼저 연결하여 메시지 유실 방지
+        // 소켓을 먼저 연결하여 메시지 유실 방지
         // isSocketReady는 false로 유지하여 syncWithServer() 중 온 메시지는 버퍼에 쌓임
         connectSocket()
 
@@ -363,9 +352,6 @@ final class ChatRoomStore: ObservableObject {
         }
 
         disconnectSocket()
-
-        try? await Task.sleep(nanoseconds: 500_000_000)
-
         connectSocket()
 
         do {
