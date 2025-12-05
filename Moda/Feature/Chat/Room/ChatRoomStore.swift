@@ -141,9 +141,11 @@ extension ChatRoomStore {
     func sendCurrentMessage() async {
         let text = state.inputText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty else { return }
-        
-        state.inputText = ""
-        
+
+        await MainActor.run {
+            state.inputText = ""
+        }
+
         guard let userData = await prepareUserData() else { return }
         
         let tempId = "temp-\(UUID().uuidString)"
@@ -169,8 +171,10 @@ extension ChatRoomStore {
     }
     
     func sendPendingFileIfNeeded() async {
-        state.showSendConfirmAlert = false
-        
+        await MainActor.run {
+            state.showSendConfirmAlert = false
+        }
+
         guard case .image = state.pendingType else { return }
         guard let imageData = state.pendingImageData else { return }
         guard let userData = await prepareUserData() else { return }
@@ -513,7 +517,9 @@ extension ChatRoomStore {
             await applyBufferedMessages()
             isSocketReady = true
         } catch {
-            state.isNetworkError = true
+            await MainActor.run {
+                state.isNetworkError = true
+            }
         }
     }
     
@@ -628,9 +634,10 @@ extension ChatRoomStore {
             let history = try await chatAPI.getMessages(roomId: roomId, cursorDate: cursorDate)
             
             if history.data.isEmpty {
-                state.hasMoreMessages = false
-                state.isLoadingMore = false
-                
+                await MainActor.run {
+                    state.hasMoreMessages = false
+                    state.isLoadingMore = false
+                }
                 return
             }
             
@@ -655,14 +662,17 @@ extension ChatRoomStore {
                 )
             }
             
-            let existingIds = Set(state.messages.map { $0.id })
-            let uniqueNewMessages = newMessages.filter { !existingIds.contains($0.id) }
-            state.messages.insert(contentsOf: uniqueNewMessages, at: 0)
-            state.messages.sort { $0.createdAt < $1.createdAt }
-            state.isLoadingMore = false
-            
+            await MainActor.run {
+                let existingIds = Set(state.messages.map { $0.id })
+                let uniqueNewMessages = newMessages.filter { !existingIds.contains($0.id) }
+                state.messages.insert(contentsOf: uniqueNewMessages, at: 0)
+                state.messages.sort { $0.createdAt < $1.createdAt }
+                state.isLoadingMore = false
+            }
         } catch {
-            state.isLoadingMore = false
+            await MainActor.run {
+                state.isLoadingMore = false
+            }
         }
     }
 }
@@ -741,15 +751,19 @@ extension ChatRoomStore {
     }
     
     func retryConnection() async {
-        state.isNetworkError = false
-        
+        await MainActor.run {
+            state.isNetworkError = false
+        }
+
         disconnectSocket()
         connectSocket()
-        
+
         do {
             try await syncWithServer()
         } catch {
-            state.isNetworkError = true
+            await MainActor.run {
+                state.isNetworkError = true
+            }
         }
     }
 }
@@ -778,15 +792,19 @@ extension ChatRoomStore {
     }
     
     func setLoading(_ loading: Bool) {
-        state.isLoading = loading
-        if loading { state.errorMessage = nil }
+        Task { @MainActor in
+            state.isLoading = loading
+            if loading { state.errorMessage = nil }
+        }
     }
-    
+
     func setError(_ error: Error) {
-        if let net = error as? NetworkError {
-            state.errorMessage = net.localizedDescription
-        } else {
-            state.errorMessage = error.localizedDescription
+        Task { @MainActor in
+            if let net = error as? NetworkError {
+                state.errorMessage = net.localizedDescription
+            } else {
+                state.errorMessage = error.localizedDescription
+            }
         }
     }
 }
