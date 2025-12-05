@@ -23,7 +23,6 @@ final class ChatRoomStore: ObservableObject {
     private var bufferedMessages: [ChatMessageResponse] = []
     private var isSocketReady = false
     private var cancellables = Set<AnyCancellable>()
-    private var networkDebounceTask: Task<Void, Never>?
     private var isActive = false
 
     init(
@@ -76,11 +75,8 @@ final class ChatRoomStore: ObservableObject {
         case .imagePicked(let data):
             state.pendingImageData = data
             state.pendingType = .image
-            Task { @MainActor in
-                state.showImagePicker = false
-                try? await Task.sleep(nanoseconds: 200_000_000)
-                state.showSendConfirmAlert = true
-            }
+            state.showImagePicker = false
+            state.showSendConfirmAlert = true
 
         case .imagePickerDismissed:
             state.showImagePicker = false
@@ -161,30 +157,27 @@ final class ChatRoomStore: ObservableObject {
     }
 
     private func setupNetworkMonitoring() {
+        // 연결됨 → 즉시 처리
         networkMonitor.$isConnected
+            .filter { $0 }
             .receive(on: DispatchQueue.main)
-            .sink { [weak self] isConnected in
+            .sink { [weak self] _ in
                 guard let self = self else { return }
-
-                if isConnected {
-                    self.networkDebounceTask?.cancel()
-                    self.networkDebounceTask = nil
-
-                    if self.state.isNetworkError {
-                        self.state.isNetworkError = false
-                        Task {
-                            try? await self.reconnectIfNeeded()
-                        }
-                    }
-                } else {
-                    self.networkDebounceTask?.cancel()
-                    self.networkDebounceTask = Task { @MainActor in
-                        try? await Task.sleep(nanoseconds: 3_000_000_000)
-                        if !Task.isCancelled {
-                            self.state.isNetworkError = true
-                        }
+                if self.state.isNetworkError {
+                    self.state.isNetworkError = false
+                    Task {
+                        try? await self.reconnectIfNeeded()
                     }
                 }
+            }
+            .store(in: &cancellables)
+
+        // 연결 끊김 → 3초 디바운스 후 처리
+        networkMonitor.$isConnected
+            .filter { !$0 }
+            .debounce(for: .seconds(3), scheduler: DispatchQueue.main)
+            .sink { [weak self] _ in
+                self?.state.isNetworkError = true
             }
             .store(in: &cancellables)
     }
