@@ -133,3 +133,10 @@ struct ProfileUser: Decodable {
         )
     }
 }
+
+// MARK: - Chat Helper Types
+
+struct ChatUserData {
+    let userId: String
+    let profile: MyProfileResponse
+}
