@@ -503,11 +503,6 @@ final class ChatRoomStore: ObservableObject {
         let content = message.content
         let attachment = message.attachment
 
-        // 기존 실패 메시지 삭제
-        await MainActor.run {
-            self.state.messages.removeAll(where: { $0.id == chatId })
-        }
-
         // 새로운 tempId로 재전송 메시지 생성 (맨 아래 추가, 새로운 타임스탬프)
         let newTempId = "temp-\(UUID().uuidString)"
         let now = Date()
@@ -530,7 +525,14 @@ final class ChatRoomStore: ObservableObject {
             localStatus: "sending"
         )
 
+        // 새 메시지를 먼저 저장
         try? await realmService.saveMessage(optimisticMessage)
+
+        // 저장 성공 후 기존 실패 메시지 삭제 (State + Realm)
+        await MainActor.run {
+            self.state.messages.removeAll(where: { $0.id == chatId })
+        }
+        try? await realmService.deleteMessage(chatId: chatId)
 
         let optimistic = ChatMessage(
             id: newTempId,
