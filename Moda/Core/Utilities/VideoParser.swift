@@ -14,6 +14,7 @@ enum VideoParserError: LocalizedError {
     case trackLoadFailed
     case metadataExtractionFailed
     case thumbnailGenerationFailed
+    case fileSizeExceeded
 
     var errorDescription: String? {
         switch self {
@@ -27,6 +28,8 @@ enum VideoParserError: LocalizedError {
             return "비디오 정보 추출에 실패했습니다"
         case .thumbnailGenerationFailed:
             return "썸네일 생성에 실패했습니다"
+        case .fileSizeExceeded:
+            return "동영상 파일이 10MB를 초과했습니다"
         }
     }
 }
@@ -145,7 +148,7 @@ final class VideoParser {
         // 파일 크기 검증 (기본 10MB)
         if let fileSize = metadata.fileSize {
             guard fileSize <= maxFileSize else {
-                throw VideoParserError.metadataExtractionFailed
+                throw VideoParserError.fileSizeExceeded
             }
         }
 

@@ -48,7 +48,7 @@ struct ProductUploadState {
     var isUploading: Bool = false
     var uploadError: String?
     var uploadedPostId: String?
-    var showFileSizeAlert: Bool = false
+    var videoSizeError: String?
 
     // Location data
     var locationName: String = ""

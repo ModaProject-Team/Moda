@@ -119,6 +119,7 @@ final class ProductUploadStore: ObservableObject {
         return try await URLSession.shared.download(for: request)
     }
 
+    @MainActor
     func send(_ intent: ProductUploadIntent) {
         switch intent {
         case .titleChanged(let title):
@@ -157,8 +158,6 @@ final class ProductUploadStore: ObservableObject {
             Task {
                 await uploadPost()
             }
-        case .dismissFileSizeAlert:
-            state.showFileSizeAlert = false
 
         case .thumbnailPickerTapped(let index):
             state.showThumbnailPicker = true
@@ -172,6 +171,9 @@ final class ProductUploadStore: ObservableObject {
         case .dismissThumbnailPicker:
             state.showThumbnailPicker = false
             state.selectedVideoIndex = nil
+
+        case .dismissUploadError:
+            state.uploadError = nil
         }
     }
 
@@ -216,18 +218,8 @@ final class ProductUploadStore: ObservableObject {
     }
 
     private func generateThumbnail(from url: URL, at time: Double = 0) async -> UIImage? {
-        let asset = AVAsset(url: url)
-        let imageGenerator = AVAssetImageGenerator(asset: asset)
-        imageGenerator.appliesPreferredTrackTransform = true
-
         let cmTime = CMTime(seconds: time, preferredTimescale: 600)
-
-        do {
-            let cgImage = try imageGenerator.copyCGImage(at: cmTime, actualTime: nil)
-            return UIImage(cgImage: cgImage)
-        } catch {
-            return nil
-        }
+        return try? await VideoParser.shared.generateThumbnail(from: url, at: cmTime)
     }
 
     @MainActor
@@ -284,6 +276,9 @@ final class ProductUploadStore: ObservableObject {
                             case .video(let url, _, _, _):
                                 let compressedURL = try? await VideoCompressor.shared.compress(url: url)
                                 let videoURL = compressedURL ?? url
+
+                                // 압축 후 파일 크기 검증 (10MB 이하)
+                                _ = try await VideoParser.shared.validate(url: videoURL)
 
                                 if let videoData = try? Data(contentsOf: videoURL) {
                                     fileData = FileData(data: videoData, type: .video)
