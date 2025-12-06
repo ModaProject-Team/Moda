@@ -1,5 +1,5 @@
 {
-  "originHash" : "757583ce1e0eb0b3b32b421bf8bc07020b9444831812e5a77dd82e4ecae82e1d",
+  "originHash" : "a44d32d046800937e345d29aee7256b1731d2b85b7c72e4e751004ff7387a0da",
   "pins" : [
     {
       "identity" : "alamofire",
@@ -80,6 +80,15 @@
       "state" : {
         "revision" : "e421a7b3440a271834337694e6050133a3958bc7",
         "version" : "2.7.0"
+      }
+    },
+    {
+      "identity" : "yolk",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/ge-um/Yolk",
+      "state" : {
+        "revision" : "4056d92a0622718d1e7e1ab99e1d562d8fa5ee5a",
+        "version" : "1.0.0"
       }
     }
   ],

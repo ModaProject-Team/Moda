@@ -69,6 +69,9 @@ final class FeedViewStore: NSObject, ObservableObject {
                 }
             }
 
+        case .onDisappear:
+            locationManager.stopUpdatingLocation()
+
         case .loadMore:
             guard !state.isLoading && state.hasMoreData else { return }
             Task { await loadPosts(refresh: false) }

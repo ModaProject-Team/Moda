@@ -5,6 +5,7 @@
 //  Created by 금가경 on 11/6/25.
 //
 
+import Yolk
 import SwiftUI
 import KakaoSDKCommon
 import KakaoSDKAuth
@@ -18,11 +19,13 @@ struct ModaApp: App {
         if Thread.isMainThread {
             initializeKakaoSDK()
             checkLoginStatus()
+            setupCacheModifier()
             cleanupCacheOnStartup()
         } else {
             DispatchQueue.main.sync {
                 initializeKakaoSDK()
                 checkLoginStatus()
+                setupCacheModifier()
                 cleanupCacheOnStartup()
             }
         }
@@ -46,9 +49,26 @@ struct ModaApp: App {
     }
 
     @MainActor
+    private func setupCacheModifier() {
+        // Moda 프로젝트 전용 RequestModifier 설정
+        let modifier = AnyModifier { request in
+            var r = request
+            r.setValue(NetworkConfig.sesacKey, forHTTPHeaderField: "SesacKey")
+            r.setValue(NetworkConfig.productId, forHTTPHeaderField: "ProductId")
+            r.setValue(TokenManager.shared.accessToken ?? "", forHTTPHeaderField: "Authorization")
+            return r
+        }
+
+        Task {
+            await CacheService.image.setModifier(modifier)
+            await CacheService.video.setModifier(modifier)
+        }
+    }
+
+    @MainActor
     private func cleanupCacheOnStartup() {
         Task {
-            await VideoCacheManager.shared.cleanupIfNeeded()
+            await CacheService.video.cleanupIfNeeded()
         }
     }
 
@@ -70,7 +90,7 @@ struct ModaApp: App {
             .onChange(of: scenePhase) { oldPhase, newPhase in
                 if newPhase == .background {
                     Task {
-                        await VideoCacheManager.shared.cleanupIfNeeded()
+                        await CacheService.video.cleanupIfNeeded()
                     }
                 }
             }

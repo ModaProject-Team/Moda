@@ -5,6 +5,7 @@
 //  Created by 금가경 on 11/30/24.
 //
 
+import Yolk
 import SwiftUI
 
 /// 캐싱된 이미지를 표시하는 뷰
@@ -21,7 +22,7 @@ struct CachedImageView: View {
     @State private var isLoading = true
     @State private var downloadTask: Task<Void, Never>?
 
-    private let cacheManager = ImageCacheManager.shared
+    private let cacheService = CacheService.image
 
     init(
         url: URL?,
@@ -73,7 +74,7 @@ struct CachedImageView: View {
             downloadTask?.cancel()
             if let url = url {
                 Task {
-                    await cacheManager.cancelImageDownload(for: url)
+                    await cacheService.cancelDownload(for: url)
                 }
             }
         }
@@ -103,8 +104,8 @@ struct CachedImageView: View {
             return
         }
 
-        // 동기적 캐시 확인
-        if let cachedImage = cacheManager.getCachedImage(for: url, targetSize: targetSize) {
+        // 캐시 확인
+        if let cachedImage = await cacheService.getCachedImage(for: url, targetSize: targetSize) {
             await MainActor.run {
                 self.image = cachedImage
                 self.isLoading = false
@@ -114,7 +115,7 @@ struct CachedImageView: View {
 
         // 비동기 다운로드 및 캐싱
         do {
-            let downloadedImage = try await cacheManager.cacheImage(from: url, targetSize: targetSize)
+            let downloadedImage = try await cacheService.cacheImage(from: url, targetSize: targetSize)
             await MainActor.run {
                 self.image = downloadedImage
                 self.isLoading = false

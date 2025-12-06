@@ -5,6 +5,7 @@
 //  Created by Suji Jang on 11/26/25.
 //
 
+import Yolk
 import SwiftUI
 import AVKit
 
@@ -15,7 +16,7 @@ struct FullScreenVideoPlayer: View {
     @State private var dragOffset: CGFloat = 0
     @State private var isDownloading = true
 
-    private let cacheManager = VideoCacheManager.shared
+    private let cacheService = CacheService.video
 
     var body: some View {
         ZStack {
@@ -91,7 +92,7 @@ struct FullScreenVideoPlayer: View {
 
     private func loadAndPlayVideo() async {
         do {
-            let localURL = try await cacheManager.cacheVideo(from: videoURL)
+            let localURL = try await cacheService.cacheVideo(from: videoURL)
             await MainActor.run {
                 self.player = AVPlayer(url: localURL)
                 self.player?.play()

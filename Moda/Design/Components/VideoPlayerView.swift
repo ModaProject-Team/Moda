@@ -5,12 +5,14 @@
 //  Created by 금가경 on 11/25/25.
 //
 
+import Yolk
 import SwiftUI
 import AVKit
 
 struct VideoPlayerView: View {
     let url: URL
     let itemWidth: CGFloat
+    let customScheme: String
 
     @StateObject private var playerManager = VideoPlayerManager()
 
@@ -28,14 +30,11 @@ struct VideoPlayerView: View {
                     .shimmer()
             }
         }
-        .onAppear {
-            playerManager.setupPlayer(url: url)
+        .task(id: url) {
+            await playerManager.setupPlayer(url: url, customScheme: customScheme)
         }
         .onDisappear {
-            playerManager.cleanup()
-            Task {
-                await VideoCacheManager.shared.cancelVideoDownload(for: url)
-            }
+            playerManager.pause()
         }
     }
 }
@@ -86,47 +85,59 @@ final class VideoPlayerManager: ObservableObject {
 
     private var statusObserver: NSKeyValueObservation?
     private var resourceLoader: AuthenticatedResourceLoader?
-    private let cacheManager = VideoCacheManager.shared
+    private let cacheService = CacheService.video
     private var currentURL: URL?
 
-    func setupPlayer(url: URL) {
-        currentURL = url
-
-        // 캐시된 동영상이 있으면 로컬 파일 재생
-        if let cachedURL = cacheManager.getCachedVideo(for: url) {
-            Task { @MainActor in
-                await setupPlayerWithURL(cachedURL)
+    func setupPlayer(url: URL, customScheme: String) async {
+        // 이미 같은 URL로 설정되어 있으면 재생만 재개
+        if currentURL == url, player != nil {
+            await MainActor.run {
+                player?.play()
             }
             return
         }
 
-        // 캐시가 없으면 206 스트리밍 + 백그라운드 다운로드
-        Task { @MainActor in
-            await setupStreamingPlayer(url: url)
+        currentURL = url
+
+        // 캐시된 동영상이 있으면 로컬 파일 재생
+        if let cachedURL = await cacheService.getCachedVideo(for: url) {
+            await setupPlayerWithURL(cachedURL)
+            return
         }
+
+        // 캐시가 없으면 206 스트리밍 + 백그라운드 다운로드
+        await setupStreamingPlayer(url: url, customScheme: customScheme)
 
         // 백그라운드에서 전체 동영상 다운로드 (캐싱용)
         Task(priority: .low) {
             do {
-                _ = try await cacheManager.cacheVideo(from: url)
+                _ = try await cacheService.cacheVideo(from: url)
             } catch {
-                // 백그라운드 다운로드 실패는 무시
             }
         }
     }
 
     @MainActor
-    private func setupStreamingPlayer(url: URL) async {
+    private func setupStreamingPlayer(url: URL, customScheme: String) async {
         guard var components = URLComponents(url: url, resolvingAgainstBaseURL: false) else {
             return
         }
-        components.scheme = "moda-video"
+        components.scheme = customScheme
 
         guard let streamingURL = components.url else {
             return
         }
 
-        let loader = AuthenticatedResourceLoader()
+        // Moda 프로젝트 헤더 추가를 위한 modifier
+        let modifier = AnyModifier { request in
+            var r = request
+            r.setValue(NetworkConfig.sesacKey, forHTTPHeaderField: "SesacKey")
+            r.setValue(NetworkConfig.productId, forHTTPHeaderField: "ProductId")
+            r.setValue(TokenManager.shared.accessToken ?? "", forHTTPHeaderField: "Authorization")
+            return r
+        }
+
+        let loader = AuthenticatedResourceLoader(customScheme: customScheme, modifier: modifier)
         self.resourceLoader = loader
 
         let asset = AVURLAsset(url: streamingURL)
@@ -249,6 +260,10 @@ final class VideoPlayerManager: ObservableObject {
         }
     }
 
+    func pause() {
+        player?.pause()
+    }
+
     func cleanup() {
         statusObserver?.invalidate()
         statusObserver = nil
@@ -257,6 +272,7 @@ final class VideoPlayerManager: ObservableObject {
         player = nil
         resourceLoader?.cancelAllRequests()
         resourceLoader = nil
+        currentURL = nil
     }
 
     deinit {

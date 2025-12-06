@@ -62,8 +62,10 @@ struct PostCardView: View {
                 if product.isVideo {
                     VideoPlayerView(
                         url: URL(string: "\(NetworkConfig.baseURL)/v1\(imageURL)")!,
-                        itemWidth: itemWidth
+                        itemWidth: itemWidth,
+                        customScheme: "moda-video"
                     )
+                    .id(product.id)
                     .overlay(completedOverlay)
                 } else {
                     CachedImageView(

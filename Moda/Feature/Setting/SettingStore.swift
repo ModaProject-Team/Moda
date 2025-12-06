@@ -5,6 +5,7 @@
 //  Created by Suji Jang on 11/24/24.
 //
 
+import Yolk
 import SwiftUI
 
 @MainActor
@@ -109,8 +110,8 @@ final class SettingStore {
             UserDefaultsManager.shared.clearUserData()
 
             // 캐시 및 로컬 DB 정리
-            await ImageCacheManager.shared.clearCache()
-            await VideoCacheManager.shared.clearCache()
+            await CacheService.image.clearAllCache()
+            await CacheService.video.clearAllCache()
 
             // Realm 로컬 DB 삭제
             try? await userRealmService.deleteMyProfile()

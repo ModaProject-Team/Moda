@@ -10,6 +10,7 @@ import CoreLocation
 
 enum FeedIntent {
     case onAppear
+    case onDisappear
     case loadMore
     case refresh
     case selectCategory(String)
