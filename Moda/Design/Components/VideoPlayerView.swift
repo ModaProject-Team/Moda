@@ -99,6 +99,18 @@ final class VideoPlayerManager: ObservableObject {
 
         currentURL = url
 
+        // ✅ 캐시된 메타데이터 먼저 확인하여 즉시 aspectRatio 설정
+        if let metadata = await cacheService.getVideoMetadata(for: url) {
+            await MainActor.run {
+                self.videoAspectRatio = metadata.aspectRatio
+            }
+        } else {
+            // 캐시된 메타데이터가 없으면 기본값 설정
+            await MainActor.run {
+                self.videoAspectRatio = 1.0
+            }
+        }
+
         // 캐시된 동영상이 있으면 로컬 파일 재생
         if let cachedURL = await cacheService.getCachedVideo(for: url) {
             await setupPlayerWithURL(cachedURL)
@@ -145,8 +157,7 @@ final class VideoPlayerManager: ObservableObject {
 
         let playerItem = AVPlayerItem(asset: asset)
 
-        // 기본 종횡비로 플레이어 먼저 설정 (shimmer 즉시 제거)
-        self.videoAspectRatio = 1.0
+        // aspectRatio는 이미 setupPlayer에서 설정됨 (캐시된 메타데이터 또는 기본값)
         self.player = AVPlayer(playerItem: playerItem)
         self.player?.isMuted = true
         self.player?.automaticallyWaitsToMinimizeStalling = false
@@ -205,8 +216,7 @@ final class VideoPlayerManager: ObservableObject {
         let asset = AVURLAsset(url: url)
         let playerItem = AVPlayerItem(asset: asset)
 
-        // 기본 종횡비로 플레이어 먼저 설정 (shimmer 즉시 제거)
-        self.videoAspectRatio = 1.0
+        // aspectRatio는 이미 setupPlayer에서 설정됨 (캐시된 메타데이터 또는 기본값)
         self.player = AVPlayer(playerItem: playerItem)
         self.player?.isMuted = true
         self.player?.automaticallyWaitsToMinimizeStalling = false
