@@ -172,6 +172,7 @@ struct CategoryChip: View {
 }
 
 struct BannerCarouselView: View {
+    @EnvironmentObject var store: FeedViewStore
     @State private var currentPage = 0
     private let timer = Timer.publish(every: 3, on: .main, in: .common).autoconnect()
 
@@ -209,38 +210,56 @@ struct BannerCarouselView: View {
                     BannerCardView(banner: banner)
                         .tag(index)
                 }
+
+                if store.state.isAdMobInitialized, let adBanner = store.state.adBanner {
+                    AdMobBannerView(
+                        adUnitID: adBanner.adUnitID,
+                        onAdLoaded: {},
+                        onAdFailedToLoad: { _ in }
+                    )
+                    .frame(height: 110)
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                    .tag(3)
+                }
             }
             .tabViewStyle(PageTabViewStyle(indexDisplayMode: .never))
             .frame(height: 110)
             .onReceive(timer) { _ in
                 withAnimation {
-                    currentPage = (currentPage + 1) % banners.count
+                    let totalCount = store.state.adBanner != nil && store.state.isAdMobInitialized ? 4 : 3
+                    currentPage = (currentPage + 1) % totalCount
                 }
             }
 
-            HStack(spacing: 2) {
-                Text("\(currentPage + 1)")
-                    .font(.system(size: 11, weight: .medium))
-                    .foregroundColor(.white)
-                Text("/")
-                    .font(.system(size: 11, weight: .medium))
-                    .foregroundColor(.white.opacity(0.7))
-                Text("\(banners.count)")
-                    .font(.system(size: 11, weight: .medium))
-                    .foregroundColor(.white.opacity(0.7))
-                Text("전체")
-                    .font(.system(size: 11, weight: .medium))
-                    .foregroundColor(.white.opacity(0.7))
-            }
-            .padding(.horizontal, 8)
-            .padding(.vertical, 4)
-            .background(
-                Capsule()
-                    .fill(Color.black.opacity(0.4))
-            )
-            .padding(.trailing, 12)
-            .padding(.bottom, 20)
+            paginationIndicator
         }
+    }
+
+    private var paginationIndicator: some View {
+        let totalCount = store.state.adBanner != nil && store.state.isAdMobInitialized ? 4 : 3
+
+        return HStack(spacing: 2) {
+            Text("\(currentPage + 1)")
+                .font(.system(size: 11, weight: .medium))
+                .foregroundColor(.white)
+            Text("/")
+                .font(.system(size: 11, weight: .medium))
+                .foregroundColor(.white.opacity(0.7))
+            Text("\(totalCount)")
+                .font(.system(size: 11, weight: .medium))
+                .foregroundColor(.white.opacity(0.7))
+            Text("전체")
+                .font(.system(size: 11, weight: .medium))
+                .foregroundColor(.white.opacity(0.7))
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 4)
+        .background(
+            Capsule()
+                .fill(Color.black.opacity(0.4))
+        )
+        .padding(.trailing, 12)
+        .padding(.bottom, 20)
     }
 }
 

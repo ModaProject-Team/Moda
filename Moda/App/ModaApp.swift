@@ -21,12 +21,14 @@ struct ModaApp: App {
             checkLoginStatus()
             setupCacheModifier()
             cleanupCacheOnStartup()
+            initializeAdMob()
         } else {
             DispatchQueue.main.sync {
                 initializeKakaoSDK()
                 checkLoginStatus()
                 setupCacheModifier()
                 cleanupCacheOnStartup()
+                initializeAdMob()
             }
         }
     }
@@ -69,6 +71,14 @@ struct ModaApp: App {
     private func cleanupCacheOnStartup() {
         Task {
             await CacheService.video.cleanupIfNeeded()
+        }
+    }
+
+    @MainActor
+    private func initializeAdMob() {
+        Task {
+            await AdMobManager.shared.initialize()
+            await AdMobManager.shared.requestTrackingPermission()
         }
     }
 

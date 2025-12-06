@@ -33,6 +33,10 @@ struct FeedViewState {
     // 맞팔 친구 ID 목록
     var mutualFriendIds: Set<String> = []
 
+    // AdMob
+    var adBanner: AdBannerData?
+    var isAdMobInitialized: Bool = false
+
     // 검색 결과 또는 카테고리 필터링된 목록 반환
     var displayProducts: [PostCard] {
         if !searchText.isEmpty {
@@ -49,4 +53,9 @@ struct FeedViewState {
             return products
         }
     }
+}
+
+struct AdBannerData: Identifiable {
+    let id = UUID()
+    let adUnitID: String
 }

@@ -22,6 +22,8 @@ final class FeedViewStore: NSObject, ObservableObject {
     private let likeSubject = PassthroughSubject<String, Never>()
     private var pendingLikeStates: [String: Bool] = [:]
 
+    private var adMobInitObserver: NSObjectProtocol?
+
     lazy var locationManager: CLLocationManager = {
         let manager = CLLocationManager()
         manager.delegate = self
@@ -37,6 +39,8 @@ final class FeedViewStore: NSObject, ObservableObject {
         self.userProfileAPI = userProfileAPI
         super.init()
         setupCombineBindings()
+        setupAdMobObserver()
+        initializeAds()
     }
 
     private func setupCombineBindings() {
@@ -104,6 +108,9 @@ final class FeedViewStore: NSObject, ObservableObject {
             state.searchText = ""
             state.filteredProducts = []
             state.isSearching = false
+
+        case .adMobInitialized:
+            state.isAdMobInitialized = true
         }
     }
 
@@ -241,6 +248,26 @@ final class FeedViewStore: NSObject, ObservableObject {
 
     private func setupLocationManager() {
         _ = locationManager
+    }
+
+    private func setupAdMobObserver() {
+        adMobInitObserver = NotificationCenter.default.addObserver(
+            forName: AppNotification.adMobInitialized,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            self?.send(.adMobInitialized)
+        }
+    }
+
+    private func initializeAds() {
+        state.adBanner = AdBannerData(adUnitID: "ca-app-pub-3940256099942544/2934735716")
+    }
+
+    deinit {
+        if let observer = adMobInitObserver {
+            NotificationCenter.default.removeObserver(observer)
+        }
     }
 }
 

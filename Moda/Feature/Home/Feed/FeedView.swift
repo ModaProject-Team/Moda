@@ -27,6 +27,7 @@ struct FeedView: View {
                     ScrollView(showsIndicators: false) {
                         VStack(spacing: 20) {
                             BannerCarouselView()
+                                .environmentObject(store)
                                 .padding(.top, 8)
 
                             ProductGridView(

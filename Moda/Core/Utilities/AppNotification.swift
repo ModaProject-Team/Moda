@@ -35,4 +35,9 @@ enum AppNotification {
 
     /// 결제 응답 수신
     static let paymentResponse = Notification.Name("com.moda.payment.response")
+
+    // MARK: - AdMob (광고 관련)
+
+    /// AdMob 초기화 완료
+    static let adMobInitialized = Notification.Name("com.moda.admob.initialized")
 }

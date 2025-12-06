@@ -19,4 +19,6 @@ enum FeedIntent {
     case updateLocation(CLLocationCoordinate2D)
     case search(String)
     case clearSearch
+
+    case adMobInitialized
 }
