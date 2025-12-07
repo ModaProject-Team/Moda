@@ -256,7 +256,9 @@ final class FeedViewStore: NSObject, ObservableObject {
             object: nil,
             queue: .main
         ) { [weak self] _ in
-            self?.send(.adMobInitialized)
+            Task { @MainActor in
+                self?.send(.adMobInitialized)
+            }
         }
     }
 
