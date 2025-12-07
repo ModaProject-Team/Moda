@@ -31,9 +31,12 @@ struct ProductDetailView: View {
     @State private var commentPreview: [Comment] = []
     @State private var totalCommentCount = 0
     @State private var mutualFriendIds: Set<String> = []
-    @State private var isPaymentInProgress = false
+    @State private var paymentStatus: PaymentStatus = .idle
     @State private var showPriceValidationAlert = false
     @State private var priceValidationMessage = ""
+    @State private var pendingImpUid: String?
+    @State private var retryCount = 0
+    @StateObject private var networkMonitor = NetworkMonitor.shared
 
     init(postId: String) {
         self.postId = postId
@@ -70,10 +73,17 @@ struct ProductDetailView: View {
             }
         }
         .task {
+            networkMonitor.startMonitoring()
             store.send(.loadPost)
             await loadMutualFriends()
             await loadRelatedProducts()
             await loadCommentPreview()
+        }
+        .onChange(of: networkMonitor.isConnected) { oldValue, newValue in
+            // 네트워크가 끊겼다가 복구된 경우
+            if !oldValue && newValue {
+                handleNetworkRecovery()
+            }
         }
         .onReceive(NotificationCenter.default.publisher(for: AppNotification.commentUpdated)) { _ in
             Task {
@@ -555,9 +565,9 @@ struct ProductDetailView: View {
                             Image(systemName: "creditcard.fill")
                                 .font(.system(size: 16))
                                 .foregroundColor(.white)
-                                .opacity(isPaymentInProgress ? 0.5 : 1.0)
+                                .opacity(paymentStatus.isInProgress ? 0.5 : 1.0)
                         }
-                        .disabled(isPaymentInProgress)
+                        .disabled(paymentStatus.isInProgress)
                     }
 
                     Button {
@@ -654,9 +664,18 @@ struct ProductDetailView: View {
         guard let price = post.price, price > 0 else { return }
 
         // 중복 결제 방지
-        guard !isPaymentInProgress else { return }
+        guard !paymentStatus.isInProgress else { return }
 
-        isPaymentInProgress = true
+        // 네트워크 연결 확인
+        guard networkMonitor.isConnected else {
+            paymentStatus = .failed(.noNetwork)
+            priceValidationMessage = PaymentError.noNetwork.userMessage
+            showPriceValidationAlert = true
+            return
+        }
+
+        paymentStatus = .validatingProduct
+        retryCount = 0
 
         // 결제 전 서버에서 상품 정보 재조회 및 금액 검증
         Task {
@@ -666,8 +685,8 @@ struct ProductDetailView: View {
                 // 1. 이미 판매 완료된 상품인지 확인
                 guard serverPost.buyers.isEmpty else {
                     await MainActor.run {
-                        isPaymentInProgress = false
-                        priceValidationMessage = "이미 판매 완료된 상품입니다.\n다른 상품을 확인해주세요."
+                        paymentStatus = .failed(.productSoldOut)
+                        priceValidationMessage = PaymentError.productSoldOut.userMessage
                         showPriceValidationAlert = true
                     }
                     return
@@ -676,8 +695,8 @@ struct ProductDetailView: View {
                 // 2. 서버의 실제 가격과 클라이언트 가격 비교
                 guard let serverPrice = serverPost.price, serverPrice == price else {
                     await MainActor.run {
-                        isPaymentInProgress = false
-                        priceValidationMessage = "상품 금액이 변경되었습니다.\n페이지를 새로고침 후 다시 시도해주세요."
+                        paymentStatus = .failed(.priceChanged)
+                        priceValidationMessage = PaymentError.priceChanged.userMessage
                         showPriceValidationAlert = true
                         // 상품 정보 다시 로드
                         store.send(.loadPost)
@@ -687,6 +706,8 @@ struct ProductDetailView: View {
 
                 // 3. 검증 통과 - 결제 진행
                 await MainActor.run {
+                    paymentStatus = .processing
+
                     let merchantUid = "ios_\(postId)_\(Int(Date().timeIntervalSince1970 * 1000))"
 
                     currentPayment = IamportPayment(
@@ -702,8 +723,8 @@ struct ProductDetailView: View {
                 }
             } catch {
                 await MainActor.run {
-                    isPaymentInProgress = false
-                    priceValidationMessage = "상품 정보를 확인할 수 없습니다.\n잠시 후 다시 시도해주세요."
+                    paymentStatus = .failed(.productNotFound)
+                    priceValidationMessage = PaymentError.productNotFound.userMessage
                     showPriceValidationAlert = true
                 }
             }
@@ -712,32 +733,43 @@ struct ProductDetailView: View {
 
     private func handlePaymentResponse(_ response: IamportResponse?) {
         guard let response = response else {
-            isPaymentInProgress = false
-            paymentMessage = "결제 응답을 받지 못했습니다."
+            paymentStatus = .failed(.noResponse)
+            paymentMessage = PaymentError.noResponse.userMessage
             showPaymentAlert = true
             return
         }
 
         if response.success == true, let impUid = response.imp_uid {
+            paymentStatus = .validatingPayment
+            pendingImpUid = impUid
             Task {
                 await validatePayment(impUid: impUid)
             }
         } else {
-            isPaymentInProgress = false
-            paymentMessage = "결제가 취소되었습니다."
+            paymentStatus = .failed(.userCancelled)
+            paymentMessage = PaymentError.userCancelled.userMessage
             showPaymentAlert = true
         }
     }
 
-    private func validatePayment(impUid: String) async {
+    private func validatePayment(impUid: String, isRetry: Bool = false) async {
+        // 네트워크 연결 확인
+        guard networkMonitor.isConnected else {
+            await handleValidationError(.noNetwork, impUid: impUid)
+            return
+        }
+
         do {
             let response = try await NetworkService.shared.request(
                 endpoint: PostRouter.validatePayment(impUid: impUid, postId: postId),
                 responseType: PaymentValidationResponse.self
             )
 
+            // 검증 성공
             await MainActor.run {
-                isPaymentInProgress = false
+                paymentStatus = .completed
+                pendingImpUid = nil
+                retryCount = 0
                 store.send(.loadPost)
                 NotificationCenter.default.post(name: AppNotification.postPaymentCompleted, object: nil)
             }
@@ -748,32 +780,104 @@ struct ProductDetailView: View {
                 paymentMessage = "결제가 완료되었습니다.\n거래 품목: \(response.productName)\n금액: \(response.price)원"
                 showPaymentAlert = true
             }
-        } catch {
-            await MainActor.run {
-                isPaymentInProgress = false
 
-                if let networkError = error as? NetworkError {
-                    switch networkError {
-                    case .serverError(let message):
-                        // 서버 에러 메시지에 따라 사용자 친화적인 안내 제공
-                        if message.contains("게시글을 찾을 수 없습니다") {
-                            paymentMessage = "상품이 삭제되었습니다.\n결제는 자동으로 취소되며 환불됩니다."
-                        } else if message.contains("검증처리가 완료된 결제건") {
-                            paymentMessage = "이미 구매 완료된 상품입니다."
-                        } else if message.contains("필수값을 채워주세요") {
-                            paymentMessage = "결제 정보가 올바르지 않습니다.\n다시 시도해주세요."
-                        } else if message.contains("금액") || message.contains("price") || message.contains("amount") {
-                            paymentMessage = "결제 금액 검증에 실패했습니다.\n\n보안상의 이유로 결제가 차단되었습니다.\n결제는 자동으로 취소되며 환불됩니다.\n\n문제가 지속되면 고객센터로 문의해주세요."
-                        } else {
-                            paymentMessage = "결제 검증에 실패했습니다.\n\(message)\n\n결제는 자동으로 취소되며 환불됩니다."
-                        }
-                    default:
-                        paymentMessage = "결제 검증 중 오류가 발생했습니다.\n잠시 후 다시 시도해주세요."
-                    }
+        } catch {
+            let paymentError = mapNetworkErrorToPaymentError(error)
+            await handleValidationError(paymentError, impUid: impUid)
+        }
+    }
+
+    private func handleValidationError(_ error: PaymentError, impUid: String) async {
+        // 재시도 가능한 에러인지 확인
+        if error.isRetryable && retryCount < PaymentRetryConfig.maxRetries {
+            retryCount += 1
+
+            await MainActor.run {
+                paymentStatus = .retrying(
+                    attempt: retryCount,
+                    reason: error == .noNetwork ? .networkError : .serverError
+                )
+            }
+
+            // 재시도 대기
+            let delay = PaymentRetryConfig.retryDelay(for: retryCount)
+            try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
+
+            // 재시도
+            await validatePayment(impUid: impUid, isRetry: true)
+
+        } else if retryCount >= PaymentRetryConfig.maxRetries {
+            // 최대 재시도 횟수 초과
+            await MainActor.run {
+                // 네트워크 에러인 경우 pendingImpUid 유지 (네트워크 복구 시 자동 재시도)
+                if error == .noNetwork {
+                    paymentStatus = .failed(.noNetwork)
+                    paymentMessage = "네트워크 연결을 확인해주세요.\n연결 후 자동으로 재시도됩니다."
+                    // pendingImpUid 유지!
                 } else {
-                    paymentMessage = "결제 검증 중 오류가 발생했습니다.\n잠시 후 다시 시도해주세요."
+                    paymentStatus = .failed(.maxRetriesExceeded)
+                    pendingImpUid = nil
+                    paymentMessage = PaymentError.maxRetriesExceeded.userMessage
                 }
+                retryCount = 0
                 showPaymentAlert = true
+            }
+
+        } else {
+            // 재시도 불가능한 에러
+            await MainActor.run {
+                paymentStatus = .failed(error)
+                pendingImpUid = nil
+                retryCount = 0
+                paymentMessage = error.userMessage
+                showPaymentAlert = true
+            }
+        }
+    }
+
+    private func mapNetworkErrorToPaymentError(_ error: Error) -> PaymentError {
+        if let networkError = error as? NetworkError {
+            switch networkError {
+            case .serverError(let message):
+                if message.contains("게시글을 찾을 수 없습니다") {
+                    return .validationFailed(message: "상품이 삭제되었습니다")
+                } else if message.contains("검증처리가 완료된 결제건") {
+                    return .productSoldOut
+                } else if message.contains("필수값을 채워주세요") {
+                    return .validationFailed(message: "결제 정보가 올바르지 않습니다")
+                } else if message.contains("금액") || message.contains("price") || message.contains("amount") {
+                    return .securityViolation
+                } else {
+                    return .validationFailed(message: message)
+                }
+
+            case .networkFailure, .timeout:
+                return .noNetwork
+
+            default:
+                return .unknown(networkError.localizedDescription)
+            }
+        }
+
+        return .unknown(error.localizedDescription)
+    }
+
+    /// 네트워크 복구 시 처리
+    private func handleNetworkRecovery() {
+        // 결제 검증 대기 중이었다면 자동 재시도
+        if case .failed(let error) = paymentStatus, error == .noNetwork,
+           let impUid = pendingImpUid {
+
+            // 상태 업데이트: 재시도 중
+            paymentStatus = .retrying(attempt: 1, reason: .networkError)
+
+            Task {
+                // 복구 대기 시간
+                try? await Task.sleep(nanoseconds: UInt64(PaymentRetryConfig.networkRecoveryDelay * 1_000_000_000))
+
+                // 재검증 시도
+                retryCount = 0
+                await validatePayment(impUid: impUid)
             }
         }
     }
