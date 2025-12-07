@@ -17,9 +17,6 @@ actor ChatRealmService: ChatRealmServiceProtocol {
     private init() {
         var config = Realm.Configuration.defaultConfiguration
         config.schemaVersion = 1
-        config.migrationBlock = { migration, oldSchemaVersion in
-            // 마이그레이션 로직은 RealmMigration에서 처리
-        }
         self.configuration = config
 
         do {

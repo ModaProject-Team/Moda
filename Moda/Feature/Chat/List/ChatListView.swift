@@ -143,16 +143,6 @@ struct ChatRoomCell: View {
             Text(formatTime(room.lastMessageTime))
                 .Body2()
                 .foregroundColor(.gray3)
-
-            if room.unreadCount > 0 {
-                Text("\(room.unreadCount)")
-                    .font(.system(size: 12, weight: .bold))
-                    .foregroundColor(.white)
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 2)
-                    .background(Color.blue1)
-                    .clipShape(Capsule())
-            }
         }
     }
 

@@ -8,46 +8,6 @@
 import SwiftUI
 import CoreLocation
 
-// MARK: - Supporting Views
-struct QuickActionButton: View {
-    let icon: String
-    let title: String
-    let action: () -> Void
-
-    private var iconColor: Color {
-        switch icon {
-        case "arrow.up.circle.fill":
-            return .green1
-        case "heart.fill":
-            return .pink1
-        case "clock.fill":
-            return .blue1
-        default:
-            return .gray1
-        }
-    }
-
-    var body: some View {
-        Button(action: action) {
-            VStack(spacing: 4) {
-                Image(systemName: icon)
-                    .font(.system(size: 20))
-                    .foregroundColor(iconColor)
-
-                Text(title)
-                    .Body2()
-                    .foregroundColor(.gray1)
-            }
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 10)
-            .background(
-                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .fill(.white.opacity(0.6))
-            )
-        }
-    }
-}
-
 struct PostCardView: View {
     let product: PostCard
     let itemWidth: CGFloat
@@ -58,49 +18,12 @@ struct PostCardView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             imageSection
-            profileSection
             statsSection
             infoSection
         }
         .frame(width: itemWidth, alignment: .leading)
         .contentShape(Rectangle())
         .onTapGesture(perform: onTapped)
-    }
-
-    private var profileSection: some View {
-        HStack(spacing: 8) {
-            if let profileImage = product.creator.profileImage, !profileImage.isEmpty {
-                CachedImageView(
-                    url: URL(string: "\(NetworkConfig.baseURL)/v1\(profileImage)"),
-                    targetSize: CGSize(width: 24, height: 24),
-                    contentMode: .fill,
-                    placeholder: {
-                        AnyView(
-                            Circle()
-                                .fill(Color.gray3)
-                        )
-                    }
-                )
-                .frame(width: 24, height: 24)
-                .clipShape(Circle())
-            } else {
-                Circle()
-                    .fill(Color.gray3)
-                    .frame(width: 24, height: 24)
-            }
-
-            Text(product.creator.nickname)
-                .Body1()
-                .foregroundColor(.gray1)
-
-            Spacer()
-
-            Text(product.formattedDate)
-                .Body2()
-                .foregroundColor(.gray2)
-        }
-        .padding(.top, 8)
-        .padding(.bottom, 4)
     }
 
     private var statsSection: some View {
@@ -129,8 +52,8 @@ struct PostCardView: View {
 
             Spacer()
         }
-        .padding(.top, 2)
-        .padding(.bottom, -2)
+        .padding(.top, 8)
+        .padding(.bottom, 4)
     }
 
     private var imageSection: some View {
@@ -139,8 +62,10 @@ struct PostCardView: View {
                 if product.isVideo {
                     VideoPlayerView(
                         url: URL(string: "\(NetworkConfig.baseURL)/v1\(imageURL)")!,
-                        itemWidth: itemWidth
+                        itemWidth: itemWidth,
+                        customScheme: "moda-video"
                     )
+                    .id(product.id)
                     .overlay(completedOverlay)
                 } else {
                     CachedImageView(
@@ -247,6 +172,7 @@ struct CategoryChip: View {
 }
 
 struct BannerCarouselView: View {
+    @EnvironmentObject var store: FeedViewStore
     @State private var currentPage = 0
     private let timer = Timer.publish(every: 3, on: .main, in: .common).autoconnect()
 
@@ -284,38 +210,56 @@ struct BannerCarouselView: View {
                     BannerCardView(banner: banner)
                         .tag(index)
                 }
+
+                if store.state.isAdMobInitialized, let adBanner = store.state.adBanner {
+                    AdMobBannerView(
+                        adUnitID: adBanner.adUnitID,
+                        onAdLoaded: {},
+                        onAdFailedToLoad: { _ in }
+                    )
+                    .frame(height: 110)
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                    .tag(3)
+                }
             }
             .tabViewStyle(PageTabViewStyle(indexDisplayMode: .never))
             .frame(height: 110)
             .onReceive(timer) { _ in
                 withAnimation {
-                    currentPage = (currentPage + 1) % banners.count
+                    let totalCount = store.state.adBanner != nil && store.state.isAdMobInitialized ? 4 : 3
+                    currentPage = (currentPage + 1) % totalCount
                 }
             }
 
-            HStack(spacing: 2) {
-                Text("\(currentPage + 1)")
-                    .font(.system(size: 11, weight: .medium))
-                    .foregroundColor(.white)
-                Text("/")
-                    .font(.system(size: 11, weight: .medium))
-                    .foregroundColor(.white.opacity(0.7))
-                Text("\(banners.count)")
-                    .font(.system(size: 11, weight: .medium))
-                    .foregroundColor(.white.opacity(0.7))
-                Text("전체")
-                    .font(.system(size: 11, weight: .medium))
-                    .foregroundColor(.white.opacity(0.7))
-            }
-            .padding(.horizontal, 8)
-            .padding(.vertical, 4)
-            .background(
-                Capsule()
-                    .fill(Color.black.opacity(0.4))
-            )
-            .padding(.trailing, 12)
-            .padding(.bottom, 20)
+            paginationIndicator
         }
+    }
+
+    private var paginationIndicator: some View {
+        let totalCount = store.state.adBanner != nil && store.state.isAdMobInitialized ? 4 : 3
+
+        return HStack(spacing: 2) {
+            Text("\(currentPage + 1)")
+                .font(.system(size: 11, weight: .medium))
+                .foregroundColor(.white)
+            Text("/")
+                .font(.system(size: 11, weight: .medium))
+                .foregroundColor(.white.opacity(0.7))
+            Text("\(totalCount)")
+                .font(.system(size: 11, weight: .medium))
+                .foregroundColor(.white.opacity(0.7))
+            Text("전체")
+                .font(.system(size: 11, weight: .medium))
+                .foregroundColor(.white.opacity(0.7))
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 4)
+        .background(
+            Capsule()
+                .fill(Color.black.opacity(0.4))
+        )
+        .padding(.trailing, 12)
+        .padding(.bottom, 20)
     }
 }
 

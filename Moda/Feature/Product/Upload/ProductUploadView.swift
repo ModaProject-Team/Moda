@@ -71,20 +71,18 @@ struct ProductUploadView: View {
             }
         }
         .alert(
-            "동영상 용량 초과",
+            "업로드 오류",
             isPresented: Binding(
-                get: { store.state.showFileSizeAlert },
-                set: { if !$0 { store.send(.dismissFileSizeAlert) } }
+                get: { store.state.uploadError != nil },
+                set: { if !$0 { store.send(.dismissUploadError) } }
             )
         ) {
-            Button("확인", role: .cancel) {
-                store.send(.dismissFileSizeAlert)
-            }
+            Button("확인", role: .cancel) {}
         } message: {
-            Text("동영상은 10MB 이하만 업로드 가능합니다.")
+            Text(store.state.uploadError ?? "")
         }
         .sheet(isPresented: Binding(
-            get: { store.state.showThumbnailPicker },
+            get: { store.state.showThumbnailPicker && !store.state.showLocationSelection },
             set: { if !$0 { store.send(.dismissThumbnailPicker) }}
         )) {
             if let index = store.state.selectedVideoIndex,
@@ -381,15 +379,6 @@ struct ProductUploadView: View {
 
     private var submitButtonSection: some View {
         VStack(spacing: 0) {
-            // 에러 메시지 표시
-            if let error = store.state.uploadError {
-                Text(error)
-                    .Body2()
-                    .foregroundColor(.red)
-                    .padding(.horizontal, 16)
-                    .padding(.top, 8)
-            }
-
             Divider()
 
             Button {

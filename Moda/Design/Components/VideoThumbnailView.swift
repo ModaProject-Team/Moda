@@ -5,6 +5,7 @@
 //  Created by 금가경 on 11/25/25.
 //
 
+import Yolk
 import SwiftUI
 import AVFoundation
 
@@ -16,7 +17,7 @@ struct VideoThumbnailView: View {
     @State private var isLoading = true
     @State private var downloadTask: Task<Void, Never>?
 
-    private let cacheManager = VideoCacheManager.shared
+    private let cacheService = CacheService.video
 
     var body: some View {
         ZStack {
@@ -49,15 +50,12 @@ struct VideoThumbnailView: View {
         }
         .onDisappear {
             downloadTask?.cancel()
-            Task {
-                await cacheManager.cancelVideoDownload(for: url)
-            }
         }
     }
 
     private func loadThumbnail() async {
         do {
-            let thumbnail = try await cacheManager.cacheThumbnail(from: url)
+            let thumbnail = try await cacheService.cacheThumbnail(from: url)
             await MainActor.run {
                 self.thumbnailImage = thumbnail
                 self.isLoading = false

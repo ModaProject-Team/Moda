@@ -15,7 +15,9 @@ actor FriendRealmService: FriendRealmServiceProtocol {
     private let configuration: Realm.Configuration
 
     private init() {
-        self.configuration = RealmMigration.configuration()
+        var config = Realm.Configuration.defaultConfiguration
+        config.schemaVersion = 1
+        self.configuration = config
     }
 
     private func getRealm() throws -> Realm {

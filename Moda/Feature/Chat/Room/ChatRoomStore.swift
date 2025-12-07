@@ -11,21 +11,20 @@ import Combine
 
 final class ChatRoomStore: ObservableObject {
     @Published private(set) var state = ChatRoomState()
-
-    private let roomId: String
-    private let chatAPI: ChatAPIProtocol
-    private let userProfileAPI: UserProfileAPIProtocol
-    private let socketService: ChatSocketServiceProtocol
-    private let realmService: ChatRealmServiceProtocol
-    private let networkMonitor: NetworkMonitor
-
-    private var myUserId: String?
-    private var bufferedMessages: [ChatMessageResponse] = []
-    private var isSocketReady = false
-    private var cancellables = Set<AnyCancellable>()
-    private var networkDebounceTask: Task<Void, Never>?
-    private var isActive = false
-
+    
+    let roomId: String
+    let chatAPI: ChatAPIProtocol
+    let userProfileAPI: UserProfileAPIProtocol
+    let socketService: ChatSocketServiceProtocol
+    let realmService: ChatRealmServiceProtocol
+    let networkMonitor: NetworkMonitor
+    
+    var myUserId: String?
+    var bufferedMessages: [ChatMessageResponse] = []
+    var isSocketReady = false
+    var cancellables = Set<AnyCancellable>()
+    var isActive = false
+    
     init(
         roomId: String,
         participantName: String,
@@ -41,12 +40,12 @@ final class ChatRoomStore: ObservableObject {
         self.socketService = socketService
         self.realmService = realmService
         self.networkMonitor = networkMonitor
-        self.state.participantName = participantName
-        setupSocketCallbacks()
+        
+        state.participantName = participantName
+        setupSocketObservers()
         setupNetworkMonitoring()
-        setupAppLifecycleObservers()
     }
-
+    
     func send(_ intent: ChatRoomIntent) {
         switch intent {
         case .onAppear:
@@ -63,195 +62,481 @@ final class ChatRoomStore: ObservableObject {
             Task { await sendCurrentMessage() }
         case .dismissError:
             state.errorMessage = nil
-
+            
         case .attachmentButtonTapped:
             state.showAttachmentSheet = true
-
+            
         case .pickImage:
             state.showAttachmentSheet = false
             state.showImagePicker = true
-
+            
         case .attachmentSheetDismissed:
             state.showAttachmentSheet = false
-
+            
         case .imagePicked(let data):
             state.pendingImageData = data
             state.pendingType = .image
-            Task { @MainActor in
-                state.showImagePicker = false
-                try? await Task.sleep(nanoseconds: 200_000_000)
-                state.showSendConfirmAlert = true
-            }
-
+            state.showImagePicker = false
+            state.showSendConfirmAlert = true
+            
         case .imagePickerDismissed:
             state.showImagePicker = false
-
+            
         case .showSendConfirm:
             state.showSendConfirmAlert = true
-
+            
         case .hideSendConfirm:
             state.showSendConfirmAlert = false
-
+            
         case .confirmSend:
             Task { await sendPendingFileIfNeeded() }
-
+            
         case .cancelSend:
             state.pendingImageData = nil
             state.pendingType = .none
             state.showSendConfirmAlert = false
-
+            
         case .showImageViewer(let url):
             state.selectedImageURL = url
             state.showImageViewer = true
-
+            
         case .hideImageViewer:
             state.showImageViewer = false
             state.selectedImageURL = nil
-
+            
         case .retryMessage(let chatId):
             Task { await retryFailedMessage(chatId: chatId) }
-
+            
         case .deleteMessage(let chatId):
             Task { await deleteFailedMessage(chatId: chatId) }
-
+            
         case .retryConnection:
             Task { await retryConnection() }
-
+            
         case .loadMoreMessages:
             Task { await loadMoreMessages() }
-        }
-    }
-
-    private func setupSocketCallbacks() {
-        socketService.onConnect = { [weak self] in
-            Task { @MainActor in
-                self?.state.isNetworkError = false
+            
+        case .appDidEnterBackground:
+            if isActive {
+                disconnectSocket()
             }
-        }
-        socketService.onDisconnect = { [weak self] in
-            Task { @MainActor in
-                self?.state.isNetworkError = true
-            }
-        }
-        socketService.onError = { [weak self] message in
-            Task { @MainActor in
-                self?.state.isNetworkError = true
-            }
-        }
-        socketService.onChat = { [weak self] dto in
-            guard let self else { return }
-
-            if self.isSocketReady {
-                Task { await self.handleRealtimeMessage(dto) }
-            } else {
-                self.bufferedMessages.append(dto)
-            }
-        }
-    }
-
-    private func setupNetworkMonitoring() {
-        networkMonitor.$isConnected
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] isConnected in
-                guard let self = self else { return }
-
-                if isConnected {
-                    self.networkDebounceTask?.cancel()
-                    self.networkDebounceTask = nil
-
-                    if self.state.isNetworkError {
-                        self.state.isNetworkError = false
-                        Task {
-                            try? await self.reconnectIfNeeded()
-                        }
-                    }
-                } else {
-                    self.networkDebounceTask?.cancel()
-                    self.networkDebounceTask = Task { @MainActor in
-                        try? await Task.sleep(nanoseconds: 3_000_000_000)
-                        if !Task.isCancelled {
-                            self.state.isNetworkError = true
-                        }
+            
+        case .appWillEnterForeground:
+            if isActive {
+                Task {
+                    do {
+                        try await reconnectIfNeeded()
+                    } catch {
+                        // 재연결 실패는 UI에 반영됨
                     }
                 }
             }
-            .store(in: &cancellables)
+        }
     }
+}
 
-    private func setupAppLifecycleObservers() {
-        NotificationCenter.default.publisher(for: UIApplication.didEnterBackgroundNotification)
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] _ in
-                guard let self = self else { return }
-                if self.isActive {
-                    self.disconnectSocket()
+// MARK: - Message Sending
+
+extension ChatRoomStore {
+    func sendCurrentMessage() async {
+        let text = state.inputText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !text.isEmpty else { return }
+
+        await MainActor.run {
+            state.inputText = ""
+        }
+
+        guard let userData = await prepareUserData() else { return }
+        
+        let tempId = "temp-\(UUID().uuidString)"
+        let optimistic = createOptimisticTextMessage(tempId: tempId, text: text, userData: userData)
+        
+        await saveAndDisplayOptimisticMessage(optimistic)
+        await sendTextMessage(tempId: tempId, text: text, userData: userData)
+    }
+    
+    func retryFailedMessage(chatId: String) async {
+        guard let failedMessage = await getFailedMessage(chatId: chatId) else { return }
+        guard let userData = await prepareUserData() else { return }
+        
+        let newTempId = "temp-\(UUID().uuidString)"
+        let optimistic = createOptimisticRetryMessage(
+            newTempId: newTempId,
+            failedMessage: failedMessage,
+            userData: userData
+        )
+        
+        await replaceFailedMessage(oldChatId: chatId, newOptimistic: optimistic)
+        await sendTextMessage(tempId: newTempId, text: failedMessage.content, userData: userData)
+    }
+    
+    func sendPendingFileIfNeeded() async {
+        await MainActor.run {
+            state.showSendConfirmAlert = false
+        }
+
+        guard case .image = state.pendingType else { return }
+        guard let imageData = state.pendingImageData else { return }
+        guard let userData = await prepareUserData() else { return }
+        
+        let tempId = "temp-\(UUID().uuidString)"
+        let optimistic = createOptimisticImageMessage(tempId: tempId, userData: userData)
+        
+        await saveAndDisplayOptimisticMessage(optimistic)
+        await sendImageMessage(tempId: tempId, imageData: imageData, userData: userData)
+    }
+    
+    func deleteFailedMessage(chatId: String) async {
+        await MainActor.run {
+            state.messages.removeAll(where: { $0.id == chatId })
+        }
+        
+        do {
+            try await realmService.deleteMessage(chatId: chatId)
+        } catch {
+            // 삭제 실패는 무시 (다음 로드 시 정리됨)
+        }
+    }
+    
+    private func prepareUserData() async -> ChatUserData? {
+        do {
+            try await ensureMyUserId()
+        } catch {
+            setError(error)
+            return nil
+        }
+        
+        let userId = myUserId ?? ""
+        guard let profile = try? await userProfileAPI.getMyProfile() else {
+            return nil
+        }
+        
+        return ChatUserData(userId: userId, profile: profile)
+    }
+    
+    private func getFailedMessage(chatId: String) async -> ChatMessage? {
+        let message = await realmService.getMessage(chatId: chatId)
+        guard let message = message, message.localStatus == .failed else {
+            return nil
+        }
+        return message
+    }
+    
+    private func createOptimisticTextMessage(
+        tempId: String,
+        text: String,
+        userData: ChatUserData
+    ) -> OptimisticChatMessage {
+        let now = Date()
+        let messageObject = ChatMessageObject(
+            chatId: tempId,
+            roomId: roomId,
+            createdAt: ISO8601DateFormatter().string(from: now),
+            createdAtDate: now,
+            content: text,
+            senderId: userData.profile.userId,
+            senderNick: userData.profile.nick,
+            senderProfileImage: userData.profile.profileImage,
+            filesJson: nil,
+            localStatus: "sending"
+        )
+        
+        let chatMessage = ChatMessage(
+            id: tempId,
+            content: text,
+            senderId: userData.profile.userId,
+            senderName: userData.profile.nick,
+            senderProfileImage: userData.profile.profileImage,
+            createdAt: now,
+            isMine: true,
+            attachment: nil,
+            localStatus: .sending
+        )
+        
+        return OptimisticChatMessage(realmObject: messageObject, chatMessage: chatMessage)
+    }
+    
+    private func createOptimisticImageMessage(
+        tempId: String,
+        userData: ChatUserData
+    ) -> OptimisticChatMessage {
+        let now = Date()
+        let messageObject = ChatMessageObject(
+            chatId: tempId,
+            roomId: roomId,
+            createdAt: ISO8601DateFormatter().string(from: now),
+            createdAtDate: now,
+            content: nil,
+            senderId: userData.profile.userId,
+            senderNick: userData.profile.nick,
+            senderProfileImage: userData.profile.profileImage,
+            filesJson: nil,
+            localStatus: "sending"
+        )
+        
+        let chatMessage = ChatMessage(
+            id: tempId,
+            content: "",
+            senderId: userData.profile.userId,
+            senderName: userData.profile.nick,
+            senderProfileImage: userData.profile.profileImage,
+            createdAt: now,
+            isMine: true,
+            attachment: nil,
+            localStatus: .sending
+        )
+        
+        return OptimisticChatMessage(realmObject: messageObject, chatMessage: chatMessage)
+    }
+    
+    private func createOptimisticRetryMessage(
+        newTempId: String,
+        failedMessage: ChatMessage,
+        userData: ChatUserData
+    ) -> OptimisticChatMessage {
+        let now = Date()
+        let messageObject = ChatMessageObject(
+            chatId: newTempId,
+            roomId: roomId,
+            createdAt: ISO8601DateFormatter().string(from: now),
+            createdAtDate: now,
+            content: failedMessage.content.isEmpty ? nil : failedMessage.content,
+            senderId: userData.profile.userId,
+            senderNick: userData.profile.nick,
+            senderProfileImage: userData.profile.profileImage,
+            filesJson: nil,
+            localStatus: "sending"
+        )
+        
+        let chatMessage = ChatMessage(
+            id: newTempId,
+            content: failedMessage.content,
+            senderId: userData.profile.userId,
+            senderName: userData.profile.nick,
+            senderProfileImage: userData.profile.profileImage,
+            createdAt: now,
+            isMine: true,
+            attachment: failedMessage.attachment,
+            localStatus: .sending
+        )
+        
+        return OptimisticChatMessage(realmObject: messageObject, chatMessage: chatMessage)
+    }
+    
+    private func saveAndDisplayOptimisticMessage(_ optimistic: OptimisticChatMessage) async {
+        do {
+            try await realmService.saveMessage(optimistic.realmObject)
+        } catch {
+            // Realm은 로컬 캐시일 뿐, 전송은 계속 진행
+        }
+        
+        await MainActor.run {
+            state.messages.append(optimistic.chatMessage)
+        }
+    }
+    
+    private func replaceFailedMessage(oldChatId: String, newOptimistic: OptimisticChatMessage) async {
+        do {
+            try await realmService.saveMessage(newOptimistic.realmObject)
+        } catch {
+            // Realm은 로컬 캐시일 뿐, 재전송은 계속 진행
+        }
+        
+        await MainActor.run {
+            state.messages.removeAll(where: { $0.id == oldChatId })
+        }
+        
+        do {
+            try await realmService.deleteMessage(chatId: oldChatId)
+        } catch {
+            // 이전 메시지 삭제 실패는 무시
+        }
+        
+        await MainActor.run {
+            state.messages.append(newOptimistic.chatMessage)
+        }
+    }
+    
+    private func sendTextMessage(tempId: String, text: String, userData: ChatUserData) async {
+        do {
+            let sent = try await sendMessageWithRetry(content: text, files: nil, retryCount: 3)
+            await handleMessageSendSuccess(tempId: tempId, response: sent, userId: userData.userId)
+        } catch {
+            await handleMessageSendFailure(tempId: tempId)
+        }
+    }
+    
+    private func sendImageMessage(tempId: String, imageData: Data, userData: ChatUserData) async {
+        do {
+            let files: [FileData] = [FileData(data: imageData, type: .image)]
+            let uploadResponse = try await chatAPI.uploadFiles(roomId: roomId, files: files)
+            let sent = try await sendMessageWithRetry(content: nil, files: uploadResponse.files, retryCount: 3)
+            await handleImageSendSuccess(tempId: tempId, response: sent, userId: userData.userId)
+        } catch {
+            await handleImageSendFailure(tempId: tempId)
+        }
+    }
+    
+    private func handleMessageSendSuccess(
+        tempId: String,
+        response: ChatMessageResponse,
+        userId: String
+    ) async {
+        do {
+            try await realmService.deleteMessage(chatId: tempId)
+        } catch {
+            // 임시 메시지 삭제 실패는 무시 (다음 로드 시 정리됨)
+        }
+        
+        let actualMessage = ChatMessageObject.from(response: response)
+        do {
+            try await realmService.saveMessage(actualMessage)
+        } catch {
+            // 실제 메시지 저장 실패는 무시 (서버에는 저장됨)
+        }
+        
+        let mapped = ChatMessage(
+            id: response.chatId,
+            content: response.content ?? "",
+            senderId: response.sender.userId,
+            senderName: response.sender.nick,
+            senderProfileImage: response.sender.profileImage,
+            createdAt: parseISO(response.createdAt),
+            isMine: response.sender.userId == userId,
+            attachment: parseAttachment(response.files),
+            localStatus: .synced
+        )
+        
+        await MainActor.run {
+            if let index = state.messages.firstIndex(where: { $0.id == tempId }) {
+                state.messages.remove(at: index)
+                
+                if !state.messages.contains(where: { $0.id == mapped.id }) {
+                    state.messages.append(mapped)
                 }
             }
-            .store(in: &cancellables)
-
-        NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] _ in
-                guard let self = self else { return }
-                if self.isActive {
-                    Task {
-                        try? await self.reconnectIfNeeded()
+        }
+    }
+    
+    private func handleImageSendSuccess(
+        tempId: String,
+        response: ChatMessageResponse,
+        userId: String
+    ) async {
+        await handleMessageSendSuccess(tempId: tempId, response: response, userId: userId)
+        
+        await MainActor.run {
+            state.pendingImageData = nil
+            state.pendingType = .none
+        }
+    }
+    
+    private func handleMessageSendFailure(tempId: String) async {
+        do {
+            try await realmService.updateMessageStatus(chatId: tempId, status: "failed")
+        } catch {
+            // 상태 업데이트 실패 시 UI만 업데이트
+        }
+        
+        await MainActor.run {
+            if let index = state.messages.firstIndex(where: { $0.id == tempId }) {
+                let failedMessage = state.messages[index]
+                state.messages[index] = ChatMessage(
+                    id: failedMessage.id,
+                    content: failedMessage.content,
+                    senderId: failedMessage.senderId,
+                    senderName: failedMessage.senderName,
+                    senderProfileImage: failedMessage.senderProfileImage,
+                    createdAt: failedMessage.createdAt,
+                    isMine: failedMessage.isMine,
+                    attachment: failedMessage.attachment,
+                    localStatus: .failed
+                )
+            }
+        }
+    }
+    
+    private func handleImageSendFailure(tempId: String) async {
+        await handleMessageSendFailure(tempId: tempId)
+        
+        await MainActor.run {
+            state.pendingImageData = nil
+            state.pendingType = .none
+        }
+    }
+    
+    private func sendMessageWithRetry(
+        content: String?,
+        files: [String]?,
+        retryCount: Int
+    ) async throws -> ChatMessageResponse {
+        var lastError: Error?
+        let baseDelay: UInt64 = 500_000_000
+        let maxDelay: UInt64 = 8_000_000_000
+        
+        for attempt in 0..<retryCount {
+            do {
+                return try await chatAPI.sendMessage(roomId: roomId, content: content, files: files)
+            } catch {
+                lastError = error
+                if attempt < retryCount - 1 {
+                    let exponentialDelay = baseDelay * UInt64(pow(2.0, Double(attempt)))
+                    let delay = min(exponentialDelay, maxDelay)
+                    do {
+                        try await Task.sleep(nanoseconds: delay)
+                    } catch {
+                        // Task.sleep 취소는 무시
                     }
                 }
             }
-            .store(in: &cancellables)
+        }
+        
+        throw lastError ?? NetworkError.networkFailure
     }
+}
 
-    private func reconnectIfNeeded() async throws {
-        disconnectSocket()
-        try? await Task.sleep(nanoseconds: 500_000_000)
-        connectSocket()
-        try await syncWithServer()
-    }
+// MARK: - Sync
 
-    private func loadAndConnect() async {
+extension ChatRoomStore {
+    func loadAndConnect() async {
         guard !state.isLoading else { return }
-        await setLoading(true)
-        defer { Task { await setLoading(false) } }
-
-        // 로컬 메시지는 항상 먼저 로드
+        setLoading(true)
+        defer { Task { setLoading(false) } }
+        
         do {
             try await ensureMyUserId()
         } catch {
             // userId 조회 실패해도 로컬 메시지는 로드 시도
         }
-
+        
         await loadLocalMessages()
-
-        // 서버 동기화 시도 (실패해도 로컬 메시지는 표시됨)
+        connectSocket()
+        
         do {
             try await syncWithServer()
-            connectSocket()
             await applyBufferedMessages()
             isSocketReady = true
         } catch {
-            // 네트워크 오류는 배너로만 표시
             await MainActor.run {
-                self.state.isNetworkError = true
+                state.isNetworkError = true
             }
         }
     }
-
-    private func loadLocalMessages() async {
-        // 캐시된 userId 또는 로그인 시 저장된 userId 사용
+    
+    func loadLocalMessages() async {
         let userId = myUserId ?? UserDefaultsManager.shared.userId ?? ""
-
-        // userId가 비어있으면 판단 불가능
         guard !userId.isEmpty else { return }
-
-        let roomIdCopy = roomId
-
-        let messages = await realmService.getMessages(roomId: roomIdCopy, limit: 100, currentUserId: userId)
-
+        
+        let messages = await realmService.getMessages(roomId: roomId, limit: 100, currentUserId: userId)
+        
         for message in messages where message.localStatus == .sending {
-            try? await realmService.updateMessageStatus(chatId: message.id, status: "failed")
+            do {
+                try await realmService.updateMessageStatus(chatId: message.id, status: "failed")
+            } catch {
+                // 상태 업데이트 실패는 무시하고 UI만 업데이트
+            }
         }
-
+        
         let localMessages = messages.map { message in
             if message.localStatus == .sending {
                 return ChatMessage(
@@ -268,44 +553,50 @@ final class ChatRoomStore: ObservableObject {
             }
             return message
         }
-
+        
         await MainActor.run {
-            self.state.messages = localMessages.sorted { $0.createdAt < $1.createdAt }
+            state.messages = localMessages.sorted { $0.createdAt < $1.createdAt }
         }
     }
-
-    private func syncWithServer() async throws {
+    
+    func syncWithServer() async throws {
         let userId = myUserId ?? ""
-        let roomIdCopy = roomId
-
-        let lastMessage = await realmService.getLastMessage(roomId: roomIdCopy)
+        let lastMessage = await realmService.getLastMessage(roomId: roomId)
         let cursorDate = lastMessage?.createdAt
-
+        
         let history = try await chatAPI.getMessages(roomId: roomId, cursorDate: cursorDate)
-
+        
         let messageObjects = history.data.map { ChatMessageObject.from(response: $0) }
-        try? await realmService.saveMessages(messageObjects)
-
-        let allLocalMessages = await realmService.getMessages(roomId: roomIdCopy, limit: 100, currentUserId: userId)
-
+        do {
+            try await realmService.saveMessages(messageObjects)
+        } catch {
+            // Realm 저장 실패는 무시 (메모리 상태는 유지)
+        }
+        
+        let allLocalMessages = await realmService.getMessages(roomId: roomId, limit: 100, currentUserId: userId)
+        
         await MainActor.run {
-            self.state.messages = allLocalMessages.sorted { $0.createdAt < $1.createdAt }
+            state.messages = allLocalMessages.sorted { $0.createdAt < $1.createdAt }
         }
     }
-
-    private func applyBufferedMessages() async {
+    
+    func applyBufferedMessages() async {
         for dto in bufferedMessages {
             await handleRealtimeMessage(dto)
         }
         bufferedMessages.removeAll()
     }
-
-    private func handleRealtimeMessage(_ dto: ChatMessageResponse) async {
+    
+    func handleRealtimeMessage(_ dto: ChatMessageResponse) async {
         let userId = myUserId ?? ""
-
+        
         let messageObject = ChatMessageObject.from(response: dto)
-        try? await realmService.saveMessage(messageObject)
-
+        do {
+            try await realmService.saveMessage(messageObject)
+        } catch {
+            // Realm 저장 실패해도 메모리에는 추가
+        }
+        
         let mapped = ChatMessage(
             id: dto.chatId,
             content: dto.content ?? "",
@@ -317,440 +608,31 @@ final class ChatRoomStore: ObservableObject {
             attachment: parseAttachment(dto.files),
             localStatus: .synced
         )
-
+        
         await MainActor.run {
-            if !self.state.messages.contains(where: { $0.id == mapped.id }) {
-                self.state.messages.append(mapped)
+            if !state.messages.contains(where: { $0.id == mapped.id }) {
+                state.messages.append(mapped)
             }
         }
     }
-
-    private func parseISO(_ string: String) -> Date {
-        let formatter = ISO8601DateFormatter()
-        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        return formatter.date(from: string) ?? Date()
-    }
-
-    private func parseAttachment(_ files: [String]) -> ChatMessage.Attachment? {
-        guard let firstFile = files.first, !firstFile.isEmpty else { return nil }
-        let urlString = "\(NetworkConfig.baseURL)/v1\(firstFile)"
-        guard let url = URL(string: urlString) else { return nil }
-        return .image(url)
-    }
-
-    private func connectSocket() {
-        guard TokenManager.shared.accessToken != nil else {
-            Task { @MainActor in
-                self.state.errorMessage = "인증이 필요합니다."
-            }
-            return
-        }
-        socketService.connect(roomId: roomId)
-    }
-
-    private func disconnectSocket() {
-        socketService.disconnect()
-    }
-
-    private func retryConnection() async {
-        await MainActor.run {
-            state.isNetworkError = false
-        }
-
-        disconnectSocket()
-
-        try? await Task.sleep(nanoseconds: 500_000_000)
-
-        connectSocket()
-
-        do {
-            try await syncWithServer()
-        } catch {
-            await MainActor.run {
-                state.isNetworkError = true
-            }
-        }
-    }
-
-    private func ensureMyUserId() async throws {
-        if myUserId == nil {
-            let me = try await userProfileAPI.getMyProfile()
-            self.myUserId = me.userId
-        }
-    }
-
-    private func sendCurrentMessage() async {
-        let text = state.inputText.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !text.isEmpty else { return }
-        await MainActor.run { state.inputText = "" }
-
-        let tempId = "temp-\(UUID().uuidString)"
-
-        try? await ensureMyUserId()
-        let userId = myUserId ?? ""
-        let me = try? await userProfileAPI.getMyProfile()
-
-        let roomIdCopy = roomId
-
-        let optimisticMessage = ChatMessageObject(
-            chatId: tempId,
-            roomId: roomIdCopy,
-            createdAt: ISO8601DateFormatter().string(from: Date()),
-            createdAtDate: Date(),
-            content: text,
-            senderId: me?.userId ?? userId,
-            senderNick: me?.nick ?? "",
-            senderProfileImage: me?.profileImage,
-            filesJson: nil,
-            localStatus: "sending"
-        )
-
-        try? await realmService.saveMessage(optimisticMessage)
-
-        let optimistic = ChatMessage(
-            id: tempId,
-            content: text,
-            senderId: me?.userId ?? userId,
-            senderName: me?.nick ?? "",
-            senderProfileImage: me?.profileImage,
-            createdAt: Date(),
-            isMine: true,
-            attachment: nil,
-            localStatus: .sending
-        )
-
-        await MainActor.run {
-            self.state.messages.append(optimistic)
-        }
-
-        do {
-            let sent = try await sendMessageWithRetry(content: text, files: nil, retryCount: 3)
-
-            // Realm에서 임시 메시지 삭제
-            try? await realmService.deleteMessage(chatId: tempId)
-
-            // 실제 메시지 저장
-            let actualMessage = ChatMessageObject.from(response: sent)
-            try? await realmService.saveMessage(actualMessage)
-
-            let mapped = ChatMessage(
-                id: sent.chatId,
-                content: sent.content ?? "",
-                senderId: sent.sender.userId,
-                senderName: sent.sender.nick,
-                senderProfileImage: sent.sender.profileImage,
-                createdAt: parseISO(sent.createdAt),
-                isMine: sent.sender.userId == userId,
-                attachment: parseAttachment(sent.files),
-                localStatus: .synced
-            )
-
-            await MainActor.run {
-                if let index = self.state.messages.firstIndex(where: { $0.id == tempId }) {
-                    self.state.messages.remove(at: index)
-                }
-                if !self.state.messages.contains(where: { $0.id == mapped.id }) {
-                    self.state.messages.append(mapped)
-                }
-            }
-        } catch {
-            try? await realmService.updateMessageStatus(chatId: tempId, status: "failed")
-
-            await MainActor.run {
-                if let index = self.state.messages.firstIndex(where: { $0.id == tempId }) {
-                    let failedMessage = self.state.messages[index]
-                    self.state.messages[index] = ChatMessage(
-                        id: failedMessage.id,
-                        content: failedMessage.content,
-                        senderId: failedMessage.senderId,
-                        senderName: failedMessage.senderName,
-                        senderProfileImage: failedMessage.senderProfileImage,
-                        createdAt: failedMessage.createdAt,
-                        isMine: failedMessage.isMine,
-                        attachment: failedMessage.attachment,
-                        localStatus: .failed
-                    )
-                }
-            }
-        }
-    }
-
-    /// 지수 백오프를 적용한 메시지 재전송
-    /// - Parameters:
-    ///   - content: 메시지 내용
-    ///   - files: 첨부 파일 경로 배열
-    ///   - retryCount: 최대 재시도 횟수
-    /// - Returns: 전송된 메시지 응답
-    /// - Throws: 모든 재시도 실패 시 마지막 에러
-    private func sendMessageWithRetry(content: String?, files: [String]?, retryCount: Int) async throws -> ChatMessageResponse {
-        var lastError: Error?
-        let baseDelay: UInt64 = 500_000_000 // 0.5초
-        let maxDelay: UInt64 = 8_000_000_000 // 8초
-
-        for attempt in 0..<retryCount {
-            do {
-                return try await chatAPI.sendMessage(roomId: roomId, content: content, files: files)
-            } catch {
-                lastError = error
-                if attempt < retryCount - 1 {
-                    // 지수 백오프: 0.5초 * 2^attempt (최대 8초)
-                    let exponentialDelay = baseDelay * UInt64(pow(2.0, Double(attempt)))
-                    let delay = min(exponentialDelay, maxDelay)
-                    try? await Task.sleep(nanoseconds: delay)
-                }
-            }
-        }
-
-        throw lastError ?? NetworkError.networkFailure
-    }
-
-    /// 실패한 메시지 삭제
-    /// - Parameter chatId: 삭제할 메시지 ID
-    private func deleteFailedMessage(chatId: String) async {
-        await MainActor.run {
-            self.state.messages.removeAll(where: { $0.id == chatId })
-        }
-
-        // Realm에서도 삭제
-        try? await realmService.deleteMessage(chatId: chatId)
-    }
-
-    private func retryFailedMessage(chatId: String) async {
-        let message = await realmService.getMessage(chatId: chatId)
-
-        guard let message = message else { return }
-        guard message.localStatus == .failed else { return }
-
-        let content = message.content
-        let attachment = message.attachment
-
-        // 기존 실패 메시지 삭제
-        await MainActor.run {
-            self.state.messages.removeAll(where: { $0.id == chatId })
-        }
-
-        // 새로운 tempId로 재전송 메시지 생성 (맨 아래 추가, 새로운 타임스탬프)
-        let newTempId = "temp-\(UUID().uuidString)"
-        let now = Date()
-
-        try? await ensureMyUserId()
-        let userId = myUserId ?? ""
-        let me = try? await userProfileAPI.getMyProfile()
-        let roomIdCopy = roomId
-
-        let optimisticMessage = ChatMessageObject(
-            chatId: newTempId,
-            roomId: roomIdCopy,
-            createdAt: ISO8601DateFormatter().string(from: now),
-            createdAtDate: now,
-            content: content.isEmpty ? nil : content,
-            senderId: me?.userId ?? userId,
-            senderNick: me?.nick ?? "",
-            senderProfileImage: me?.profileImage,
-            filesJson: nil,
-            localStatus: "sending"
-        )
-
-        try? await realmService.saveMessage(optimisticMessage)
-
-        let optimistic = ChatMessage(
-            id: newTempId,
-            content: content,
-            senderId: me?.userId ?? userId,
-            senderName: me?.nick ?? "",
-            senderProfileImage: me?.profileImage,
-            createdAt: now,
-            isMine: true,
-            attachment: attachment,
-            localStatus: .sending
-        )
-
-        await MainActor.run {
-            self.state.messages.append(optimistic)
-        }
-
-        do {
-            let sent = try await sendMessageWithRetry(
-                content: content.isEmpty ? nil : content,
-                files: nil,
-                retryCount: 3
-            )
-
-            // Realm에서 임시 메시지 삭제
-            try? await realmService.deleteMessage(chatId: newTempId)
-
-            // 실제 메시지 저장
-            let actualMessage = ChatMessageObject.from(response: sent)
-            try? await realmService.saveMessage(actualMessage)
-
-            let mapped = ChatMessage(
-                id: sent.chatId,
-                content: sent.content ?? "",
-                senderId: sent.sender.userId,
-                senderName: sent.sender.nick,
-                senderProfileImage: sent.sender.profileImage,
-                createdAt: parseISO(sent.createdAt),
-                isMine: sent.sender.userId == userId,
-                attachment: parseAttachment(sent.files),
-                localStatus: .synced
-            )
-
-            await MainActor.run {
-                // tempId 메시지 삭제하고 실제 메시지 추가
-                self.state.messages.removeAll(where: { $0.id == newTempId })
-                if !self.state.messages.contains(where: { $0.id == mapped.id }) {
-                    self.state.messages.append(mapped)
-                }
-            }
-        } catch {
-            try? await realmService.updateMessageStatus(chatId: newTempId, status: "failed")
-
-            // 재전송 실패 시 failed 상태로 변경
-            await MainActor.run {
-                if let index = self.state.messages.firstIndex(where: { $0.id == newTempId }) {
-                    self.state.messages[index] = ChatMessage(
-                        id: newTempId,
-                        content: content,
-                        senderId: optimistic.senderId,
-                        senderName: optimistic.senderName,
-                        senderProfileImage: optimistic.senderProfileImage,
-                        createdAt: now,
-                        isMine: true,
-                        attachment: attachment,
-                        localStatus: .failed
-                    )
-                }
-            }
-        }
-    }
-
-    private func sendPendingFileIfNeeded() async {
-        await MainActor.run {
-            state.showSendConfirmAlert = false
-        }
-
-        let tempId = "temp-\(UUID().uuidString)"
-
-        switch state.pendingType {
-        case .image:
-            guard let data = state.pendingImageData else { return }
-
-            try? await ensureMyUserId()
-            let userId = myUserId ?? ""
-            let me = try? await userProfileAPI.getMyProfile()
-            let roomIdCopy = roomId
-
-            let optimisticMessage = ChatMessageObject(
-                chatId: tempId,
-                roomId: roomIdCopy,
-                createdAt: ISO8601DateFormatter().string(from: Date()),
-                createdAtDate: Date(),
-                content: nil,
-                senderId: me?.userId ?? userId,
-                senderNick: me?.nick ?? "",
-                senderProfileImage: me?.profileImage,
-                filesJson: nil,
-                localStatus: "sending"
-            )
-
-            try? await realmService.saveMessage(optimisticMessage)
-
-            let optimistic = ChatMessage(
-                id: tempId,
-                content: "",
-                senderId: me?.userId ?? userId,
-                senderName: me?.nick ?? "",
-                senderProfileImage: me?.profileImage,
-                createdAt: Date(),
-                isMine: true,
-                attachment: nil,
-                localStatus: .sending
-            )
-
-            await MainActor.run {
-                self.state.messages.append(optimistic)
-            }
-
-            do {
-                let files: [FileData] = [FileData(data: data, type: .image)]
-                let uploadResponse = try await chatAPI.uploadFiles(roomId: roomId, files: files)
-                let sent = try await sendMessageWithRetry(content: nil, files: uploadResponse.files, retryCount: 3)
-
-                // Realm에서 임시 메시지 삭제
-                try? await realmService.deleteMessage(chatId: tempId)
-
-                // 실제 메시지 저장
-                let messageObject = ChatMessageObject.from(response: sent)
-                try? await realmService.saveMessage(messageObject)
-
-                let mapped = ChatMessage(
-                    id: sent.chatId,
-                    content: sent.content ?? "",
-                    senderId: sent.sender.userId,
-                    senderName: sent.sender.nick,
-                    senderProfileImage: sent.sender.profileImage,
-                    createdAt: parseISO(sent.createdAt),
-                    isMine: sent.sender.userId == userId,
-                    attachment: parseAttachment(sent.files),
-                    localStatus: .synced
-                )
-
-                await MainActor.run {
-                    if let index = self.state.messages.firstIndex(where: { $0.id == tempId }) {
-                        self.state.messages.remove(at: index)
-                    }
-                    if !self.state.messages.contains(where: { $0.id == mapped.id }) {
-                        self.state.messages.append(mapped)
-                    }
-                    self.state.pendingImageData = nil
-                    self.state.pendingType = .none
-                }
-            } catch {
-                try? await realmService.updateMessageStatus(chatId: tempId, status: "failed")
-
-                await MainActor.run {
-                    if let index = self.state.messages.firstIndex(where: { $0.id == tempId }) {
-                        let failedMessage = self.state.messages[index]
-                        self.state.messages[index] = ChatMessage(
-                            id: failedMessage.id,
-                            content: failedMessage.content,
-                            senderId: failedMessage.senderId,
-                            senderName: failedMessage.senderName,
-                            senderProfileImage: failedMessage.senderProfileImage,
-                            createdAt: failedMessage.createdAt,
-                            isMine: failedMessage.isMine,
-                            attachment: failedMessage.attachment,
-                            localStatus: .failed
-                        )
-                    }
-                    self.state.pendingImageData = nil
-                    self.state.pendingType = .none
-                }
-            }
-
-        case .none:
-            return
-        }
-    }
-
-
-    private func loadMoreMessages() async {
+    
+    func loadMoreMessages() async {
         guard !state.isLoadingMore else { return }
         guard state.hasMoreMessages else { return }
         guard let oldestMessage = state.messages.first else { return }
-
+        
         await MainActor.run {
             state.isLoadingMore = true
         }
-
+        
         let userId = myUserId ?? ""
         let formatter = ISO8601DateFormatter()
         formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
         let cursorDate = formatter.string(from: oldestMessage.createdAt)
-
+        
         do {
             let history = try await chatAPI.getMessages(roomId: roomId, cursorDate: cursorDate)
-
+            
             if history.data.isEmpty {
                 await MainActor.run {
                     state.hasMoreMessages = false
@@ -758,10 +640,14 @@ final class ChatRoomStore: ObservableObject {
                 }
                 return
             }
-
+            
             let messageObjects = history.data.map { ChatMessageObject.from(response: $0) }
-            try? await realmService.saveMessages(messageObjects)
-
+            do {
+                try await realmService.saveMessages(messageObjects)
+            } catch {
+                // Realm 저장 실패는 무시
+            }
+            
             let newMessages = history.data.map { dto in
                 ChatMessage(
                     id: dto.chatId,
@@ -775,13 +661,13 @@ final class ChatRoomStore: ObservableObject {
                     localStatus: .synced
                 )
             }
-
+            
             await MainActor.run {
-                let existingIds = Set(self.state.messages.map { $0.id })
+                let existingIds = Set(state.messages.map { $0.id })
                 let uniqueNewMessages = newMessages.filter { !existingIds.contains($0.id) }
-                self.state.messages.insert(contentsOf: uniqueNewMessages, at: 0)
-                self.state.messages.sort { $0.createdAt < $1.createdAt }
-                self.state.isLoadingMore = false
+                state.messages.insert(contentsOf: uniqueNewMessages, at: 0)
+                state.messages.sort { $0.createdAt < $1.createdAt }
+                state.isLoadingMore = false
             }
         } catch {
             await MainActor.run {
@@ -789,19 +675,136 @@ final class ChatRoomStore: ObservableObject {
             }
         }
     }
+}
 
-    @MainActor
-    private func setLoading(_ loading: Bool) {
-        state.isLoading = loading
-        if loading { state.errorMessage = nil }
+// MARK: - Socket
+
+extension ChatRoomStore {
+    func setupSocketObservers() {
+        socketService.isConnected
+            .sink { [weak self] isConnected in
+                Task { @MainActor in
+                    self?.state.isNetworkError = !isConnected
+                }
+            }
+            .store(in: &cancellables)
+        
+        socketService.messageReceived
+            .sink { [weak self] dto in
+                guard let self else { return }
+                
+                if self.isSocketReady {
+                    Task { await self.handleRealtimeMessage(dto) }
+                } else {
+                    self.bufferedMessages.append(dto)
+                }
+            }
+            .store(in: &cancellables)
+    }
+    
+    func setupNetworkMonitoring() {
+        networkMonitor.$isConnected
+            .filter { $0 }
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                guard let self = self else { return }
+                if self.state.isNetworkError {
+                    self.state.isNetworkError = false
+                    Task {
+                        do {
+                            try await self.reconnectIfNeeded()
+                        } catch {
+                            // 재연결 실패는 UI에 이미 반영됨
+                        }
+                    }
+                }
+            }
+            .store(in: &cancellables)
+        
+        networkMonitor.$isConnected
+            .filter { !$0 }
+            .debounce(for: .seconds(3), scheduler: DispatchQueue.main)
+            .sink { [weak self] _ in
+                self?.state.isNetworkError = true
+            }
+            .store(in: &cancellables)
+    }
+    
+    func reconnectIfNeeded() async throws {
+        disconnectSocket()
+        connectSocket()
+        try await syncWithServer()
+    }
+    
+    func connectSocket() {
+        guard TokenManager.shared.accessToken != nil else {
+            Task { @MainActor in
+                self.state.errorMessage = "인증이 필요합니다."
+            }
+            return
+        }
+        socketService.connect(roomId: roomId)
+    }
+    
+    func disconnectSocket() {
+        socketService.disconnect()
+    }
+    
+    func retryConnection() async {
+        await MainActor.run {
+            state.isNetworkError = false
+        }
+
+        disconnectSocket()
+        connectSocket()
+
+        do {
+            try await syncWithServer()
+        } catch {
+            await MainActor.run {
+                state.isNetworkError = true
+            }
+        }
+    }
+}
+
+// MARK: - Helpers
+
+extension ChatRoomStore {
+    func parseISO(_ string: String) -> Date {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return formatter.date(from: string) ?? Date()
+    }
+    
+    func parseAttachment(_ files: [String]) -> ChatMessage.Attachment? {
+        guard let firstFile = files.first, !firstFile.isEmpty else { return nil }
+        let urlString = "\(NetworkConfig.baseURL)/v1\(firstFile)"
+        guard let url = URL(string: urlString) else { return nil }
+        return .image(url)
+    }
+    
+    func ensureMyUserId() async throws {
+        if myUserId == nil {
+            let me = try await userProfileAPI.getMyProfile()
+            self.myUserId = me.userId
+        }
+    }
+    
+    func setLoading(_ loading: Bool) {
+        Task { @MainActor in
+            state.isLoading = loading
+            if loading { state.errorMessage = nil }
+        }
     }
 
-    @MainActor
-    private func setError(_ error: Error) {
-        if let net = error as? NetworkError {
-            state.errorMessage = net.localizedDescription
-        } else {
-            state.errorMessage = error.localizedDescription
+    func setError(_ error: Error) {
+        Task { @MainActor in
+            if let net = error as? NetworkError {
+                state.errorMessage = net.localizedDescription
+            } else {
+                state.errorMessage = error.localizedDescription
+            }
         }
     }
 }

@@ -64,3 +64,10 @@ struct ChatHistoryResponse: Decodable {
 struct ChatFileUploadResponse: Decodable {
     let files: [String]
 }
+
+// MARK: - Chat Helper Types
+
+struct OptimisticChatMessage {
+    let realmObject: ChatMessageObject
+    let chatMessage: ChatMessage
+}

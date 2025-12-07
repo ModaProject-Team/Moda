@@ -12,6 +12,7 @@ struct ChatRoomView: View {
     @StateObject private var store: ChatRoomStore
     @EnvironmentObject var navigator: AppNavigator
     @FocusState private var isInputFocused: Bool
+    @Environment(\.scenePhase) private var scenePhase
 
     // PhotosPicker 선택 항목 상태
     @State private var imageSelection: PhotosPickerItem? = nil
@@ -115,6 +116,18 @@ struct ChatRoomView: View {
                 ImageViewer(url: url) {
                     store.send(.hideImageViewer)
                 }
+            }
+        }
+        .onChange(of: scenePhase) { oldPhase, newPhase in
+            switch newPhase {
+            case .background:
+                store.send(.appDidEnterBackground)
+            case .active:
+                store.send(.appWillEnterForeground)
+            case .inactive:
+                break
+            @unknown default:
+                break
             }
         }
     }

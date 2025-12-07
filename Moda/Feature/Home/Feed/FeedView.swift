@@ -27,6 +27,7 @@ struct FeedView: View {
                     ScrollView(showsIndicators: false) {
                         VStack(spacing: 20) {
                             BannerCarouselView()
+                                .environmentObject(store)
                                 .padding(.top, 8)
 
                             ProductGridView(
@@ -66,6 +67,9 @@ struct FeedView: View {
         }
         .onAppear {
             store.send(.onAppear)
+        }
+        .onDisappear {
+            store.send(.onDisappear)
         }
         .onReceive(NotificationCenter.default.publisher(for: AppNotification.postDeleted)) { _ in
             store.send(.refresh)

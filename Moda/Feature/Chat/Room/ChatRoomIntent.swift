@@ -35,4 +35,7 @@ enum ChatRoomIntent {
     case retryConnection
 
     case loadMoreMessages
+
+    case appDidEnterBackground
+    case appWillEnterForeground
 }

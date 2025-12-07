@@ -10,6 +10,8 @@
 		030D64C42ED5CC3D00AFA941 /* SocketIO in Frameworks */ = {isa = PBXBuildFile; productRef = 030D64C32ED5CC3D00AFA941 /* SocketIO */; };
 		030D64E72ED6D00100AFA941 /* iamport-ios in Frameworks */ = {isa = PBXBuildFile; productRef = 030D64E62ED6D00100AFA941 /* iamport-ios */; };
 		037028BA2EBC8F1F00A4A7CF /* .gitignore in Resources */ = {isa = PBXBuildFile; fileRef = 037028B92EBC8F1700A4A7CF /* .gitignore */; };
+		0393FF652EE45EF600E98E0E /* Yolk in Frameworks */ = {isa = PBXBuildFile; productRef = 0393FF642EE45EF600E98E0E /* Yolk */; };
+		0393FF682EE4624B00E98E0E /* GoogleMobileAds in Frameworks */ = {isa = PBXBuildFile; productRef = 0393FF672EE4624B00E98E0E /* GoogleMobileAds */; };
 		03EA9CC92EDB6039002D5975 /* RealmSwift in Frameworks */ = {isa = PBXBuildFile; productRef = 03EA9CC82EDB6039002D5975 /* RealmSwift */; };
 		03EA9CCA2EDB6041002D5975 /* RealmSwift in Embed Frameworks */ = {isa = PBXBuildFile; productRef = 03EA9CC82EDB6039002D5975 /* RealmSwift */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
 		926291192ED8429B00E6CE69 /* KakaoSDK in Frameworks */ = {isa = PBXBuildFile; productRef = 926291182ED8429B00E6CE69 /* KakaoSDK */; };
@@ -62,9 +64,11 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				0393FF652EE45EF600E98E0E /* Yolk in Frameworks */,
 				030D64E72ED6D00100AFA941 /* iamport-ios in Frameworks */,
 				926291192ED8429B00E6CE69 /* KakaoSDK in Frameworks */,
 				03EA9CC92EDB6039002D5975 /* RealmSwift in Frameworks */,
+				0393FF682EE4624B00E98E0E /* GoogleMobileAds in Frameworks */,
 				9262911D2ED8429B00E6CE69 /* KakaoSDKUser in Frameworks */,
 				030D64C42ED5CC3D00AFA941 /* SocketIO in Frameworks */,
 				9262911B2ED8429B00E6CE69 /* KakaoSDKAuth in Frameworks */,
@@ -118,6 +122,8 @@
 				9262911A2ED8429B00E6CE69 /* KakaoSDKAuth */,
 				9262911C2ED8429B00E6CE69 /* KakaoSDKUser */,
 				03EA9CC82EDB6039002D5975 /* RealmSwift */,
+				0393FF642EE45EF600E98E0E /* Yolk */,
+				0393FF672EE4624B00E98E0E /* GoogleMobileAds */,
 			);
 			productName = Moda;
 			productReference = 037028A92EBC8ED900A4A7CF /* Moda.app */;
@@ -152,6 +158,8 @@
 				030D64E52ED6D00100AFA941 /* XCRemoteSwiftPackageReference "iamport-ios" */,
 				926291172ED8429B00E6CE69 /* XCRemoteSwiftPackageReference "kakao-ios-sdk" */,
 				03EA9CC72EDB6039002D5975 /* XCRemoteSwiftPackageReference "realm-swift" */,
+				0393FF632EE45EF600E98E0E /* XCRemoteSwiftPackageReference "Yolk" */,
+				0393FF662EE4624B00E98E0E /* XCRemoteSwiftPackageReference "swift-package-manager-google-mobile-ads" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 037028AA2EBC8ED900A4A7CF /* Products */;
@@ -424,6 +432,22 @@
 				minimumVersion = 1.4.7;
 			};
 		};
+		0393FF632EE45EF600E98E0E /* XCRemoteSwiftPackageReference "Yolk" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/ge-um/Yolk";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 1.1.0;
+			};
+		};
+		0393FF662EE4624B00E98E0E /* XCRemoteSwiftPackageReference "swift-package-manager-google-mobile-ads" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/googleads/swift-package-manager-google-mobile-ads";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 12.14.0;
+			};
+		};
 		03EA9CC72EDB6039002D5975 /* XCRemoteSwiftPackageReference "realm-swift" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/realm/realm-swift.git";
@@ -452,6 +476,16 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 030D64E52ED6D00100AFA941 /* XCRemoteSwiftPackageReference "iamport-ios" */;
 			productName = "iamport-ios";
+		};
+		0393FF642EE45EF600E98E0E /* Yolk */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 0393FF632EE45EF600E98E0E /* XCRemoteSwiftPackageReference "Yolk" */;
+			productName = Yolk;
+		};
+		0393FF672EE4624B00E98E0E /* GoogleMobileAds */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 0393FF662EE4624B00E98E0E /* XCRemoteSwiftPackageReference "swift-package-manager-google-mobile-ads" */;
+			productName = GoogleMobileAds;
 		};
 		03EA9CC82EDB6039002D5975 /* RealmSwift */ = {
 			isa = XCSwiftPackageProductDependency;

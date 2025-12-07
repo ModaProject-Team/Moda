@@ -6,7 +6,7 @@
 //
 
 import SwiftUI
-import AVKit
+import AVFoundation
 
 struct VideoThumbnailPickerView: View {
     let videoURL: URL
@@ -182,35 +182,34 @@ struct VideoThumbnailPickerView: View {
     }
 
     private func loadVideoDuration() async {
-        let asset = AVAsset(url: videoURL)
         do {
-            let duration = try await asset.load(.duration)
+            let metadata = try await VideoParser.shared.parseMetadata(from: videoURL)
             await MainActor.run {
-                self.videoDuration = duration.seconds
+                self.videoDuration = metadata.duration.seconds
             }
         } catch {
-            print("비디오 길이 로드 실패: \(error)")
+            await MainActor.run {
+                self.videoDuration = 0
+            }
         }
     }
 
     private func generateThumbnail(at time: Double) async {
-        isGenerating = true
-
-        let asset = AVAsset(url: videoURL)
-        let imageGenerator = AVAssetImageGenerator(asset: asset)
-        imageGenerator.appliesPreferredTrackTransform = true
+        await MainActor.run {
+            self.isGenerating = true
+        }
 
         let cmTime = CMTime(seconds: time, preferredTimescale: 600)
 
         do {
-            let cgImage = try imageGenerator.copyCGImage(at: cmTime, actualTime: nil)
+            let thumbnail = try await VideoParser.shared.generateThumbnail(from: videoURL, at: cmTime)
             await MainActor.run {
-                self.thumbnailImage = UIImage(cgImage: cgImage)
+                self.thumbnailImage = thumbnail
                 self.isGenerating = false
             }
         } catch {
-            print("썸네일 생성 실패: \(error)")
             await MainActor.run {
+                self.thumbnailImage = nil
                 self.isGenerating = false
             }
         }

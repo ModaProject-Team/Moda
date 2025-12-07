@@ -22,7 +22,6 @@ struct ProductDetailView: View {
     let postId: String
     @StateObject private var store: ProductDetailStore
     @EnvironmentObject var navigator: AppNavigator
-    @State private var currentImageIndex: Int = 0
     @State private var showPaymentAlert = false
     @State private var paymentMessage = ""
     @State private var currentPayment: IamportPayment?
@@ -192,45 +191,13 @@ struct ProductDetailView: View {
     }
 
     private func mediaSection(post: PostResponse, geometry: GeometryProxy) -> some View {
-        ZStack(alignment: .bottom) {
-            if !post.files.isEmpty {
-                TabView(selection: $currentImageIndex) {
-                    ForEach(Array(post.files.enumerated()), id: \.offset) { index, fileURL in
-                        MediaItemView(
-                            fileURL: fileURL,
-                            geometry: geometry,
-                            onColorExtracted: { _ in },
-                            onVideoTapped: { url in
-                                selectedVideoURL = url
-                            }
-                        )
-                        .tag(index)
-                    }
-                }
-                .tabViewStyle(PageTabViewStyle(indexDisplayMode: .never))
-                .frame(height: geometry.size.height * 0.4)
-
-                if post.files.count > 1 {
-                    HStack(spacing: 6) {
-                        ForEach(0..<post.files.count, id: \.self) { index in
-                            Circle()
-                                .fill(currentImageIndex == index ? Color.blue1 : Color.gray3)
-                                .frame(width: 6, height: 6)
-                        }
-                    }
-                    .padding(.bottom, 16)
-                }
-            } else {
-                Rectangle()
-                    .fill(Color.gray.opacity(0.3))
-                    .frame(height: geometry.size.height * 0.4)
-                    .overlay {
-                        Image(systemName: "photo")
-                            .font(.system(size: 60))
-                            .foregroundColor(.gray)
-                    }
+        MediaSectionView(
+            files: post.files,
+            height: geometry.size.height * 0.4,
+            onVideoTapped: { url in
+                selectedVideoURL = url
             }
-        }
+        )
     }
 
     private func titlePriceSection(post: PostResponse) -> some View {
@@ -730,12 +697,21 @@ struct ProductDetailView: View {
                 if let networkError = error as? NetworkError {
                     switch networkError {
                     case .serverError(let message):
-                        paymentMessage = "결제 검증 실패: \(message)"
+                        // 서버 에러 메시지에 따라 사용자 친화적인 안내 제공
+                        if message.contains("게시글을 찾을 수 없습니다") {
+                            paymentMessage = "상품이 삭제되었습니다.\n결제는 자동으로 취소되며 환불됩니다."
+                        } else if message.contains("검증처리가 완료된 결제건") {
+                            paymentMessage = "이미 구매 완료된 상품입니다."
+                        } else if message.contains("필수값을 채워주세요") {
+                            paymentMessage = "결제 정보가 올바르지 않습니다.\n다시 시도해주세요."
+                        } else {
+                            paymentMessage = "결제 검증에 실패했습니다.\n\(message)\n\n결제는 자동으로 취소되며 환불됩니다."
+                        }
                     default:
-                        paymentMessage = "결제 검증 중 오류가 발생했습니다."
+                        paymentMessage = "결제 검증 중 오류가 발생했습니다.\n잠시 후 다시 시도해주세요."
                     }
                 } else {
-                    paymentMessage = "결제 검증 중 오류가 발생했습니다."
+                    paymentMessage = "결제 검증 중 오류가 발생했습니다.\n잠시 후 다시 시도해주세요."
                 }
                 showPaymentAlert = true
             }
@@ -749,83 +725,99 @@ struct VideoURLWrapper: Identifiable {
     let url: URL
 }
 
-struct MediaItemView: View {
+struct MediaSectionView: View {
+    let files: [String]
+    let height: CGFloat
+    let onVideoTapped: (URL) -> Void
+
+    @State private var currentImageIndex = 0
+
+    var body: some View {
+        ZStack(alignment: .bottom) {
+            if !files.isEmpty {
+                TabView(selection: $currentImageIndex) {
+                    ForEach(Array(files.enumerated()), id: \.offset) { index, fileURL in
+                        MediaItemContent(
+                            fileURL: fileURL,
+                            height: height,
+                            onVideoTapped: onVideoTapped
+                        )
+                        .tag(index)
+                    }
+                }
+                .tabViewStyle(PageTabViewStyle(indexDisplayMode: .never))
+                .frame(height: height)
+
+                if files.count > 1 {
+                    HStack(spacing: 6) {
+                        ForEach(0..<files.count, id: \.self) { index in
+                            Circle()
+                                .fill(currentImageIndex == index ? Color.blue1 : Color.gray3)
+                                .frame(width: 6, height: 6)
+                        }
+                    }
+                    .padding(.bottom, 16)
+                }
+            } else {
+                Rectangle()
+                    .fill(Color.gray.opacity(0.3))
+                    .frame(height: height)
+                    .overlay {
+                        Image(systemName: "photo")
+                            .font(.system(size: 60))
+                            .foregroundColor(.gray)
+                    }
+            }
+        }
+    }
+}
+
+struct MediaItemContent: View {
     let fileURL: String
-    let geometry: GeometryProxy
-    let onColorExtracted: (Color) -> Void
+    let height: CGFloat
     let onVideoTapped: (URL) -> Void
 
     var body: some View {
-        let isVideo = fileURL.isVideoFile
-        let fullURL = "\(NetworkConfig.baseURL)/v1\(fileURL)"
+        GeometryReader { geometry in
+            let isVideo = fileURL.isVideoFile
+            let fullURL = "\(NetworkConfig.baseURL)/v1\(fileURL)"
 
-        ZStack {
-            if isVideo {
-                MediaImageView(
-                    mediaURL: fileURL,
-                    contentMode: .fill
-                )
-                .frame(width: geometry.size.width, height: geometry.size.height * 0.4)
-                .clipped()
-            } else {
-                CachedImageView(
-                    url: URL(string: fullURL),
-                    targetSize: CGSize(width: geometry.size.width, height: geometry.size.height * 0.4),
-                    contentMode: .fill,
-                    placeholder: {
-                        AnyView(
-                            Rectangle()
-                                .fill(Color.gray.opacity(0.3))
-                        )
-                    }
-                )
-                .frame(width: geometry.size.width, height: geometry.size.height * 0.4)
-                .clipped()
-            }
+            ZStack {
+                if isVideo {
+                    MediaImageView(
+                        mediaURL: fileURL,
+                        contentMode: .fill
+                    )
+                    .frame(width: geometry.size.width, height: height)
+                    .clipped()
+                } else {
+                    CachedImageView(
+                        url: URL(string: fullURL),
+                        targetSize: CGSize(width: geometry.size.width, height: height),
+                        contentMode: .fill,
+                        placeholder: {
+                            AnyView(
+                                Rectangle()
+                                    .fill(Color.gray.opacity(0.3))
+                            )
+                        }
+                    )
+                    .frame(width: geometry.size.width, height: height)
+                    .clipped()
+                }
 
-            if isVideo {
-                PlayButton {
-                    if let url = URL(string: fullURL) {
-                        onVideoTapped(url)
+                if isVideo {
+                    PlayButton {
+                        if let url = URL(string: fullURL) {
+                            onVideoTapped(url)
+                        }
                     }
                 }
             }
         }
     }
-
-    private func extractColor(from image: UIImage) {
-        DispatchQueue.global(qos: .userInitiated).async {
-            guard let cgImage = image.cgImage else { return }
-
-            let width = 1
-            let height = 1
-            let bitmapInfo = CGImageAlphaInfo.premultipliedLast.rawValue
-
-            guard let context = CGContext(
-                data: nil,
-                width: width,
-                height: height,
-                bitsPerComponent: 8,
-                bytesPerRow: width * 4,
-                space: CGColorSpaceCreateDeviceRGB(),
-                bitmapInfo: bitmapInfo
-            ) else { return }
-
-            context.draw(cgImage, in: CGRect(x: 0, y: 0, width: width, height: height))
-
-            guard let data = context.data else { return }
-            let pointer = data.bindMemory(to: UInt8.self, capacity: 4)
-
-            let r = CGFloat(pointer[0]) / 255.0
-            let g = CGFloat(pointer[1]) / 255.0
-            let b = CGFloat(pointer[2]) / 255.0
-
-            DispatchQueue.main.async {
-                onColorExtracted(Color(red: r, green: g, blue: b))
-            }
-        }
-    }
 }
+
 
 struct CommentPreviewRow: View {
     let comment: Comment

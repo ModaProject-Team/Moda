@@ -5,12 +5,14 @@
 //  Created by 금가경 on 11/25/25.
 //
 
+import Yolk
 import SwiftUI
 import AVKit
 
 struct VideoPlayerView: View {
     let url: URL
     let itemWidth: CGFloat
+    let customScheme: String
 
     @StateObject private var playerManager = VideoPlayerManager()
 
@@ -28,14 +30,11 @@ struct VideoPlayerView: View {
                     .shimmer()
             }
         }
-        .onAppear {
-            playerManager.setupPlayer(url: url)
+        .task(id: url) {
+            await playerManager.setupPlayer(url: url, customScheme: customScheme)
         }
         .onDisappear {
-            playerManager.cleanup()
-            Task {
-                await VideoCacheManager.shared.cancelVideoDownload(for: url)
-            }
+            playerManager.pause()
         }
     }
 }
@@ -80,55 +79,71 @@ final class VideoPlayerUIView: UIView {
     }
 }
 
+@MainActor
 final class VideoPlayerManager: ObservableObject {
     @Published var player: AVPlayer?
     @Published var videoAspectRatio: CGFloat?
 
-    private var statusObserver: NSKeyValueObservation?
-    private var resourceLoader: AuthenticatedResourceLoader?
-    private let cacheManager = VideoCacheManager.shared
-    private var currentURL: URL?
+    nonisolated(unsafe) private var statusObserver: NSKeyValueObservation?
+    nonisolated(unsafe) private var resourceLoader: AuthenticatedResourceLoader?
+    private let cacheService = CacheService.video
+    nonisolated(unsafe) private var currentURL: URL?
 
-    func setupPlayer(url: URL) {
+    func setupPlayer(url: URL, customScheme: String) async {
+        // 이미 같은 URL로 설정되어 있으면 재생만 재개
+        if currentURL == url, player != nil {
+            player?.play()
+            return
+        }
+
         currentURL = url
 
+        // ✅ 캐시된 메타데이터 먼저 확인하여 즉시 aspectRatio 설정
+        if let metadata = await cacheService.getVideoMetadata(for: url) {
+            self.videoAspectRatio = metadata.aspectRatio
+        } else {
+            // 캐시된 메타데이터가 없으면 기본값 설정
+            self.videoAspectRatio = 1.0
+        }
+
         // 캐시된 동영상이 있으면 로컬 파일 재생
-        if let cachedURL = cacheManager.getCachedVideo(for: url) {
-            Task {
-                await setupPlayerWithURL(cachedURL)
-            }
+        if let cachedURL = await cacheService.getCachedVideo(for: url) {
+            await setupPlayerWithURL(cachedURL)
             return
         }
 
         // 캐시가 없으면 206 스트리밍 + 백그라운드 다운로드
-        Task {
-            await setupStreamingPlayer(url: url)
-        }
+        await setupStreamingPlayer(url: url, customScheme: customScheme)
 
         // 백그라운드에서 전체 동영상 다운로드 (캐싱용)
         Task(priority: .low) {
             do {
-                _ = try await cacheManager.cacheVideo(from: url)
+                _ = try await cacheService.cacheVideo(from: url)
             } catch {
-                // 백그라운드 다운로드 실패는 무시
             }
         }
     }
 
-    @MainActor
-    private func setupStreamingPlayer(url: URL) async {
-        // Custom scheme으로 변환 (https -> moda-video)
+    private func setupStreamingPlayer(url: URL, customScheme: String) async {
         guard var components = URLComponents(url: url, resolvingAgainstBaseURL: false) else {
             return
         }
-        components.scheme = "moda-video"
+        components.scheme = customScheme
 
         guard let streamingURL = components.url else {
             return
         }
 
-        // ResourceLoader 설정
-        let loader = AuthenticatedResourceLoader()
+        // Moda 프로젝트 헤더 추가를 위한 modifier
+        let modifier = AnyModifier { request in
+            var r = request
+            r.setValue(NetworkConfig.sesacKey, forHTTPHeaderField: "SesacKey")
+            r.setValue(NetworkConfig.productId, forHTTPHeaderField: "ProductId")
+            r.setValue(TokenManager.shared.accessToken ?? "", forHTTPHeaderField: "Authorization")
+            return r
+        }
+
+        let loader = AuthenticatedResourceLoader(customScheme: customScheme, modifier: modifier)
         self.resourceLoader = loader
 
         let asset = AVURLAsset(url: streamingURL)
@@ -136,14 +151,13 @@ final class VideoPlayerManager: ObservableObject {
 
         let playerItem = AVPlayerItem(asset: asset)
 
-        // 기본 종횡비로 플레이어 먼저 설정 (shimmer 즉시 제거)
-        self.videoAspectRatio = 1.0
+        // aspectRatio는 이미 setupPlayer에서 설정됨 (캐시된 메타데이터 또는 기본값)
         self.player = AVPlayer(playerItem: playerItem)
         self.player?.isMuted = true
         self.player?.automaticallyWaitsToMinimizeStalling = false
 
         self.statusObserver = playerItem.observe(\.status, options: [.new, .initial]) { [weak self] item, _ in
-            DispatchQueue.main.async {
+            Task { @MainActor in
                 if item.status == .readyToPlay {
                     self?.player?.play()
                 }
@@ -155,8 +169,10 @@ final class VideoPlayerManager: ObservableObject {
             object: playerItem,
             queue: .main
         ) { [weak self] _ in
-            self?.player?.seek(to: .zero)
-            self?.player?.play()
+            Task { @MainActor in
+                self?.player?.seek(to: .zero)
+                self?.player?.play()
+            }
         }
 
         // 백그라운드에서 실제 종횡비 로드 후 업데이트
@@ -181,9 +197,7 @@ final class VideoPlayerManager: ObservableObject {
                         videoHeight = size.height
                     }
 
-                    await MainActor.run {
-                        self.videoAspectRatio = videoWidth / videoHeight
-                    }
+                    self.videoAspectRatio = videoWidth / videoHeight
                 }
             } catch {
                 // 실제 종횡비 로드 실패 시 기본값(1.0) 유지
@@ -191,19 +205,17 @@ final class VideoPlayerManager: ObservableObject {
         }
     }
 
-    @MainActor
     private func setupPlayerWithURL(_ url: URL) async {
         let asset = AVURLAsset(url: url)
         let playerItem = AVPlayerItem(asset: asset)
 
-        // 기본 종횡비로 플레이어 먼저 설정 (shimmer 즉시 제거)
-        self.videoAspectRatio = 1.0
+        // aspectRatio는 이미 setupPlayer에서 설정됨 (캐시된 메타데이터 또는 기본값)
         self.player = AVPlayer(playerItem: playerItem)
         self.player?.isMuted = true
         self.player?.automaticallyWaitsToMinimizeStalling = false
 
         self.statusObserver = playerItem.observe(\.status, options: [.new, .initial]) { [weak self] item, _ in
-            DispatchQueue.main.async {
+            Task { @MainActor in
                 if item.status == .readyToPlay {
                     self?.player?.play()
                 }
@@ -215,8 +227,10 @@ final class VideoPlayerManager: ObservableObject {
             object: playerItem,
             queue: .main
         ) { [weak self] _ in
-            self?.player?.seek(to: .zero)
-            self?.player?.play()
+            Task { @MainActor in
+                self?.player?.seek(to: .zero)
+                self?.player?.play()
+            }
         }
 
         // 백그라운드에서 실제 종횡비 로드 후 업데이트
@@ -241,9 +255,7 @@ final class VideoPlayerManager: ObservableObject {
                         videoHeight = size.height
                     }
 
-                    await MainActor.run {
-                        self.videoAspectRatio = videoWidth / videoHeight
-                    }
+                    self.videoAspectRatio = videoWidth / videoHeight
                 }
             } catch {
                 // 실제 종횡비 로드 실패 시 기본값(1.0) 유지
@@ -251,14 +263,23 @@ final class VideoPlayerManager: ObservableObject {
         }
     }
 
-    func cleanup() {
+    func pause() {
+        player?.pause()
+    }
+
+    nonisolated func cleanup() {
         statusObserver?.invalidate()
         statusObserver = nil
         NotificationCenter.default.removeObserver(self)
-        player?.pause()
-        player = nil
         resourceLoader?.cancelAllRequests()
         resourceLoader = nil
+        currentURL = nil
+
+        // player는 @Published이므로 MainActor에서 정리
+        Task { @MainActor [weak self] in
+            self?.player?.pause()
+            self?.player = nil
+        }
     }
 
     deinit {

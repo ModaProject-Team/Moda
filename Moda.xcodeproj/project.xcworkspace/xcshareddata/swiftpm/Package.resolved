@@ -1,5 +1,5 @@
 {
-  "originHash" : "757583ce1e0eb0b3b32b421bf8bc07020b9444831812e5a77dd82e4ecae82e1d",
+  "originHash" : "41c8d63cf06aed2e853568312fc71e57ec693725039f513a09ca77addc4e3b3d",
   "pins" : [
     {
       "identity" : "alamofire",
@@ -74,12 +74,39 @@
       }
     },
     {
+      "identity" : "swift-package-manager-google-mobile-ads",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/googleads/swift-package-manager-google-mobile-ads",
+      "state" : {
+        "revision" : "1239c23464503053c17d37ee5daa70de3455e9c8",
+        "version" : "12.14.0"
+      }
+    },
+    {
+      "identity" : "swift-package-manager-google-user-messaging-platform",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/googleads/swift-package-manager-google-user-messaging-platform.git",
+      "state" : {
+        "revision" : "13b248eaa73b7826f0efb1bcf455e251d65ecb1b",
+        "version" : "3.1.0"
+      }
+    },
+    {
       "identity" : "then",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/devxoul/Then.git",
       "state" : {
         "revision" : "e421a7b3440a271834337694e6050133a3958bc7",
         "version" : "2.7.0"
+      }
+    },
+    {
+      "identity" : "yolk",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/ge-um/Yolk",
+      "state" : {
+        "revision" : "70a814c6881eebd8499113bd232ba1c254051e59",
+        "version" : "1.1.0"
       }
     }
   ],

@@ -10,6 +10,7 @@ import CoreLocation
 
 enum FeedIntent {
     case onAppear
+    case onDisappear
     case loadMore
     case refresh
     case selectCategory(String)
@@ -18,4 +19,6 @@ enum FeedIntent {
     case updateLocation(CLLocationCoordinate2D)
     case search(String)
     case clearSearch
+
+    case adMobInitialized
 }
