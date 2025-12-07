@@ -31,6 +31,9 @@ struct ProductDetailView: View {
     @State private var commentPreview: [Comment] = []
     @State private var totalCommentCount = 0
     @State private var mutualFriendIds: Set<String> = []
+    @State private var isPaymentInProgress = false
+    @State private var showPriceValidationAlert = false
+    @State private var priceValidationMessage = ""
 
     init(postId: String) {
         self.postId = postId
@@ -104,6 +107,11 @@ struct ProductDetailView: View {
             Button("확인", role: .cancel) { }
         } message: {
             Text(paymentMessage)
+        }
+        .alert("결제 불가", isPresented: $showPriceValidationAlert) {
+            Button("확인", role: .cancel) { }
+        } message: {
+            Text(priceValidationMessage)
         }
         .fullScreenCover(item: $currentPayment) { payment in
             IamportWebView(
@@ -547,7 +555,9 @@ struct ProductDetailView: View {
                             Image(systemName: "creditcard.fill")
                                 .font(.system(size: 16))
                                 .foregroundColor(.white)
+                                .opacity(isPaymentInProgress ? 0.5 : 1.0)
                         }
+                        .disabled(isPaymentInProgress)
                     }
 
                     Button {
@@ -643,22 +653,66 @@ struct ProductDetailView: View {
     private func startPayment(post: PostResponse) {
         guard let price = post.price, price > 0 else { return }
 
-        let merchantUid = "ios_\(postId)_\(Int(Date().timeIntervalSince1970 * 1000))"
+        // 중복 결제 방지
+        guard !isPaymentInProgress else { return }
 
-        currentPayment = IamportPayment(
-            pg: PG.html5_inicis.makePgRawName(pgId: "INIpayTest"),
-            merchant_uid: merchantUid,
-            amount: "\(price)"
-        ).then {
-            $0.pay_method = PayMethod.card.rawValue
-            $0.name = post.title
-            $0.buyer_name = "장수지"
-            $0.app_scheme = "moda"
+        isPaymentInProgress = true
+
+        // 결제 전 서버에서 상품 정보 재조회 및 금액 검증
+        Task {
+            do {
+                let serverPost = try await PostAPI.shared.getPost(postId: postId)
+
+                // 1. 이미 판매 완료된 상품인지 확인
+                guard serverPost.buyers.isEmpty else {
+                    await MainActor.run {
+                        isPaymentInProgress = false
+                        priceValidationMessage = "이미 판매 완료된 상품입니다.\n다른 상품을 확인해주세요."
+                        showPriceValidationAlert = true
+                    }
+                    return
+                }
+
+                // 2. 서버의 실제 가격과 클라이언트 가격 비교
+                guard let serverPrice = serverPost.price, serverPrice == price else {
+                    await MainActor.run {
+                        isPaymentInProgress = false
+                        priceValidationMessage = "상품 금액이 변경되었습니다.\n페이지를 새로고침 후 다시 시도해주세요."
+                        showPriceValidationAlert = true
+                        // 상품 정보 다시 로드
+                        store.send(.loadPost)
+                    }
+                    return
+                }
+
+                // 3. 검증 통과 - 결제 진행
+                await MainActor.run {
+                    let merchantUid = "ios_\(postId)_\(Int(Date().timeIntervalSince1970 * 1000))"
+
+                    currentPayment = IamportPayment(
+                        pg: PG.html5_inicis.makePgRawName(pgId: "INIpayTest"),
+                        merchant_uid: merchantUid,
+                        amount: "\(serverPrice)"
+                    ).then {
+                        $0.pay_method = PayMethod.card.rawValue
+                        $0.name = serverPost.title
+                        $0.buyer_name = "장수지"
+                        $0.app_scheme = "moda"
+                    }
+                }
+            } catch {
+                await MainActor.run {
+                    isPaymentInProgress = false
+                    priceValidationMessage = "상품 정보를 확인할 수 없습니다.\n잠시 후 다시 시도해주세요."
+                    showPriceValidationAlert = true
+                }
+            }
         }
     }
 
     private func handlePaymentResponse(_ response: IamportResponse?) {
         guard let response = response else {
+            isPaymentInProgress = false
             paymentMessage = "결제 응답을 받지 못했습니다."
             showPaymentAlert = true
             return
@@ -669,6 +723,7 @@ struct ProductDetailView: View {
                 await validatePayment(impUid: impUid)
             }
         } else {
+            isPaymentInProgress = false
             paymentMessage = "결제가 취소되었습니다."
             showPaymentAlert = true
         }
@@ -682,6 +737,7 @@ struct ProductDetailView: View {
             )
 
             await MainActor.run {
+                isPaymentInProgress = false
                 store.send(.loadPost)
                 NotificationCenter.default.post(name: AppNotification.postPaymentCompleted, object: nil)
             }
@@ -694,6 +750,8 @@ struct ProductDetailView: View {
             }
         } catch {
             await MainActor.run {
+                isPaymentInProgress = false
+
                 if let networkError = error as? NetworkError {
                     switch networkError {
                     case .serverError(let message):
@@ -704,6 +762,8 @@ struct ProductDetailView: View {
                             paymentMessage = "이미 구매 완료된 상품입니다."
                         } else if message.contains("필수값을 채워주세요") {
                             paymentMessage = "결제 정보가 올바르지 않습니다.\n다시 시도해주세요."
+                        } else if message.contains("금액") || message.contains("price") || message.contains("amount") {
+                            paymentMessage = "결제 금액 검증에 실패했습니다.\n\n보안상의 이유로 결제가 차단되었습니다.\n결제는 자동으로 취소되며 환불됩니다.\n\n문제가 지속되면 고객센터로 문의해주세요."
                         } else {
                             paymentMessage = "결제 검증에 실패했습니다.\n\(message)\n\n결제는 자동으로 취소되며 환불됩니다."
                         }
