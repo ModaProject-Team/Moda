@@ -79,21 +79,20 @@ final class VideoPlayerUIView: UIView {
     }
 }
 
+@MainActor
 final class VideoPlayerManager: ObservableObject {
     @Published var player: AVPlayer?
     @Published var videoAspectRatio: CGFloat?
 
-    private var statusObserver: NSKeyValueObservation?
-    private var resourceLoader: AuthenticatedResourceLoader?
+    nonisolated(unsafe) private var statusObserver: NSKeyValueObservation?
+    nonisolated(unsafe) private var resourceLoader: AuthenticatedResourceLoader?
     private let cacheService = CacheService.video
-    private var currentURL: URL?
+    nonisolated(unsafe) private var currentURL: URL?
 
     func setupPlayer(url: URL, customScheme: String) async {
         // 이미 같은 URL로 설정되어 있으면 재생만 재개
         if currentURL == url, player != nil {
-            await MainActor.run {
-                player?.play()
-            }
+            player?.play()
             return
         }
 
@@ -101,14 +100,10 @@ final class VideoPlayerManager: ObservableObject {
 
         // ✅ 캐시된 메타데이터 먼저 확인하여 즉시 aspectRatio 설정
         if let metadata = await cacheService.getVideoMetadata(for: url) {
-            await MainActor.run {
-                self.videoAspectRatio = metadata.aspectRatio
-            }
+            self.videoAspectRatio = metadata.aspectRatio
         } else {
             // 캐시된 메타데이터가 없으면 기본값 설정
-            await MainActor.run {
-                self.videoAspectRatio = 1.0
-            }
+            self.videoAspectRatio = 1.0
         }
 
         // 캐시된 동영상이 있으면 로컬 파일 재생
@@ -129,7 +124,6 @@ final class VideoPlayerManager: ObservableObject {
         }
     }
 
-    @MainActor
     private func setupStreamingPlayer(url: URL, customScheme: String) async {
         guard var components = URLComponents(url: url, resolvingAgainstBaseURL: false) else {
             return
@@ -163,7 +157,7 @@ final class VideoPlayerManager: ObservableObject {
         self.player?.automaticallyWaitsToMinimizeStalling = false
 
         self.statusObserver = playerItem.observe(\.status, options: [.new, .initial]) { [weak self] item, _ in
-            DispatchQueue.main.async {
+            Task { @MainActor in
                 if item.status == .readyToPlay {
                     self?.player?.play()
                 }
@@ -175,8 +169,10 @@ final class VideoPlayerManager: ObservableObject {
             object: playerItem,
             queue: .main
         ) { [weak self] _ in
-            self?.player?.seek(to: .zero)
-            self?.player?.play()
+            Task { @MainActor in
+                self?.player?.seek(to: .zero)
+                self?.player?.play()
+            }
         }
 
         // 백그라운드에서 실제 종횡비 로드 후 업데이트
@@ -201,9 +197,7 @@ final class VideoPlayerManager: ObservableObject {
                         videoHeight = size.height
                     }
 
-                    await MainActor.run {
-                        self.videoAspectRatio = videoWidth / videoHeight
-                    }
+                    self.videoAspectRatio = videoWidth / videoHeight
                 }
             } catch {
                 // 실제 종횡비 로드 실패 시 기본값(1.0) 유지
@@ -211,7 +205,6 @@ final class VideoPlayerManager: ObservableObject {
         }
     }
 
-    @MainActor
     private func setupPlayerWithURL(_ url: URL) async {
         let asset = AVURLAsset(url: url)
         let playerItem = AVPlayerItem(asset: asset)
@@ -222,7 +215,7 @@ final class VideoPlayerManager: ObservableObject {
         self.player?.automaticallyWaitsToMinimizeStalling = false
 
         self.statusObserver = playerItem.observe(\.status, options: [.new, .initial]) { [weak self] item, _ in
-            DispatchQueue.main.async {
+            Task { @MainActor in
                 if item.status == .readyToPlay {
                     self?.player?.play()
                 }
@@ -234,8 +227,10 @@ final class VideoPlayerManager: ObservableObject {
             object: playerItem,
             queue: .main
         ) { [weak self] _ in
-            self?.player?.seek(to: .zero)
-            self?.player?.play()
+            Task { @MainActor in
+                self?.player?.seek(to: .zero)
+                self?.player?.play()
+            }
         }
 
         // 백그라운드에서 실제 종횡비 로드 후 업데이트
@@ -260,9 +255,7 @@ final class VideoPlayerManager: ObservableObject {
                         videoHeight = size.height
                     }
 
-                    await MainActor.run {
-                        self.videoAspectRatio = videoWidth / videoHeight
-                    }
+                    self.videoAspectRatio = videoWidth / videoHeight
                 }
             } catch {
                 // 실제 종횡비 로드 실패 시 기본값(1.0) 유지
@@ -274,15 +267,19 @@ final class VideoPlayerManager: ObservableObject {
         player?.pause()
     }
 
-    func cleanup() {
+    nonisolated func cleanup() {
         statusObserver?.invalidate()
         statusObserver = nil
         NotificationCenter.default.removeObserver(self)
-        player?.pause()
-        player = nil
         resourceLoader?.cancelAllRequests()
         resourceLoader = nil
         currentURL = nil
+
+        // player는 @Published이므로 MainActor에서 정리
+        Task { @MainActor [weak self] in
+            self?.player?.pause()
+            self?.player = nil
+        }
     }
 
     deinit {
