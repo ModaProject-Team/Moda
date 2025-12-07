@@ -48,19 +48,17 @@ struct AdMobBannerView: UIViewRepresentable {
         func bannerViewDidReceiveAd(_ bannerView: BannerView) {
             onAdLoaded()
         }
-
+        
         func bannerView(_ bannerView: BannerView, didFailToReceiveAdWithError error: Error) {
             let adError: AdMobError
-            if let gadError = error as? NSError {
-                switch gadError.code {
-                case 2:
-                    adError = .networkError
-                case 3:
-                    adError = .noInventory
-                default:
-                    adError = .loadFailed(message: error.localizedDescription)
-                }
-            } else {
+            let gadError = error as NSError
+            
+            switch gadError.code {
+            case 2:
+                adError = .networkError
+            case 3:
+                adError = .noInventory
+            default:
                 adError = .loadFailed(message: error.localizedDescription)
             }
             onAdFailedToLoad(adError)
