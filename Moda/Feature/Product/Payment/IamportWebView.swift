@@ -16,7 +16,6 @@ struct IamportWebView: View {
 
     @State private var webViewStatus: WebViewStatus = .loading
     @State private var showAppInstallAlert = false
-    @State private var showTimeoutAlert = false
     @State private var showErrorAlert = false
     @State private var errorMessage = ""
 
@@ -29,9 +28,6 @@ struct IamportWebView: View {
             onAppInstallRequired: {
                 showAppInstallAlert = true
             },
-            onTimeout: {
-                showTimeoutAlert = true
-            },
             onError: { message in
                 errorMessage = message
                 showErrorAlert = true
@@ -41,13 +37,6 @@ struct IamportWebView: View {
             Button("확인", role: .cancel) { }
         } message: {
             Text("결제를 위해서는 해당 앱 설치가 필요합니다.\n다른 결제 수단을 선택해주세요.")
-        }
-        .alert("결제 시간 초과", isPresented: $showTimeoutAlert) {
-            Button("확인", role: .cancel) {
-                completion(nil)
-            }
-        } message: {
-            Text("결제 처리 시간이 초과되었습니다.\n다시 시도해주세요.")
         }
         .alert("결제 오류", isPresented: $showErrorAlert) {
             Button("확인", role: .cancel) {
@@ -65,7 +54,6 @@ struct WebViewRepresentable: UIViewRepresentable {
     let completion: (IamportResponse?) -> Void
     @Binding var webViewStatus: WebViewStatus
     let onAppInstallRequired: () -> Void
-    let onTimeout: () -> Void
     let onError: (String) -> Void
 
     func makeUIView(context: Context) -> WKWebView {
@@ -81,9 +69,6 @@ struct WebViewRepresentable: UIViewRepresentable {
         if !context.coordinator.hasStartedPayment {
             context.coordinator.hasStartedPayment = true
 
-            // 타임아웃 타이머 시작
-            context.coordinator.startTimeoutTimer()
-
             // 결제 시작
             Iamport.shared.paymentWebView(
                 webViewMode: webView,
@@ -91,7 +76,6 @@ struct WebViewRepresentable: UIViewRepresentable {
                 payment: payment
             ) { response in
                 DispatchQueue.main.async {
-                    context.coordinator.cancelTimeoutTimer()
                     webViewStatus = .ready
                     completion(response)
                 }
@@ -103,7 +87,6 @@ struct WebViewRepresentable: UIViewRepresentable {
         Coordinator(
             webViewStatus: $webViewStatus,
             onAppInstallRequired: onAppInstallRequired,
-            onTimeout: onTimeout,
             onError: onError
         )
     }
@@ -112,45 +95,16 @@ struct WebViewRepresentable: UIViewRepresentable {
         @Binding var webViewStatus: WebViewStatus
         var hasStartedPayment = false
         let onAppInstallRequired: () -> Void
-        let onTimeout: () -> Void
         let onError: (String) -> Void
-
-        private var timeoutTimer: Timer?
 
         init(
             webViewStatus: Binding<WebViewStatus>,
             onAppInstallRequired: @escaping () -> Void,
-            onTimeout: @escaping () -> Void,
             onError: @escaping (String) -> Void
         ) {
             self._webViewStatus = webViewStatus
             self.onAppInstallRequired = onAppInstallRequired
-            self.onTimeout = onTimeout
             self.onError = onError
-        }
-
-        deinit {
-            cancelTimeoutTimer()
-        }
-
-        /// 타임아웃 타이머 시작
-        func startTimeoutTimer() {
-            cancelTimeoutTimer()
-
-            timeoutTimer = Timer.scheduledTimer(withTimeInterval: WebViewConfig.timeout, repeats: false) { [weak self] _ in
-                guard let self = self else { return }
-
-                DispatchQueue.main.async {
-                    self.webViewStatus = .timeout
-                    self.onTimeout()
-                }
-            }
-        }
-
-        /// 타임아웃 타이머 취소
-        func cancelTimeoutTimer() {
-            timeoutTimer?.invalidate()
-            timeoutTimer = nil
         }
 
         /// URL 이동 전 처리: 카드사 앱 실행 or 앱스토어 이동
@@ -204,8 +158,6 @@ struct WebViewRepresentable: UIViewRepresentable {
         }
 
         func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
-            cancelTimeoutTimer()
-
             let nsError = error as NSError
 
             // 사용자가 취소한 경우 무시
