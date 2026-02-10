@@ -18,6 +18,8 @@ struct VideoThumbnailPickerView: View {
     @State private var thumbnailImage: UIImage?
     @State private var videoDuration: Double = 0
     @State private var isGenerating = false
+    @State private var timelineThumbnails: [UIImage] = []
+    @State private var isLoadingTimeline = false
 
     init(videoURL: URL, initialTime: Double = 0, onConfirm: @escaping (Double) -> Void) {
         self.videoURL = videoURL
@@ -46,9 +48,11 @@ struct VideoThumbnailPickerView: View {
 
                 Spacer()
             }
+            .ignoresSafeArea(edges: .bottom)
         }
         .task {
             await loadVideoDuration()
+            await loadTimelineThumbnails()
             await generateThumbnail(at: selectedTime)
         }
     }
@@ -128,6 +132,32 @@ struct VideoThumbnailPickerView: View {
         }
     }
 
+    private var timelineThumbnailsView: some View {
+        Group {
+            if isLoadingTimeline {
+                Color.gray5
+                    .overlay {
+                        ProgressView()
+                            .tint(.blue1)
+                    }
+            } else if !timelineThumbnails.isEmpty {
+                GeometryReader { geometry in
+                    HStack(spacing: 0) {
+                        ForEach(Array(timelineThumbnails.enumerated()), id: \.offset) { _, thumbnail in
+                            Image(uiImage: thumbnail)
+                                .resizable()
+                                .aspectRatio(contentMode: .fill)
+                                .frame(width: geometry.size.width / CGFloat(timelineThumbnails.count))
+                                .clipped()
+                        }
+                    }
+                }
+            } else {
+                Color.gray5
+            }
+        }
+    }
+
     private var timelineSection: some View {
         VStack(spacing: 16) {
             HStack {
@@ -144,13 +174,48 @@ struct VideoThumbnailPickerView: View {
 
             if videoDuration > 0 {
                 VStack(spacing: 12) {
-                    Slider(value: $selectedTime, in: 0...videoDuration, step: 0.1)
-                        .tint(.blue1)
-                        .onChange(of: selectedTime) { _, newValue in
-                            Task {
-                                await generateThumbnail(at: newValue)
-                            }
+                    // 타임라인 + 슬라이더
+                    GeometryReader { geometry in
+                        ZStack(alignment: .leading) {
+                            // 타임라인 썸네일 백그라운드
+                            timelineThumbnailsView
+                                .clipShape(RoundedRectangle(cornerRadius: 8))
+
+                            // 선택 인디케이터 (세로 직선)
+                            let progress = videoDuration > 0 ? selectedTime / videoDuration : 0
+                            let xPosition = geometry.size.width * progress
+
+                            Rectangle()
+                                .fill(Color.blue1)
+                                .frame(width: 3)
+                                .shadow(color: .black.opacity(0.3), radius: 2, x: 0, y: 0)
+                                .offset(x: xPosition - 1.5)
+                                .allowsHitTesting(false)
+
+                            // 투명 드래그 영역
+                            Color.clear
+                                .contentShape(Rectangle())
+                                .gesture(
+                                    DragGesture(minimumDistance: 0)
+                                        .onChanged { value in
+                                            let newProgress = max(0, min(1, value.location.x / geometry.size.width))
+                                            let newTime = newProgress * videoDuration
+                                            selectedTime = newTime
+                                            Task {
+                                                await generateThumbnail(at: newTime)
+                                            }
+                                        }
+                                        .onEnded { value in
+                                            let newProgress = max(0, min(1, value.location.x / geometry.size.width))
+                                            let newTime = newProgress * videoDuration
+                                            Task {
+                                                await generateThumbnail(at: newTime)
+                                            }
+                                        }
+                                )
                         }
+                    }
+                    .frame(height: 60)
 
                     HStack {
                         Text("0:00")
@@ -219,5 +284,28 @@ struct VideoThumbnailPickerView: View {
         let minutes = Int(seconds) / 60
         let remainingSeconds = Int(seconds) % 60
         return String(format: "%d:%02d", minutes, remainingSeconds)
+    }
+
+    private func loadTimelineThumbnails() async {
+        await MainActor.run {
+            self.isLoadingTimeline = true
+        }
+
+        do {
+            let thumbnails = try await VideoParser.shared.generateThumbnails(
+                from: videoURL,
+                count: 12,
+                size: CGSize(width: 100, height: 100)
+            )
+            await MainActor.run {
+                self.timelineThumbnails = thumbnails
+                self.isLoadingTimeline = false
+            }
+        } catch {
+            await MainActor.run {
+                self.timelineThumbnails = []
+                self.isLoadingTimeline = false
+            }
+        }
     }
 }

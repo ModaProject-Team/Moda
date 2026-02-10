@@ -171,25 +171,6 @@ struct WebViewRepresentable: UIViewRepresentable {
                 decisionHandler(.allow)
                 return
             }
-
-            // 카드사 앱/간편결제 URLScheme 처리
-            if UIApplication.shared.canOpenURL(url) {
-                // 앱이 설치되어 있으면 실행
-                UIApplication.shared.open(url, options: [:])
-                decisionHandler(.cancel)
-            } else {
-                // 앱 미설치: 앱스토어로 이동 또는 Alert 표시
-                if urlString.contains("itms-apps") || urlString.hasPrefix("itms-apps://") {
-                    // 앱스토어 URL이면 바로 실행
-                    UIApplication.shared.open(url, options: [:])
-                } else {
-                    // 일반 URLScheme이면 사용자에게 Alert 표시
-                    DispatchQueue.main.async {
-                        self.onAppInstallRequired()
-                    }
-                }
-                decisionHandler(.cancel)
-            }
         }
 
         func webView(_ webView: WKWebView, didStartProvisionalNavigation navigation: WKNavigation!) {

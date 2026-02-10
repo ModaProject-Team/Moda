@@ -8,7 +8,7 @@
 import Foundation
 import CoreLocation
 
-struct PostAnnotation: Identifiable {
+ struct PostAnnotation: Identifiable {
     let id: String
     let title: String
     let media: String  // 대표 이미지 URL

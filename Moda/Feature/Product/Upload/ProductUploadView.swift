@@ -81,7 +81,7 @@ struct ProductUploadView: View {
         } message: {
             Text(store.state.uploadError ?? "")
         }
-        .sheet(isPresented: Binding(
+        .fullScreenCover(isPresented: Binding(
             get: { store.state.showThumbnailPicker && !store.state.showLocationSelection },
             set: { if !$0 { store.send(.dismissThumbnailPicker) }}
         )) {

@@ -328,6 +328,7 @@
 				INFOPLIST_FILE = Moda/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "모다";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "지도에서 현재 위치를 표시하기 위해 위치 권한이 필요합니다.";
+				INFOPLIST_KEY_NSUserTrackingUsageDescription = "광고 개인화를 위해 추적 권한이 필요합니다";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -368,6 +369,7 @@
 				INFOPLIST_FILE = Moda/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "모다";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "지도에서 현재 위치를 표시하기 위해 위치 권한이 필요합니다.";
+				INFOPLIST_KEY_NSUserTrackingUsageDescription = "광고 개인화를 위해 추적 권한이 필요합니다";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
